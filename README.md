@@ -12,9 +12,9 @@ Mở PowerShell trong thư mục dự án:
 
 Truy cập **http://localhost:8080**. Dừng bằng `Ctrl+C` tại terminal đang chạy.
 
-JDK 21 và Maven đã được chuẩn bị trong `.tools`, không thay Java mặc định của Windows. Nếu máy chặn chạy file `.ps1`, có thể mở dự án bằng IntelliJ IDEA, chọn JDK 21 và chạy `MocApplication`.
+JDK 25 và Maven đã được chuẩn bị trong `.tools`, không thay Java mặc định của Windows. Nếu máy chặn chạy file `.ps1`, có thể mở dự án bằng IntelliJ IDEA, chọn JDK 25 và chạy `MocApplication`.
 
-Trên máy Windows khác: chạy `./setup.ps1` một lần để tải JDK và Maven chính thức, có kiểm tra checksum, sau đó `./run.ps1`. Cần kết nối Internet cho lần tải dependency đầu tiên. Hoặc dùng JDK 21 và Maven cài sẵn: `mvn spring-boot:run`.
+Trên máy Windows khác: chạy `./setup.ps1` một lần để tải JDK và Maven chính thức, có kiểm tra checksum, sau đó `./run.ps1`. Cần kết nối Internet cho lần tải dependency đầu tiên. Hoặc dùng JDK 25 và Maven cài sẵn: `mvn spring-boot:run`.
 
 ## Tài khoản trải nghiệm
 
@@ -117,7 +117,7 @@ src/test/                      Kiểm thử nghiệp vụ, phân quyền và ren
 docs/                          Đặc tả và sơ đồ để phát triển báo cáo
 ```
 
-Stack: Java 21, Spring Boot 4.0.5, Spring MVC, Thymeleaf, Spring Security, Spring JDBC, H2, JUnit 5. Dự án có chủ đích dùng SQL rõ ràng để dễ hiểu quan hệ giữa đối tượng và bảng; chưa dùng ORM/JPA.
+Stack: Java 25, Spring Boot 4.0.5, Spring MVC, Thymeleaf, Spring Security, Spring JDBC, H2, JUnit 5. Dự án có chủ đích dùng SQL rõ ràng để dễ hiểu quan hệ giữa đối tượng và bảng; chưa dùng ORM/JPA.
 
 ## Kiểm thử và đóng gói
 
@@ -126,7 +126,7 @@ Stack: Java 21, Spring Boot 4.0.5, Spring MVC, Thymeleaf, Spring Security, Sprin
 .\run.ps1 -Package
 ```
 
-JAR sau đóng gói: `target/moc-restaurant-0.1.0.jar`. Chạy bằng `java -jar ...` với **JDK 21**, không dùng Java 8 mặc định trên máy.
+JAR sau đóng gói: `target/moc-restaurant-0.1.0.jar`. Chạy bằng `java -jar ...` với **JDK 25**, không dùng Java 8 mặc định trên máy.
 
 Test dùng database trong bộ nhớ riêng, không xóa dữ liệu demo. Bao gồm biên 3 giờ/2 giờ, giao dịch đồng thời, ghép bàn, thời gian dọn bàn, cọc lưu theo lượt đặt, dữ liệu món, callback trễ/lặp/sai tiền, đăng nhập, CSRF, phân quyền và template.
 
