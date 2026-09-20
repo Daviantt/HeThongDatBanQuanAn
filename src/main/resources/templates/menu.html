@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{fragments :: head('Thực đơn')}"></head>
+  <body>
+    <header th:replace="~{fragments :: header}"></header>
+    <main class="shell page">
+      <div class="page-heading">
+        <p class="eyebrow">MÙI VỊ THÂN QUEN</p>
+        <h1>Từ bếp Mộc, với thương.</h1>
+        <p>Món Việt giản dị, dành cho những bữa ăn cùng nhau.</p>
+      </div>
+      <div class="filter-bar" aria-label="Lọc thực đơn">
+        <button class="chip active" data-filter="all">Tất cả món</button
+        ><button class="chip" data-filter="Khai vị">Khai vị</button
+        ><button class="chip" data-filter="Món chính">Món chính</button
+        ><button class="chip" data-filter="Tráng miệng">Tráng miệng</button
+        ><button class="chip" data-filter="Đồ uống">Đồ uống</button>
+      </div>
+      <div class="dish-grid">
+        <div
+          th:each="dish : ${dishes}"
+          th:attr="data-category=${dish.category}"
+        >
+          <article th:replace="~{fragments :: dish(${dish})}"></article>
+        </div>
+      </div>
+      <div class="center section">
+        <a href="/book" class="button">Đặt bàn &amp; chọn trước món ↗</a>
+      </div>
+    </main>
+    <footer th:replace="~{fragments :: footer}"></footer>
+  </body>
+</html>

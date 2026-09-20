@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{fragments :: head('Chọn bàn của bạn')}"></head>
+  <body>
+    <header th:replace="~{fragments :: header}"></header>
+    <main class="shell page" id="booking-app">
+      <div class="page-heading">
+        <p class="eyebrow">MỘT CUỘC HẸN ĐANG ĐẾN</p>
+        <h1>Chọn góc ngồi của bạn.</h1>
+        <p>Bạn chọn người đi cùng. Mộc chuẩn bị phần còn lại.</p>
+      </div>
+      <div class="booking-layout">
+        <div class="booking-main">
+          <section class="panel">
+            <div class="step-title">
+              <span>01</span>
+              <div>
+                <h2>Mình hẹn nhau khi nào?</h2>
+                <p>Chọn thời gian dùng bàn và số người tham dự.</p>
+              </div>
+            </div>
+            <form id="availability-form" class="search-form">
+              <label
+                >Ngày đến<input
+                  id="visit-date"
+                  type="date"
+                  required
+                  th:value="${now.toLocalDate().plusDays(1)}"
+                  th:min="${now.toLocalDate()}"
+                  th:max="${now.toLocalDate().plusDays(60)}" /></label
+              ><label
+                >Giờ đến<input
+                  id="start-time"
+                  type="time"
+                  value="18:00"
+                  required /></label
+              ><label
+                >Giờ kết thúc<input
+                  id="end-time"
+                  type="time"
+                  value="20:00"
+                  required /></label
+              ><label
+                >Số khách<select id="guests">
+                  <option
+                    th:each="n : ${#numbers.sequence(1,12)}"
+                    th:value="${n}"
+                    th:text="|${n} người|"
+                    th:selected="${n == 2}"
+                  ></option></select></label
+              ><button class="button" type="submit">
+                Tìm bàn trống <span>↗</span>
+              </button>
+            </form>
+            <p
+              class="helper"
+              th:text="|Phục vụ ${settings.openHour}:00–${settings.closeHour}:00 · Tối đa 4 người/bàn · Nhóm từ 5 người được gợi ý ghép bàn.|"
+            ></p>
+          </section>
+          <section class="panel map-panel">
+            <div class="step-title">
+              <span>02</span>
+              <div>
+                <h2>Một góc thật vừa ý</h2>
+                <p id="map-caption">Chọn thời gian để xem các bàn còn trống.</p>
+              </div>
+            </div>
+            <div class="map-legend">
+              <span><i class="legend-dot"></i>Còn trống</span
+              ><span><i class="legend-dot selected"></i>Đang chọn</span
+              ><span><i class="legend-dot busy"></i>Không khả dụng</span>
+            </div>
+            <div id="map-placeholder" class="empty-state">
+              <span class="empty-icon">⌑</span>
+              <h3>Mộc đang chờ cuộc hẹn của bạn</h3>
+              <p>Nhấn “Tìm bàn trống” để bắt đầu chọn chỗ ngồi.</p>
+            </div>
+            <div id="floor-plan" class="floor-plan" hidden>
+              <span class="window-label">CỬA SỔ · ÁNH SÁNG TỰ NHIÊN</span>
+              <div class="table-grid" id="table-grid"></div>
+              <div class="map-bottom">
+                <span>♧ SÂN VƯỜN</span><span class="entrance">LỐI VÀO ↑</span
+                ><span>QUẦY ĐÓN KHÁCH</span>
+              </div>
+            </div>
+            <div id="combination-options" class="combination-options"></div>
+            <div
+              class="notice error"
+              id="availability-error"
+              role="alert"
+              hidden
+            ></div>
+          </section>
+          <section class="panel">
+            <div class="step-title">
+              <span>03</span>
+              <div>
+                <h2>Chọn trước vài món ngon</h2>
+                <p>Không bắt buộc. Bếp chuẩn bị món sau khi bạn nhận bàn.</p>
+              </div>
+              <span class="badge muted">Tùy chọn</span>
+            </div>
+            <details class="menu-picker">
+              <summary>Xem thực đơn &amp; chọn món <span>＋</span></summary>
+              <div class="preorder-grid">
+                <div class="preorder-item" th:each="dish : ${dishes}">
+                  <div>
+                    <h3 th:text="${dish.name}"></h3>
+                    <p th:text="${@fmt.money(dish.price)}"></p>
+                  </div>
+                  <div class="quantity">
+                    <button
+                      type="button"
+                      data-quantity="-1"
+                      th:attr="aria-label=|Bớt ${dish.name}|"
+                    >
+                      −</button
+                    ><input
+                      type="number"
+                      min="0"
+                      max="20"
+                      value="0"
+                      th:attr="data-dish-id=${dish.id},data-price=${dish.price},aria-label=|Số lượng ${dish.name}|"
+                      class="dish-quantity"
+                    /><button
+                      type="button"
+                      data-quantity="1"
+                      th:attr="aria-label=|Thêm ${dish.name}|"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </details>
+            <label class="notes-label"
+              >Ghi chú cho quán<textarea
+                id="booking-notes"
+                maxlength="500"
+                rows="3"
+                placeholder="Ví dụ: Có trẻ nhỏ, dị ứng thực phẩm hoặc một dịp đặc biệt…"
+              ></textarea>
+            </label>
+          </section>
+        </div>
+        <aside class="booking-summary panel">
+          <p class="eyebrow">CUỘC HẸN CỦA BẠN</p>
+          <h2>Hẹn nhau ở Mộc.</h2>
+          <div class="summary-table-icon">⌑</div>
+          <h3 id="selected-label">Chưa chọn bàn</h3>
+          <p id="selected-capacity" class="muted-text">
+            Một chỗ ngồi thật vừa ý đang đợi bạn.
+          </p>
+          <dl class="summary-lines">
+            <div>
+              <dt>Ngày &amp; giờ</dt>
+              <dd id="summary-time">—</dd>
+            </div>
+            <div>
+              <dt>Số khách</dt>
+              <dd id="summary-guests">—</dd>
+            </div>
+            <div>
+              <dt>Món đặt trước</dt>
+              <dd id="summary-food">0 ₫</dd>
+            </div>
+          </dl>
+          <div class="deposit-line">
+            <span>Cọc giữ bàn</span><strong id="summary-deposit">—</strong>
+          </div>
+          <p class="helper">
+            Cọc tính theo số bàn. Tiền món thanh toán tại quán; cọc được đối trừ
+            khi tính hóa đơn.
+          </p>
+          <div class="policy-note">
+            <strong>Đổi kế hoạch? Mộc hiểu.</strong>
+            <p>
+              Hoàn toàn bộ cọc khi hủy trước giờ đến ít nhất <b>3 tiếng</b>. Sửa
+              món trước ít nhất <b>2 tiếng</b>.
+            </p>
+          </div>
+          <p class="notice warning" id="late-warning" hidden>
+            Lượt đặt này còn dưới 3 tiếng đến giờ ăn. Nếu bạn hủy, tiền cọc sẽ
+            không được hoàn.
+          </p>
+          <label class="checkbox-label"
+            ><input type="checkbox" id="accept-policy" />Tôi đã đọc điều kiện
+            đặt và hủy bàn.</label
+          ><button id="create-booking" class="button full" disabled>
+            Giữ bàn &amp; đặt cọc <span>→</span>
+          </button>
+          <p
+            class="helper center"
+            th:text="|Giữ bàn tối đa ${settings.holdMinutes} phút để thanh toán.|"
+          ></p>
+          <div
+            class="notice error"
+            id="booking-error"
+            role="alert"
+            hidden
+          ></div>
+        </aside>
+      </div>
+    </main>
+    <footer th:replace="~{fragments :: footer}"></footer>
+    <script src="/js/booking.js" defer></script>
+  </body>
+</html>

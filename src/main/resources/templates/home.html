@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head
+    th:replace="~{fragments :: head('Một bữa ngon, một chỗ ngồi thân quen')}"
+  ></head>
+  <body>
+    <header th:replace="~{fragments :: header}"></header>
+    <main>
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow"><span class="tiny-line"></span> HẸN NHAU Ở MỘC</p>
+          <h1>Bữa cơm ngon.<br />Chuyện trò <em>trọn vẹn.</em></h1>
+          <p class="hero-description">
+            Chọn một góc ngồi yêu thích, đặt trước vài món quen.<br />Mộc giữ
+            bàn, bạn mang theo những người thương.
+          </p>
+          <div class="hero-actions">
+            <a class="button" href="/book">Chọn bàn của bạn <span>↗</span></a
+            ><a class="underlined" href="/menu">Khám phá thực đơn</a>
+          </div>
+          <div class="hero-note">
+            <span class="round-icon">✳</span
+            ><span>Từ 1 đến 12 người<br /><b>Có chỗ cho mọi cuộc hẹn.</b></span>
+          </div>
+        </div>
+        <div class="hero-visual" aria-hidden="true">
+          <span class="visual-caption">CHẬM MỘT CHÚT · NGON THÊM CHÚT</span>
+          <div class="food-disc"><img src="/images/dish.svg" alt="" /></div>
+          <div class="chopstick one"></div>
+          <div class="chopstick two"></div>
+          <div class="floating-note">
+            <span>Để Mộc lo</span><strong>một bữa thật ngon.</strong
+            ><span class="scribble">↶</span>
+          </div>
+          <span class="visual-bottom">MÓN VIỆT · VỊ NHÀ</span>
+        </div>
+      </section>
+      <section class="values-strip">
+        <div>
+          <span>01</span>
+          <p>
+            <strong>Chọn đúng góc mình thích</strong>Nhìn sơ đồ, chọn bàn ngay.
+          </p>
+        </div>
+        <div>
+          <span>02</span>
+          <p>
+            <strong>Đông vui, ngồi gần nhau</strong>Ghép bàn cho nhóm đến 12
+            người.
+          </p>
+        </div>
+        <div>
+          <span>03</span>
+          <p>
+            <strong>Hẹn trước, an tâm hơn</strong>Hoàn cọc khi hủy trước ít nhất
+            3 tiếng.
+          </p>
+        </div>
+      </section>
+      <section class="section shell">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">TỪ CĂN BẾP NHỎ</p>
+            <h2>Món quen, nhớ lâu.</h2>
+          </div>
+          <a href="/menu" class="underlined">Xem cả thực đơn ↗</a>
+        </div>
+        <div class="dish-grid">
+          <th:block th:each="dish : ${dishes}"
+            ><article th:replace="~{fragments :: dish(${dish})}"></article
+          ></th:block>
+        </div>
+      </section>
+      <section class="invitation shell">
+        <span class="eyebrow">BẠN CHỌN NGÀY, MỘC GIỮ CHỖ</span>
+        <h2>Bữa hẹn tiếp theo<br />bắt đầu từ đây.</h2>
+        <a class="button light" href="/book"
+          >Đặt một chiếc bàn <span>↗</span></a
+        >
+        <p>
+          Mở cửa mỗi ngày ·
+          <span
+            th:text="|${settings.openHour}:00 – ${settings.closeHour}:00|"
+          ></span>
+        </p>
+      </section>
+    </main>
+    <footer th:replace="~{fragments :: footer}"></footer>
+  </body>
+</html>

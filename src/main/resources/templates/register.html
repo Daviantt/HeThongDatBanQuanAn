@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{fragments :: head('Tạo tài khoản')}"></head>
+  <body>
+    <header th:replace="~{fragments :: header}"></header>
+    <main class="shell auth-layout">
+      <div class="auth-story">
+        <p class="eyebrow">LẦN ĐẦU GHÉ MỘC?</p>
+        <h1>Bắt đầu bằng<br />một lời <em>chào.</em></h1>
+        <p>
+          Một tài khoản cho những lần gặp gỡ, những món ngon và những góc ngồi
+          quen.
+        </p>
+        <img src="/images/dish.svg" alt="Minh họa bữa ăn" />
+      </div>
+      <section class="auth-card">
+        <h2>Tạo tài khoản</h2>
+        <p>Để Mộc chuẩn bị cho cuộc hẹn của bạn.</p>
+        <div
+          class="notice error"
+          th:if="${formError}"
+          th:text="${formError}"
+          role="alert"
+        ></div>
+        <form th:action="@{/register}" method="post" class="form-stack">
+          <label
+            >Họ và tên<input
+              name="fullName"
+              autocomplete="name"
+              required
+              minlength="2"
+              maxlength="100"
+              th:value="${fullName}"
+              placeholder="Nguyễn Minh An" /></label
+          ><label
+            >Số điện thoại<input
+              name="phone"
+              type="tel"
+              autocomplete="tel"
+              required
+              pattern="\+?[0-9]{9,14}"
+              th:value="${phone}"
+              placeholder="0901234567" /></label
+          ><label
+            >Email<input
+              name="email"
+              type="email"
+              autocomplete="email"
+              required
+              maxlength="180"
+              th:value="${email}"
+              placeholder="ban@email.com" /></label
+          ><label
+            >Mật khẩu<input
+              name="password"
+              type="password"
+              autocomplete="new-password"
+              required
+              minlength="8"
+              maxlength="72"
+              placeholder="Ít nhất 8 ký tự" /></label
+          ><button class="button full" type="submit">
+            Tạo tài khoản <span>→</span>
+          </button>
+        </form>
+        <p class="auth-bottom">
+          Đã có tài khoản? <a href="/login">Đăng nhập</a>
+        </p>
+      </section>
+    </main>
+    <footer th:replace="~{fragments :: footer}"></footer>
+  </body>
+</html>

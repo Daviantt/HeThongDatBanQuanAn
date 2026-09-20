@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head th:fragment="head(title)">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#334b3f" />
+    <meta name="_csrf" th:content="${_csrf.token}" />
+    <meta name="_csrf_header" th:content="${_csrf.headerName}" />
+    <title th:text="${title} + ' · Mộc'">Mộc</title>
+    <link rel="stylesheet" href="/css/site.css" />
+    <script src="/js/site.js" defer></script>
+  </head>
+  <body>
+    <header th:fragment="header" class="site-header">
+      <a href="/" class="brand" aria-label="Mộc, trang chủ"
+        ><span class="brand-symbol">m</span
+        ><span>mộc<span class="brand-sub">BẾP NHÀ · CHUYỆN MÌNH</span></span></a
+      >
+      <nav aria-label="Điều hướng chính">
+        <a href="/menu">Thực đơn</a><a href="/book">Đặt bàn</a
+        ><a th:if="${currentUser != null}" href="/bookings">Lịch hẹn của tôi</a
+        ><a th:if="${isStaff}" href="/staff">Vận hành</a
+        ><a th:if="${isAdmin}" href="/admin">Quản lý</a>
+      </nav>
+      <div class="header-account">
+        <a
+          th:if="${currentUser == null}"
+          class="button small outline"
+          href="/login"
+          >Đăng nhập <span>↗</span></a
+        ><th:block th:if="${currentUser != null}"
+          ><span class="user-name" th:text="${currentUser.fullName}"></span>
+          <form th:action="@{/logout}" method="post">
+            <button class="text-button" type="submit">Đăng xuất</button>
+          </form></th:block
+        >
+      </div>
+    </header>
+    <div th:fragment="flash">
+      <div
+        th:if="${success}"
+        class="notice success"
+        role="status"
+        th:text="${success}"
+      ></div>
+    </div>
+    <footer th:fragment="footer" class="site-footer">
+      <a class="footer-brand" href="/">mộc.</a>
+      <p>Một chiếc bàn. Một bữa ngon. Một câu chuyện mới.</p>
+      <span
+        >Giờ phục vụ
+        <b
+          th:text="|${settings.openHour}:00 – ${settings.closeHour}:00|"
+        ></b></span
+      ><small th:if="${demo}"
+        >Bản trải nghiệm đồ án · Thanh toán demo không thu tiền thật</small
+      >
+    </footer>
+    <article th:fragment="dish(dish)" class="dish-card">
+      <div class="dish-art" th:classappend="${dish.illustration}">
+        <img src="/images/dish.svg" alt="Minh họa món ăn" loading="lazy" /><span
+          class="dish-category"
+          th:text="${dish.category}"
+        ></span>
+      </div>
+      <div class="dish-body">
+        <div class="row">
+          <h3 th:text="${dish.name}"></h3>
+          <strong th:text="${@fmt.money(dish.price)}"></strong>
+        </div>
+        <p th:text="${dish.description}"></p>
+        <span th:unless="${dish.available}" class="badge muted"
+          >Tạm hết món</span
+        >
+      </div>
+    </article>
+  </body>
+</html>

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{fragments :: head('Kết quả thanh toán')}"></head>
+  <body>
+    <header th:replace="~{fragments :: header}"></header>
+    <main class="shell page">
+      <section class="panel empty-state">
+        <span class="empty-icon">↗</span>
+        <h1
+          th:text="${verified ? 'Đã trở về từ cổng thanh toán.' : 'Chưa xác minh được kết quả.'}"
+        ></h1>
+        <p th:if="${verified}">
+          Trạng thái lượt đặt được cập nhật khi Mộc nhận xác nhận trực tiếp từ
+          VNPAY.<br />Vui lòng mở lịch hẹn để kiểm tra kết quả mới nhất.
+        </p>
+        <p th:unless="${verified}">
+          Dữ liệu thanh toán không hợp lệ. Hãy kiểm tra lượt đặt hoặc liên hệ
+          quán.
+        </p>
+        <a href="/bookings" class="button">Xem lịch hẹn →</a>
+      </section>
+    </main>
+    <footer th:replace="~{fragments :: footer}"></footer>
+  </body>
+</html>

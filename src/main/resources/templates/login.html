@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{fragments :: head('Đăng nhập')}"></head>
+  <body>
+    <header th:replace="~{fragments :: header}"></header>
+    <main class="auth-layout shell">
+      <div class="auth-story">
+        <p class="eyebrow">MỪNG BẠN TRỞ LẠI</p>
+        <h1>Có một chỗ ngồi<br />đang <em>đợi bạn.</em></h1>
+        <p>Đăng nhập để đặt bàn và theo dõi những cuộc hẹn tại Mộc.</p>
+        <img src="/images/dish.svg" alt="Minh họa bữa cơm tại Mộc" />
+      </div>
+      <section class="auth-card">
+        <h2>Đăng nhập</h2>
+        <p>Hẹn nhau một bữa thật ngon.</p>
+        <div class="notice error" th:if="${param.error}" role="alert">
+          Email hoặc mật khẩu chưa đúng.
+        </div>
+        <div class="notice success" th:if="${param.registered}">
+          Tạo tài khoản thành công. Bạn có thể đăng nhập.
+        </div>
+        <form th:action="@{/login}" method="post" class="form-stack">
+          <label
+            >Email<input
+              type="email"
+              name="email"
+              placeholder="ban@email.com"
+              autocomplete="username"
+              required
+              maxlength="180" /></label
+          ><label
+            >Mật khẩu<input
+              type="password"
+              name="password"
+              placeholder="Nhập mật khẩu của bạn"
+              autocomplete="current-password"
+              required /></label
+          ><button class="button full" type="submit">
+            Đăng nhập <span>→</span>
+          </button>
+        </form>
+        <p class="auth-bottom">
+          Chưa có tài khoản? <a href="/register">Đăng ký ngay</a>
+        </p>
+        <details class="demo-credentials" th:if="${demo}">
+          <summary>Tài khoản trải nghiệm đồ án</summary>
+          <p>
+            Khách: <b>khach@moc.local</b><br />Nhân viên:
+            <b>nhanvien@moc.local</b><br />Quản lý: <b>admin@moc.local</b
+            ><br />Mật khẩu chung: <b>MocDemo123!</b>
+          </p>
+        </details>
+      </section>
+    </main>
+    <footer th:replace="~{fragments :: footer}"></footer>
+  </body>
+</html>

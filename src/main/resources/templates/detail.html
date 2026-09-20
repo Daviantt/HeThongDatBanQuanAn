@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{fragments :: head('Chi tiết cuộc hẹn')}"></head>
+  <body>
+    <header th:replace="~{fragments :: header}"></header>
+    <main class="shell page">
+      <a class="back-link" th:href="${isStaff ? '/staff' : '/bookings'}"
+        >← Quay lại danh sách</a
+      >
+      <div class="page-heading">
+        <p class="eyebrow" th:text="${booking.code()}"></p>
+        <h1>Cuộc hẹn ở Mộc.</h1>
+        <span
+          class="badge"
+          th:classappend="${booking.status.name()}"
+          th:text="${booking.status.label}"
+        ></span>
+      </div>
+      <div th:replace="~{fragments :: flash}"></div>
+      <div class="detail-layout">
+        <div>
+          <section class="panel">
+            <div class="section-heading">
+              <h2 th:text="${booking.tablesLabel()}"></h2>
+              <span th:text="|${booking.guests} người|"></span>
+            </div>
+            <dl class="detail-info">
+              <div>
+                <dt>Giờ đến</dt>
+                <dd th:text="${@fmt.date(booking.startAt)}"></dd>
+              </div>
+              <div>
+                <dt>Giờ kết thúc</dt>
+                <dd th:text="${@fmt.date(booking.endAt)}"></dd>
+              </div>
+              <div>
+                <dt>Khách đặt</dt>
+                <dd th:text="${booking.customerName}"></dd>
+              </div>
+              <div>
+                <dt>Điện thoại</dt>
+                <dd th:text="${booking.customerPhone}"></dd>
+              </div>
+            </dl>
+            <div th:if="${!booking.notes.isBlank()}" class="policy-note">
+              <strong>Ghi chú của bạn</strong>
+              <p th:text="${booking.notes}"></p>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="section-heading">
+              <h2>Món đặt trước</h2>
+              <span class="badge" th:if="${booking.status.name() == 'SEATED'}"
+                >Bếp đang chuẩn bị</span
+              >
+            </div>
+            <p class="muted-text" th:if="${booking.lines.isEmpty()}">
+              Chưa chọn món trước. Bạn có thể gọi món khi đến quán.
+            </p>
+            <div class="order-line" th:each="line : ${booking.lines}">
+              <div>
+                <strong th:text="${line.itemName}"></strong
+                ><small
+                  th:text="|${line.quantity} × ${@fmt.money(line.unitPrice)}|"
+                ></small>
+              </div>
+              <b th:text="${@fmt.money(line.subtotal())}"></b>
+            </div>
+            <div class="deposit-line">
+              <span>Tạm tính món ăn</span
+              ><strong th:text="${@fmt.money(booking.foodTotal())}"></strong>
+            </div>
+            <p class="helper">
+              Bếp chỉ chuẩn bị món sau khi nhân viên xác nhận bạn đã đến. Tiền
+              món thanh toán tại quán.
+            </p>
+            <details th:if="${canEdit}" class="edit-details">
+              <summary>Sửa món &amp; ghi chú</summary>
+              <form
+                th:action="@{/bookings/{id}/items(id=${booking.id})}"
+                method="post"
+                class="form-stack"
+              >
+                <div class="edit-dish" th:each="dish : ${dishes}">
+                  <label
+                    th:for="|qty-${dish.id}|"
+                    th:text="|${dish.name} · ${@fmt.money(dish.price)}|"
+                  ></label
+                  ><input
+                    type="number"
+                    min="0"
+                    max="20"
+                    th:id="|qty-${dish.id}|"
+                    th:name="|qty_${dish.id}|"
+                    th:value="${quantities.containsKey(dish.id) ? quantities.get(dish.id) : 0}"
+                    th:disabled="${!dish.available and !quantities.containsKey(dish.id)}"
+                  />
+                </div>
+                <p class="helper">
+                  Món đã đặt giữ giá cũ; món thêm mới dùng giá hiện tại.
+                </p>
+                <label
+                  >Ghi chú<textarea
+                    name="notes"
+                    rows="3"
+                    maxlength="500"
+                    th:text="${booking.notes}"
+                  ></textarea></label
+                ><button class="button" type="submit">Lưu thay đổi</button>
+              </form>
+            </details>
+          </section>
+          <section
+            class="panel"
+            th:if="${owner and booking.status.name() == 'CONFIRMED' and now.isBefore(booking.startAt)}"
+          >
+            <h2>Cần đổi bàn hoặc giờ?</h2>
+            <p>
+              Gửi lịch mong muốn để nhân viên kiểm tra. Lượt đặt hiện tại giữ
+              nguyên cho đến khi yêu cầu được chấp nhận.
+            </p>
+            <form
+              th:action="@{/bookings/{id}/request-change(id=${booking.id})}"
+              method="post"
+              class="form-stack"
+            >
+              <label
+                >Nội dung yêu cầu<textarea
+                  name="message"
+                  rows="3"
+                  minlength="5"
+                  maxlength="500"
+                  required
+                  placeholder="Ví dụ: Mình muốn đổi sang 18:30–20:30 ngày mai, giữ nguyên số khách…"
+                ></textarea></label
+              ><button type="submit" class="button outline">
+                Gửi yêu cầu ↗
+              </button>
+            </form>
+          </section>
+          <section class="panel" th:unless="${requests.isEmpty()}">
+            <h2>Yêu cầu thay đổi</h2>
+            <article class="request" th:each="r : ${requests}">
+              <div class="row">
+                <small th:text="${@fmt.date(r.createdAt)}"></small
+                ><span
+                  class="badge"
+                  th:text="${r.status == 'PENDING' ? 'Chờ xử lý' : (r.status == 'APPROVED' ? 'Đã chấp nhận' : (r.status == 'REJECTED' ? 'Không chấp nhận' : 'Đã đóng'))}"
+                ></span>
+              </div>
+              <p th:text="${r.message}"></p>
+              <p
+                th:unless="${r.response.isBlank()}"
+                class="policy-note"
+                th:text="${r.response}"
+              ></p>
+            </article>
+          </section>
+          <section class="panel" th:if="${isStaff}">
+            <h2>Thao tác nhân viên</h2>
+            <div class="staff-actions">
+              <form
+                th:if="${booking.status.name() == 'CONFIRMED'}"
+                th:action="@{/staff/bookings/{id}/action(id=${booking.id})}"
+                method="post"
+              >
+                <input type="hidden" name="action" value="checkin" /><button
+                  class="button"
+                  type="submit"
+                >
+                  Khách đã đến
+                </button>
+              </form>
+              <form
+                th:if="${booking.status.name() == 'SEATED'}"
+                th:action="@{/staff/bookings/{id}/action(id=${booking.id})}"
+                method="post"
+              >
+                <input type="hidden" name="action" value="complete" /><button
+                  class="button"
+                  type="submit"
+                >
+                  Hoàn tất phục vụ
+                </button>
+              </form>
+              <form
+                th:if="${booking.status.name() == 'CONFIRMED'}"
+                th:action="@{/staff/bookings/{id}/action(id=${booking.id})}"
+                method="post"
+                data-confirm="Xác nhận khách không đến? Tiền cọc sẽ không được hoàn."
+              >
+                <input type="hidden" name="action" value="noshow" /><button
+                  class="button outline"
+                  type="submit"
+                >
+                  Khách không đến
+                </button>
+              </form>
+              <form
+                th:if="${booking.status.name() == 'CONFIRMED' or booking.status.name() == 'PENDING'}"
+                th:action="@{/staff/bookings/{id}/action(id=${booking.id})}"
+                method="post"
+                data-confirm="Quán hủy lượt đặt này? Tiền cọc đã thu sẽ được đánh dấu chờ hoàn toàn bộ."
+              >
+                <input type="hidden" name="action" value="cancel" /><button
+                  class="button danger"
+                  type="submit"
+                >
+                  Quán hủy lượt đặt
+                </button>
+              </form>
+            </div>
+            <p
+              class="helper"
+              th:text="|Nhận khách từ 15 phút trước giờ hẹn. Đánh dấu không đến sau ${settings.graceMinutes} phút chờ.|"
+            ></p>
+            <form
+              class="form-stack"
+              th:if="${booking.paymentStatus.name() == 'REFUND_PENDING'}"
+              th:action="@{/staff/bookings/{id}/action(id=${booking.id})}"
+              method="post"
+              data-confirm="Bạn đã thực hiện chuyển tiền hoàn cọc? Hệ thống chỉ ghi nhận kết quả, không tự chuyển tiền."
+            >
+              <input type="hidden" name="action" value="refund" /><label
+                >Mã giao dịch hoàn cọc<input
+                  name="reference"
+                  minlength="3"
+                  maxlength="150"
+                  required
+                  placeholder="Mã giao dịch đã hoàn tiền" /></label
+              ><button class="button outline" type="submit">
+                Ghi nhận đã hoàn cọc
+              </button>
+            </form>
+            <details
+              class="edit-details"
+              th:if="${booking.status.name() == 'CONFIRMED' and now.isBefore(booking.startAt)}"
+            >
+              <summary>Xử lý đổi bàn / giờ</summary>
+              <p class="helper">
+                Giữ nguyên số bàn trong phiên bản này. Hệ thống kiểm tra lại
+                lịch trống và tổ hợp ghép khi lưu.
+              </p>
+              <form
+                th:action="@{/staff/bookings/{id}/reschedule(id=${booking.id})}"
+                method="post"
+                class="form-stack"
+              >
+                <div class="two-cols">
+                  <label
+                    >Giờ đến mới<input
+                      type="datetime-local"
+                      name="startAt"
+                      th:value="${@fmt.inputDate(booking.startAt)}"
+                      required /></label
+                  ><label
+                    >Giờ kết thúc mới<input
+                      type="datetime-local"
+                      name="endAt"
+                      th:value="${@fmt.inputDate(booking.endAt)}"
+                      required
+                  /></label>
+                </div>
+                <div class="two-cols">
+                  <label
+                    >Số người<input
+                      type="number"
+                      name="guests"
+                      min="1"
+                      max="12"
+                      th:value="${booking.guests}"
+                      required /></label
+                  ><label
+                    >Mã số bàn (ví dụ 1,2)<input
+                      name="tableIds"
+                      th:value="${#strings.listJoin(booking.tableIds, ',')}"
+                      pattern="[0-9, ]+"
+                      required
+                  /></label>
+                </div>
+                <label
+                  >Phản hồi khách<textarea
+                    name="response"
+                    maxlength="500"
+                    required
+                  ></textarea></label
+                ><button class="button" type="submit">
+                  Chấp nhận &amp; đổi lịch
+                </button>
+              </form>
+              <form
+                class="form-stack separated"
+                th:action="@{/staff/bookings/{id}/reject(id=${booking.id})}"
+                method="post"
+              >
+                <label
+                  >Lý do từ chối yêu cầu<textarea
+                    name="response"
+                    maxlength="500"
+                    required
+                  ></textarea></label
+                ><button class="button outline" type="submit">
+                  Từ chối yêu cầu đang chờ
+                </button>
+              </form>
+            </details>
+          </section>
+          <details class="panel timeline">
+            <summary>Lịch sử lượt đặt</summary>
+            <div class="timeline-event" th:each="event : ${events}">
+              <strong th:text="${event.action}"></strong
+              ><small th:text="${@fmt.date(event.createdAt)}"></small
+              ><small th:if="${isStaff}" th:text="${event.actor}"></small>
+            </div>
+          </details>
+        </div>
+        <aside>
+          <section class="panel payment-panel">
+            <p class="eyebrow">CỌC GIỮ BÀN</p>
+            <h2
+              class="payment-amount"
+              th:text="${@fmt.money(booking.deposit)}"
+            ></h2>
+            <span
+              class="badge"
+              th:classappend="${booking.paymentStatus.name()}"
+              th:text="${booking.paymentStatus.label}"
+            ></span>
+            <p
+              class="helper"
+              th:text="|${booking.tableIds.size()} bàn · Mức cọc được lưu tại thời điểm đặt|"
+            ></p>
+            <div th:if="${booking.status.name() == 'PENDING' and owner}">
+              <div
+                class="countdown"
+                th:attr="data-countdown=${booking.holdUntil}"
+              >
+                <small>THỜI GIAN GIỮ BÀN CÒN LẠI</small
+                ><strong>Đang tính…</strong>
+              </div>
+              <form
+                th:if="${gatewayReady}"
+                th:action="@{/bookings/{id}/pay(id=${booking.id})}"
+                method="post"
+              >
+                <button type="submit" class="button full">
+                  Thanh toán VNPAY sandbox ↗
+                </button>
+              </form>
+              <form
+                th:if="${demo}"
+                th:action="@{/bookings/{id}/demo-pay(id=${booking.id})}"
+                method="post"
+              >
+                <button
+                  type="submit"
+                  class="button full"
+                  th:classappend="${gatewayReady ? 'outline' : ''}"
+                >
+                  Thanh toán demo →
+                </button>
+                <p class="helper">
+                  Mô phỏng thanh toán để thử đồ án. Không thu tiền thật.
+                </p>
+              </form>
+              <p th:if="${!gatewayReady and !demo}" class="notice warning">
+                Cổng thanh toán chưa sẵn sàng. Vui lòng liên hệ quán.
+              </p>
+            </div>
+            <div class="policy-note">
+              <strong>Điều kiện hoàn cọc</strong>
+              <p>
+                Hủy trước giờ đến ít nhất <b>3 tiếng</b>: hoàn toàn bộ. Hủy muộn
+                hoặc không đến: không hoàn. Quán hủy: luôn hoàn toàn bộ.
+              </p>
+            </div>
+            <p
+              th:if="${booking.paymentStatus.name() == 'REFUND_PENDING'}"
+              class="notice warning"
+            >
+              Nhân viên sẽ xử lý hoàn cọc và cập nhật kết quả tại đây.
+            </p>
+            <form
+              th:if="${canCancel}"
+              th:action="@{/bookings/{id}/cancel(id=${booking.id})}"
+              method="post"
+              th:attr="data-confirm=${booking.paymentStatus.name() == 'UNPAID' ? 'Hủy lượt đặt và giải phóng bàn đang giữ?' : (refundable ? 'Hủy lượt đặt? Bạn đủ điều kiện được hoàn toàn bộ cọc.' : 'Còn dưới 3 tiếng trước giờ đến. Hủy lượt đặt này sẽ KHÔNG được hoàn cọc. Bạn vẫn muốn hủy?')}"
+            >
+              <button class="button danger full" type="submit">
+                Hủy lượt đặt
+              </button>
+            </form>
+          </section>
+        </aside>
+      </div>
+    </main>
+    <footer th:replace="~{fragments :: footer}"></footer>
+  </body>
+</html>

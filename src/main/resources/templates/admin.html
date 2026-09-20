@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{fragments :: head('Quản lý quán')}"></head>
+  <body>
+    <header th:replace="~{fragments :: header}"></header>
+    <main class="shell page">
+      <div class="page-heading">
+        <p class="eyebrow">MỘC · KHÔNG GIAN QUẢN LÝ</p>
+        <h1>Chăm chút từng điều nhỏ.</h1>
+        <p>Cấu hình đặt bàn, tổ hợp bàn và thực đơn của quán.</p>
+      </div>
+      <div th:replace="~{fragments :: flash}"></div>
+      <div class="admin-grid">
+        <section class="panel">
+          <h2>Cấu hình đặt bàn</h2>
+          <form th:action="@{/admin/settings}" method="post" class="form-stack">
+            <label
+              >Cọc mỗi bàn (VNĐ)<input
+                type="number"
+                min="10000"
+                max="10000000"
+                name="deposit"
+                th:value="${settings.depositPerTable}"
+                required
+            /></label>
+            <div class="two-cols">
+              <label
+                >Giữ bàn chờ cọc (phút)<input
+                  type="number"
+                  min="5"
+                  max="30"
+                  name="hold"
+                  th:value="${settings.holdMinutes}"
+                  required /></label
+              ><label
+                >Dọn bàn giữa hai lượt (phút)<input
+                  type="number"
+                  min="0"
+                  max="60"
+                  name="cleanup"
+                  th:value="${settings.cleanupMinutes}"
+                  required
+              /></label>
+            </div>
+            <label
+              >Chờ khách đến muộn (phút)<input
+                type="number"
+                min="0"
+                max="60"
+                name="grace"
+                th:value="${settings.graceMinutes}"
+                required
+            /></label>
+            <p class="helper">
+              Hoàn cọc trước ít nhất 3 tiếng · Sửa món trước ít nhất 2 tiếng.
+              Đổi mức cọc không làm thay đổi lượt đặt đã tạo.
+            </p>
+            <button class="button" type="submit">Lưu cấu hình</button>
+          </form>
+        </section>
+        <section class="panel">
+          <h2>Bàn &amp; tổ hợp ghép</h2>
+          <p class="helper">
+            Mỗi bàn 4 chỗ. Không thể tạm ngừng bàn đang có lượt đặt hiệu lực.
+          </p>
+          <div class="admin-tables">
+            <form
+              th:each="table : ${tables}"
+              th:action="@{/admin/tables/{id}/toggle(id=${table.id})}"
+              method="post"
+            >
+              <button
+                class="chip"
+                th:classappend="${table.active ? 'active' : ''}"
+                th:text="|${table.code} · ${table.active ? 'Mở' : 'Đóng'}|"
+                type="submit"
+              ></button>
+            </form>
+          </div>
+          <details class="edit-details">
+            <summary>Tổ hợp được phép ghép</summary>
+            <div class="combo-list">
+              <form
+                th:each="combo : ${combinations}"
+                th:action="@{/admin/combinations}"
+                method="post"
+              >
+                <input
+                  type="hidden"
+                  name="tableIds"
+                  th:value="${#strings.listJoin(combo, ',')}"
+                /><input type="hidden" name="remove" value="true" /><span
+                  th:text="|Bàn ${#strings.listJoin(combo, ' + ')}|"
+                ></span
+                ><button
+                  type="submit"
+                  class="text-button"
+                  aria-label="Xóa tổ hợp"
+                >
+                  ×
+                </button>
+              </form>
+            </div>
+            <form
+              th:action="@{/admin/combinations}"
+              method="post"
+              class="form-stack"
+            >
+              <label
+                >Thêm tổ hợp (mã số bàn)<input
+                  name="tableIds"
+                  placeholder="Ví dụ: 1,2,3"
+                  pattern="[0-9, ]+"
+                  required
+              /></label>
+              <p class="helper">
+                Chỉ khai báo các bàn thực sự nằm cạnh nhau và có thể ghép tại
+                quán.
+              </p>
+              <button class="button outline" type="submit">Thêm tổ hợp</button>
+            </form>
+          </details>
+        </section>
+      </div>
+      <section class="panel">
+        <h2>Thực đơn</h2>
+        <div class="admin-menu">
+          <details class="edit-details" th:each="dish : ${dishes}">
+            <summary>
+              <span th:text="${dish.name}"></span
+              ><span th:text="${@fmt.money(dish.price)}"></span
+              ><span
+                class="badge"
+                th:text="${dish.available ? 'Đang bán' : 'Tạm hết'}"
+              ></span>
+            </summary>
+            <form th:action="@{/admin/dishes}" method="post" class="form-stack">
+              <input type="hidden" name="id" th:value="${dish.id}" />
+              <div class="two-cols">
+                <label
+                  >Tên món<input
+                    name="name"
+                    th:value="${dish.name}"
+                    required
+                    maxlength="100" /></label
+                ><label
+                  >Giá (VNĐ)<input
+                    name="price"
+                    type="number"
+                    min="1000"
+                    max="10000000"
+                    th:value="${dish.price}"
+                    required
+                /></label>
+              </div>
+              <label
+                >Mô tả<textarea
+                  name="description"
+                  maxlength="400"
+                  th:text="${dish.description}"
+                ></textarea></label
+              ><label
+                >Danh mục<select name="category">
+                  <option
+                    th:each="cat : ${ {'Khai vị','Món chính','Tráng miệng','Đồ uống'} }"
+                    th:text="${cat}"
+                    th:selected="${cat == dish.category}"
+                  ></option></select></label
+              ><label class="checkbox-label"
+                ><input
+                  name="available"
+                  type="checkbox"
+                  value="true"
+                  th:checked="${dish.available}"
+                />Đang bán</label
+              ><button class="button" type="submit">Lưu món</button>
+            </form>
+          </details>
+        </div>
+        <details class="edit-details">
+          <summary>＋ Thêm món mới</summary>
+          <form th:action="@{/admin/dishes}" method="post" class="form-stack">
+            <input type="hidden" name="id" value="0" /><label
+              >Tên món<input name="name" required maxlength="100" /></label
+            ><label
+              >Mô tả<textarea name="description" maxlength="400"></textarea>
+            </label>
+            <div class="two-cols">
+              <label
+                >Giá (VNĐ)<input
+                  name="price"
+                  type="number"
+                  min="1000"
+                  max="10000000"
+                  required /></label
+              ><label
+                >Danh mục<select name="category">
+                  <option>Khai vị</option>
+                  <option>Món chính</option>
+                  <option>Tráng miệng</option>
+                  <option>Đồ uống</option>
+                </select></label
+              >
+            </div>
+            <label class="checkbox-label"
+              ><input
+                name="available"
+                type="checkbox"
+                value="true"
+                checked
+              />Đang bán</label
+            ><button class="button" type="submit">Thêm món</button>
+          </form>
+        </details>
+      </section>
+      <section class="panel">
+        <h2>Tài khoản hệ thống</h2>
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Họ tên</th>
+                <th>Email</th>
+                <th>Vai trò</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr th:each="account : ${accounts}">
+                <td th:text="${account.fullName}"></td>
+                <td th:text="${account.email}"></td>
+                <td
+                  th:text="${account.role == 'ADMIN' ? 'Quản lý' : (account.role == 'STAFF' ? 'Nhân viên' : 'Khách hàng')}"
+                ></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <details class="edit-details">
+          <summary>＋ Tạo tài khoản nhân viên</summary>
+          <form th:action="@{/admin/staff}" method="post" class="form-stack">
+            <div class="two-cols">
+              <label
+                >Họ tên<input
+                  name="fullName"
+                  minlength="2"
+                  maxlength="100"
+                  required /></label
+              ><label
+                >Số điện thoại<input
+                  name="phone"
+                  type="tel"
+                  pattern="\+?[0-9]{9,14}"
+                  required
+              /></label>
+            </div>
+            <label
+              >Email<input
+                name="email"
+                type="email"
+                maxlength="180"
+                required /></label
+            ><label
+              >Mật khẩu<input
+                name="password"
+                type="password"
+                minlength="8"
+                maxlength="72"
+                autocomplete="new-password"
+                required /></label
+            ><button class="button" type="submit">Tạo nhân viên</button>
+          </form>
+        </details>
+      </section>
+    </main>
+    <footer th:replace="~{fragments :: footer}"></footer>
+  </body>
+</html>

@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{fragments :: head('Vận hành quán')}"></head>
+  <body>
+    <header th:replace="~{fragments :: header}"></header>
+    <main class="shell page">
+      <div class="page-heading">
+        <p class="eyebrow">MỘC · KHÔNG GIAN NHÂN VIÊN</p>
+        <h1>Một ngày ở quán.</h1>
+        <p>Theo dõi lịch hẹn, đón khách và chuẩn bị những bữa ngon.</p>
+      </div>
+      <div class="stats-grid">
+        <article>
+          <span>Lượt hẹn hôm nay</span><strong th:text="${todayCount}"></strong>
+        </article>
+        <article>
+          <span>Đã xác nhận</span><strong th:text="${confirmedCount}"></strong>
+        </article>
+        <article>
+          <span>Đang phục vụ</span><strong th:text="${seatedCount}"></strong>
+        </article>
+        <article>
+          <span>Chờ hoàn cọc</span><strong th:text="${refundCount}"></strong>
+        </article>
+      </div>
+      <section class="panel">
+        <div class="section-heading">
+          <h2>Danh sách đặt bàn</h2>
+          <label class="search-label"
+            ><input
+              id="booking-search"
+              type="search"
+              placeholder="Tìm mã đặt bàn, tên hoặc SĐT…"
+              aria-label="Tìm lượt đặt"
+          /></label>
+        </div>
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Cuộc hẹn</th>
+                <th>Khách hàng</th>
+                <th>Bàn / Khách</th>
+                <th>Trạng thái</th>
+                <th>Tiền cọc</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr th:each="b : ${bookings}" data-search-row>
+                <td>
+                  <strong th:text="${b.code()}"></strong
+                  ><small th:text="${@fmt.date(b.startAt)}"></small>
+                </td>
+                <td>
+                  <strong th:text="${b.customerName}"></strong
+                  ><small th:text="${b.customerPhone}"></small>
+                </td>
+                <td>
+                  <span th:text="${b.tablesLabel()}"></span
+                  ><small th:text="|${b.guests} người|"></small>
+                </td>
+                <td>
+                  <span
+                    class="badge"
+                    th:classappend="${b.status.name()}"
+                    th:text="${b.status.label}"
+                  ></span>
+                </td>
+                <td>
+                  <span th:text="${@fmt.money(b.deposit)}"></span
+                  ><small th:text="${b.paymentStatus.label}"></small>
+                </td>
+                <td>
+                  <a class="text-link" th:href="@{/bookings/{id}(id=${b.id})}"
+                    >Xử lý ↗</a
+                  >
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="empty-state" th:if="${bookings.isEmpty()}">
+          Chưa có lượt đặt. Các cuộc hẹn mới sẽ xuất hiện ở đây.
+        </p>
+      </section>
+    </main>
+    <footer th:replace="~{fragments :: footer}"></footer>
+  </body>
+</html>

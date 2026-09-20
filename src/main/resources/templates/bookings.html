@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{fragments :: head('Lịch hẹn của tôi')}"></head>
+  <body>
+    <header th:replace="~{fragments :: header}"></header>
+    <main class="shell page">
+      <div class="section-heading">
+        <div class="page-heading">
+          <p class="eyebrow">NHỮNG LẦN GẶP GỠ</p>
+          <h1>Lịch hẹn của tôi.</h1>
+          <p>Mọi thông tin cho cuộc hẹn tiếp theo, ở ngay đây.</p>
+        </div>
+        <a href="/book" class="button">Đặt bàn mới ＋</a>
+      </div>
+      <div th:replace="~{fragments :: flash}"></div>
+      <section class="empty-state panel" th:if="${bookings.isEmpty()}">
+        <span class="empty-icon">⌑</span>
+        <h2>Chiếc bàn đầu tiên đang đợi bạn.</h2>
+        <p>Bạn chưa có lượt đặt nào. Cùng lên lịch một bữa ngon nhé.</p>
+        <a class="button" href="/book">Chọn bàn ngay ↗</a>
+      </section>
+      <div class="booking-cards">
+        <a
+          class="reservation-card"
+          th:each="b : ${bookings}"
+          th:href="@{/bookings/{id}(id=${b.id})}"
+          ><div class="row">
+            <span class="eyebrow" th:text="${b.code()}"></span
+            ><span
+              class="badge"
+              th:classappend="${b.status.name()}"
+              th:text="${b.status.label}"
+            ></span>
+          </div>
+          <h2 th:text="${b.tablesLabel()}"></h2>
+          <p th:text="${@fmt.date(b.startAt)}"></p>
+          <div class="row">
+            <span th:text="|${b.guests} khách · ${b.lines.size()} món|"></span
+            ><span class="text-link">Xem chi tiết ↗</span>
+          </div>
+          <div class="card-payment">
+            <span th:text="${b.paymentStatus.label}"></span
+            ><strong th:text="${@fmt.money(b.deposit)}"></strong></div
+        ></a>
+      </div>
+    </main>
+    <footer th:replace="~{fragments :: footer}"></footer>
+  </body>
+</html>

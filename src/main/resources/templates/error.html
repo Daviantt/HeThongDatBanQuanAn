@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{fragments :: head('Chưa thể thực hiện')}"></head>
+  <body>
+    <header th:replace="~{fragments :: header}"></header>
+    <main class="shell page">
+      <section class="panel empty-state">
+        <span class="empty-icon">!</span>
+        <h1>Chậm lại một chút nhé.</h1>
+        <p
+          th:text="${message != null ? message : 'Trang không tồn tại hoặc bạn chưa có quyền truy cập. Vui lòng kiểm tra lại.'}"
+        ></p>
+        <a class="button" href="/bookings">Về lịch hẹn của tôi →</a>
+      </section>
+    </main>
+    <footer th:replace="~{fragments :: footer}"></footer>
+  </body>
+</html>
