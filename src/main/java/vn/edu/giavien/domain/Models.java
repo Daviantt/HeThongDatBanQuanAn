@@ -1,4 +1,4 @@
-package vn.edu.moc.domain;
+package vn.edu.giavien.domain;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -10,7 +10,7 @@ public final class Models {
       long id, String email, String passwordHash, String fullName, String phone, String role) {}
 
   public record DiningTable(
-      long id, String code, String zone, int mapX, int mapY, boolean active) {}
+      long id, String code, String zone, int mapX, int mapY, boolean active, int floor) {}
 
   public record Dish(
       long id,

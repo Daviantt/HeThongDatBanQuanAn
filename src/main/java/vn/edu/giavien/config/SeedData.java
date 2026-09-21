@@ -1,4 +1,4 @@
-package vn.edu.moc.config;
+package vn.edu.giavien.config;
 
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
@@ -6,8 +6,8 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-import vn.edu.moc.data.RestaurantRepository;
-import vn.edu.moc.domain.FloorPlan;
+import vn.edu.giavien.data.RestaurantRepository;
+import vn.edu.giavien.domain.FloorPlan;
 
 @Component
 public class SeedData implements CommandLineRunner {
@@ -49,6 +49,7 @@ public class SeedData implements CommandLineRunner {
       }
     }
     migrateGardenLayout();
+    addUpperFloor();
     if (repo.dishes().isEmpty()) {
       dish(
           "Gỏi cuốn tôm thịt",
@@ -91,8 +92,8 @@ public class SeedData implements CommandLineRunner {
     }
     if (demo) {
       account("khach@moc.local", "Khách trải nghiệm", "0901234567", "CUSTOMER");
-      account("nhanvien@moc.local", "Nhân viên Gia Viên", "0901234568", "STAFF");
-      account("admin@moc.local", "Quản lý Gia Viên", "0901234569", "ADMIN");
+      account("nhanvien@moc.local", "Nhân viên GiaViên", "0901234568", "STAFF");
+      account("admin@moc.local", "Quản lý GiaViên", "0901234569", "ADMIN");
     }
   }
 
@@ -102,9 +103,9 @@ public class SeedData implements CommandLineRunner {
                 "SELECT COUNT(*) FROM app_migration WHERE name='garden-layout-v1'", Integer.class)
         > 0) return;
     // Keep physical IDs and reservation links, including the two retired tables.
-    repo.jdbc().update("UPDATE dining_table SET code='OLD-' || code");
+    repo.jdbc().update("UPDATE dining_table SET code='OLD-' || code WHERE floor=1");
     repo.jdbc().update("UPDATE dining_table SET active=FALSE,retired=TRUE WHERE id IN (5,8)");
-    var remaining = repo.tables();
+    var remaining = repo.tables().stream().filter(t -> t.floor() == 1).toList();
     for (int i = 0; i < remaining.size(); i++) {
       var table = remaining.get(i);
       repo.jdbc()
@@ -127,13 +128,46 @@ public class SeedData implements CommandLineRunner {
     repo.jdbc().update("INSERT INTO app_migration(name) VALUES('garden-layout-v1')");
   }
 
-  private void addCombination(List<vn.edu.moc.domain.Models.DiningTable> tables) {
+  private void addCombination(List<vn.edu.giavien.domain.Models.DiningTable> tables) {
     if (FloorPlan.canJoin(tables)) {
       repo.jdbc()
           .update(
               "INSERT INTO table_combination(table_ids) VALUES(?)",
               String.join(",", tables.stream().map(t -> Long.toString(t.id())).toList()));
     }
+  }
+
+  private void addUpperFloor() {
+    if (repo.jdbc()
+            .queryForObject(
+                "SELECT COUNT(*) FROM app_migration WHERE name='upper-floor-v1'", Integer.class)
+        > 0) return;
+    var ground = repo.tables().stream().filter(t -> t.floor() == 1).toList();
+    long nextId = repo.jdbc().queryForObject("SELECT MAX(id) FROM dining_table", Long.class) + 1;
+    for (int i = 0; i < ground.size(); i++) {
+      var table = ground.get(i);
+      repo.jdbc()
+          .update(
+              "INSERT INTO dining_table(id,code,zone,map_x,map_y,active,floor)"
+                  + " VALUES(?,?,?,?,?,TRUE,2)",
+              nextId + i,
+              "B%02d".formatted(11 + i),
+              table.mapY() == 0
+                  ? "Bên cửa sổ tầng 2"
+                  : table.mapY() == 3 ? "Ban công" : "Bên giếng trời",
+              table.mapX(),
+              table.mapY());
+    }
+    var upper = repo.tables().stream().filter(t -> t.floor() == 2).toList();
+    for (int a = 0; a < upper.size(); a++) {
+      for (int b = a + 1; b < upper.size(); b++) {
+        addCombination(List.of(upper.get(a), upper.get(b)));
+        for (int c = b + 1; c < upper.size(); c++) {
+          addCombination(List.of(upper.get(a), upper.get(b), upper.get(c)));
+        }
+      }
+    }
+    repo.jdbc().update("INSERT INTO app_migration(name) VALUES('upper-floor-v1')");
   }
 
   private void dish(

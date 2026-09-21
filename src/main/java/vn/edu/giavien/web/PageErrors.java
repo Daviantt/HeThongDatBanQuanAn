@@ -1,4 +1,4 @@
-package vn.edu.moc.web;
+package vn.edu.giavien.web;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.ui.Model;

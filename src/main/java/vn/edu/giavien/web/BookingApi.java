@@ -1,4 +1,4 @@
-package vn.edu.moc.web;
+package vn.edu.giavien.web;
 
 import java.security.Principal;
 import java.time.LocalDateTime;
@@ -6,7 +6,7 @@ import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.*;
-import vn.edu.moc.service.*;
+import vn.edu.giavien.service.*;
 
 @RestController
 public class BookingApi {

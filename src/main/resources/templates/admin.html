@@ -5,7 +5,7 @@
     <header th:replace="~{fragments :: header}"></header>
     <main class="shell page">
       <div class="page-heading">
-        <p class="eyebrow">GIA VIÊN · KHÔNG GIAN QUẢN LÝ</p>
+        <p class="eyebrow">GIAVIÊN · KHÔNG GIAN QUẢN LÝ</p>
         <h1>Chăm chút từng điều nhỏ.</h1>
         <p>Cấu hình đặt bàn, tổ hợp bàn và thực đơn của quán.</p>
       </div>
@@ -72,7 +72,7 @@
               <button
                 class="chip"
                 th:classappend="${table.active ? 'active' : ''}"
-                th:text="|${table.code} · ${table.active ? 'Mở' : 'Đóng'}|"
+                th:text="|${table.code} · Tầng ${table.floor} · ${table.active ? 'Mở' : 'Đóng'}|"
                 type="submit"
               ></button>
             </form>
@@ -114,7 +114,7 @@
                   required
               /></label>
               <p class="helper">
-                Ghép 2–3 bàn liền nhau theo hàng ngang hoặc dọc, ví dụ 1,4.
+                Ghép 2–3 bàn liền nhau cùng tầng theo hàng ngang hoặc dọc, ví dụ 1,4 hoặc 11,14.
                 Không ghép xuyên qua khu vườn.
               </p>
               <button class="button outline" type="submit">Thêm tổ hợp</button>

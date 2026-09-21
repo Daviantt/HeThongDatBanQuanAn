@@ -1,4 +1,4 @@
-package vn.edu.moc.config;
+package vn.edu.giavien.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -7,7 +7,7 @@ import org.springframework.security.core.userdetails.*;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import vn.edu.moc.data.RestaurantRepository;
+import vn.edu.giavien.data.RestaurantRepository;
 
 @Configuration
 public class SecurityConfig {

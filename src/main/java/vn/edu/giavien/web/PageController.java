@@ -1,4 +1,4 @@
-package vn.edu.moc.web;
+package vn.edu.giavien.web;
 
 import jakarta.servlet.http.HttpServletRequest;
 import java.security.Principal;
@@ -9,10 +9,10 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-import vn.edu.moc.data.RestaurantRepository;
-import vn.edu.moc.domain.BookingPolicy;
-import vn.edu.moc.domain.Models.*;
-import vn.edu.moc.service.*;
+import vn.edu.giavien.data.RestaurantRepository;
+import vn.edu.giavien.domain.BookingPolicy;
+import vn.edu.giavien.domain.Models.*;
+import vn.edu.giavien.service.*;
 
 @Controller
 public class PageController {
