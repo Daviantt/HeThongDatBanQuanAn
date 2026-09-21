@@ -69,10 +69,10 @@ p {
 }
 h1,
 h2 {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: "Segoe UI", Arial, sans-serif;
   font-weight: 400;
-  letter-spacing: -0.045em;
-  line-height: 1.16;
+  letter-spacing: -0.035em;
+  line-height: 1.3;
 }
 h1 {
   font-size: 54px;
@@ -182,9 +182,9 @@ details summary > span:last-child {
   align-items: center;
   gap: 12px;
   font:
-    43px/0.85 Georgia,
-    serif;
-  letter-spacing: -3px;
+    30px/1.25 "Segoe UI",
+    Arial, sans-serif;
+  letter-spacing: -1px;
   white-space: nowrap;
 }
 .brand-symbol {
@@ -431,7 +431,7 @@ details summary > span:last-child {
   display: block;
 }
 .floating-note strong {
-  font-family: Georgia, serif;
+  font-family: "Segoe UI", Arial, sans-serif;
   font-size: 19px;
   font-weight: 400;
 }
@@ -465,7 +465,7 @@ details summary > span:last-child {
   align-items: center;
 }
 .values-strip > div > span {
-  font: 35px Georgia;
+  font: 35px "Segoe UI", Arial, sans-serif;
   color: #a2ac94;
 }
 .values-strip p {
@@ -633,7 +633,7 @@ details summary > span:last-child {
   flex-wrap: wrap;
 }
 .footer-brand {
-  font: 36px Georgia;
+  font: 36px "Segoe UI", Arial, sans-serif;
   letter-spacing: -3px;
 }
 .site-footer p {
@@ -736,7 +736,7 @@ details summary > span:last-child {
   margin-bottom: 24px;
 }
 .step-title > span:first-child {
-  font: 17px Georgia;
+  font: 17px "Segoe UI", Arial, sans-serif;
   width: 34px;
   height: 34px;
   flex-shrink: 0;
@@ -804,11 +804,37 @@ details summary > span:last-child {
   border-color: #d3d5ce;
 }
 .floor-plan {
-  padding: 0 24px 16px;
-  background: #f7f8f2;
-  border: 1px solid #e3e6da;
-  border-radius: 10px;
+  padding: 22px 30px;
+  background: repeating-linear-gradient(90deg, #f3efe5 0, #f3efe5 49px, #ebe6db 50px);
+  border: 7px solid #e3dfd2;
+  border-radius: 20px;
 }
+.room-top { display: flex; justify-content: space-between; gap: 12px; font-size: 10px; letter-spacing: 1px; color: #777c68; }
+.room-top span:last-child { letter-spacing: 0; white-space: nowrap; }
+.courtyard {
+  grid-column: 2;
+  grid-row: 2 / 4;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 10px;
+  border: 1px solid #b9c7a7;
+  border-radius: 50px 50px 28px 28px;
+  background: #e1e9d4;
+  box-shadow: 0 0 0 9px #faf6ec, 0 0 0 10px #d9d6c5;
+}
+.courtyard img { width: 150px; margin: -10px 0 0; }
+.courtyard strong { font-size: 13px; font-weight: 600; }
+.courtyard span { font-size: 10px; line-height: 1.6; max-width: 130px; margin-top: 5px; color: #738364; }
+.veranda { display: flex; justify-content: space-between; padding: 14px 0; color: #8e8871; font-size: 10px; }
+.veranda span:first-child { letter-spacing: 2px; }
+.reception, .kitchen { padding: 12px; background: #e6dfce; border: 1px solid #d6ceba; border-radius: 5px; }
+.map-bottom .entrance { align-self: center; }
+.map-help { margin: 16px 0 0; }
+#booking-app { max-width: 1440px; }
 .window-label {
   display: block;
   border-top: 4px double #b2c0a2;
@@ -821,9 +847,10 @@ details summary > span:last-child {
 }
 .table-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 30px 28px;
-  padding: 15px 25px 30px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr);
+  grid-template-rows: repeat(4, 90px);
+  gap: 36px 44px;
+  padding: 24px 20px 22px;
 }
 .table-seat {
   position: relative;
@@ -836,8 +863,11 @@ details summary > span:last-child {
   background: #e7eddf;
   color: #546a44;
   border-radius: 8px;
-  min-height: 62px;
+  min-height: 70px;
   width: 100%;
+  max-width: 120px;
+  justify-self: center;
+  align-self: center;
   z-index: 1;
 }
 .table-seat:before,
@@ -921,7 +951,7 @@ details summary > span:last-child {
 }
 .empty-icon {
   display: block;
-  font: 55px Georgia;
+  font: 55px "Segoe UI", Arial, sans-serif;
   color: #95a489;
   margin-bottom: 15px;
 }
@@ -930,7 +960,7 @@ details summary > span:last-child {
 }
 .empty-state h3 {
   font-size: 17px;
-  font-family: Georgia;
+  font-family: "Segoe UI", Arial, sans-serif;
   font-weight: 400;
 }
 .booking-summary {
@@ -949,7 +979,7 @@ details summary > span:last-child {
   width: 70px;
   height: 65px;
   margin: 24px auto 12px;
-  font: 58px Georgia;
+  font: 58px "Segoe UI", Arial, sans-serif;
   text-align: center;
   color: #819472;
   line-height: 1;
@@ -1381,7 +1411,7 @@ details summary > span:last-child {
   color: var(--muted);
 }
 .stats-grid strong {
-  font: 42px Georgia;
+  font: 42px "Segoe UI", Arial, sans-serif;
   display: block;
   margin-top: 10px;
 }
@@ -1491,7 +1521,7 @@ details summary > span:last-child {
     font-size: 7px;
   }
   .brand {
-    font-size: 36px;
+    font-size: 28px;
   }
   .user-name {
     display: none;
@@ -1699,7 +1729,7 @@ details summary > span:last-child {
     gap: 23px;
   }
   .brand {
-    font-size: 33px;
+    font-size: 26px;
   }
   .brand-symbol {
     height: 41px;
@@ -1865,12 +1895,24 @@ details summary > span:last-child {
     display: none;
   }
   .floor-plan {
-    padding-inline: 12px;
+    padding: 14px 12px;
+    border-width: 4px;
   }
   .table-grid {
-    gap: 29px 24px;
-    padding: 18px 12px 30px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1fr);
+    grid-template-rows: repeat(4, 78px);
+    gap: 24px 18px;
+    padding: 18px 0;
   }
+  .room-top { font-size: 8px; letter-spacing: 0; }
+  .room-top span:last-child { display: none; }
+  .window-label { font-size: 7px; letter-spacing: 1px; margin-inline: 0; }
+  .courtyard { padding: 4px; border-radius: 30px; box-shadow: 0 0 0 5px #faf6ec, 0 0 0 6px #d9d6c5; }
+  .courtyard strong { font-size: 10px; }
+  .courtyard span { font-size: 8px; }
+  .table-seat { min-height: 59px; padding: 4px; }
+  .table-seat strong { font-size: 12px; }
+  .reception { padding: 9px 6px; }
   .map-legend {
     gap: 13px;
     font-size: 9px;

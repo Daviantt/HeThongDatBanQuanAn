@@ -16,6 +16,37 @@ import vn.edu.moc.service.VnpayGateway;
 
 @Component("fmt")
 public class ViewSupport {
+  private final RestaurantRepository repo;
+
+  public ViewSupport(RestaurantRepository repo) {
+    this.repo = repo;
+  }
+
+  public String tableNumbers(java.util.List<Long> ids) {
+    var tables = repo.tables();
+    return String.join(
+        ",",
+        ids.stream()
+            .map(
+                id ->
+                    tables.stream()
+                        .filter(t -> t.id() == id)
+                        .findFirst()
+                        .map(t -> t.code().substring(1))
+                        .orElse(""))
+            .filter(code -> !code.isEmpty())
+            .toList());
+  }
+
+  public String tableLabels(java.util.List<Long> ids) {
+    var tables = repo.tables();
+    return String.join(
+        " + ",
+        ids.stream()
+            .map(id -> tables.stream().filter(t -> t.id() == id).findFirst().orElseThrow().code())
+            .toList());
+  }
+
   public String money(long value) {
     return NumberFormat.getIntegerInstance(Locale.forLanguageTag("vi-VN")).format(value) + " ₫";
   }

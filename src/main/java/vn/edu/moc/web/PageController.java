@@ -216,8 +216,7 @@ public class PageController {
       @RequestParam String response,
       Principal principal,
       RedirectAttributes flash) {
-    List<Long> ids =
-        Arrays.stream(tableIds.split(",")).map(String::trim).map(Long::valueOf).toList();
+    List<Long> ids = service.resolveTableNumbers(tableIds);
     service.reschedule(id, actor(principal), startAt, endAt, guests, ids, response);
     flash.addFlashAttribute("success", "Đã cập nhật bàn và lịch mới.");
     return "redirect:/bookings/" + id;

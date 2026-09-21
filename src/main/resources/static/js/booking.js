@@ -61,7 +61,7 @@
   }
   function showAvailability(data) {
     state.options = data.options;
-    $("table-grid").replaceChildren();
+    $("table-grid").querySelectorAll(".table-seat").forEach((table) => table.remove());
     $("combination-options").replaceChildren();
     data.tables.forEach((table) => {
       const button = document.createElement("button");

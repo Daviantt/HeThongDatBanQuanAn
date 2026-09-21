@@ -5,7 +5,7 @@
     <header th:replace="~{fragments :: header}"></header>
     <main class="shell page">
       <div class="page-heading">
-        <p class="eyebrow">MỘC · KHÔNG GIAN QUẢN LÝ</p>
+        <p class="eyebrow">GIA VIÊN · KHÔNG GIAN QUẢN LÝ</p>
         <h1>Chăm chút từng điều nhỏ.</h1>
         <p>Cấu hình đặt bàn, tổ hợp bàn và thực đơn của quán.</p>
       </div>
@@ -88,9 +88,9 @@
                 <input
                   type="hidden"
                   name="tableIds"
-                  th:value="${#strings.listJoin(combo, ',')}"
+                  th:value="${@fmt.tableNumbers(combo)}"
                 /><input type="hidden" name="remove" value="true" /><span
-                  th:text="|Bàn ${#strings.listJoin(combo, ' + ')}|"
+                  th:text="${@fmt.tableLabels(combo)}"
                 ></span
                 ><button
                   type="submit"
@@ -114,8 +114,8 @@
                   required
               /></label>
               <p class="helper">
-                Chỉ khai báo các bàn thực sự nằm cạnh nhau và có thể ghép tại
-                quán.
+                Ghép 2–3 bàn liền nhau theo hàng ngang hoặc dọc, ví dụ 1,4.
+                Không ghép xuyên qua khu vườn.
               </p>
               <button class="button outline" type="submit">Thêm tổ hợp</button>
             </form>

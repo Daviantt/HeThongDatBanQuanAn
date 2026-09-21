@@ -2,8 +2,8 @@ $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
 New-Item -ItemType Directory -Path .tools -Force | Out-Null
 if (!(Test-Path '.tools/jdk')) {
-    Write-Host 'Downloading Temurin JDK 25 from Adoptium...'
-    $assets = Invoke-RestMethod 'https://api.adoptium.net/v3/assets/latest/25/hotspot?architecture=x64&image_type=jdk&os=windows&vendor=eclipse'
+    Write-Host 'Downloading Temurin JDK 21 from Adoptium...'
+    $assets = Invoke-RestMethod 'https://api.adoptium.net/v3/assets/latest/21/hotspot?architecture=x64&image_type=jdk&os=windows&vendor=eclipse'
     $package = $assets[0].binary.package
     Invoke-WebRequest -Uri $package.link -OutFile '.tools/jdk.zip'
     $actualHash = (Get-FileHash '.tools/jdk.zip' -Algorithm SHA256).Hash.ToLowerInvariant()

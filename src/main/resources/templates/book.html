@@ -7,7 +7,7 @@
       <div class="page-heading">
         <p class="eyebrow">MỘT CUỘC HẸN ĐANG ĐẾN</p>
         <h1>Chọn góc ngồi của bạn.</h1>
-        <p>Bạn chọn người đi cùng. Mộc chuẩn bị phần còn lại.</p>
+        <p>Bạn chọn người đi cùng. Gia Viên chuẩn bị phần còn lại.</p>
       </div>
       <div class="booking-layout">
         <div class="booking-main">
@@ -72,17 +72,26 @@
             </div>
             <div id="map-placeholder" class="empty-state">
               <span class="empty-icon">⌑</span>
-              <h3>Mộc đang chờ cuộc hẹn của bạn</h3>
+              <h3>Gia Viên đang chờ cuộc hẹn của bạn</h3>
               <p>Nhấn “Tìm bàn trống” để bắt đầu chọn chỗ ngồi.</p>
             </div>
             <div id="floor-plan" class="floor-plan" hidden>
-              <span class="window-label">CỬA SỔ · ÁNH SÁNG TỰ NHIÊN</span>
-              <div class="table-grid" id="table-grid"></div>
+              <div class="room-top"><span>GIA VIÊN / SƠ ĐỒ KHÔNG GIAN</span><span>10 bàn · 40 chỗ</span></div>
+              <span class="window-label">DÃY CỬA SỔ · ÁNH SÁNG TỰ NHIÊN</span>
+              <div class="table-grid" id="table-grid">
+                <div class="courtyard" aria-label="Khu vườn ở giữa quán, không bố trí bàn">
+                  <img src="/images/courtyard.svg" alt="Cây xanh và lối dạo quanh hồ nước nhỏ" />
+                  <strong>Vườn giữa nhà</strong>
+                  <span>Một khoảng xanh, một chút bình yên</span>
+                </div>
+              </div>
+              <div class="veranda"><span>HIÊN NHÀ</span><span>Lối dạo quanh vườn</span></div>
               <div class="map-bottom">
-                <span>♧ SÂN VƯỜN</span><span class="entrance">LỐI VÀO ↑</span
-                ><span>QUẦY ĐÓN KHÁCH</span>
+                <span class="reception">QUẦY ĐÓN KHÁCH</span><span class="entrance">LỐI VÀO ↑</span
+                ><span class="kitchen">BẾP NHÀ</span>
               </div>
             </div>
+            <p class="helper map-help">Mỗi bàn 4 chỗ. Có thể ghép 2–3 bàn liền nhau theo hàng ngang hoặc dọc, ví dụ B01 + B04.</p>
             <div id="combination-options" class="combination-options"></div>
             <div
               class="notice error"
@@ -145,7 +154,7 @@
         </div>
         <aside class="booking-summary panel">
           <p class="eyebrow">CUỘC HẸN CỦA BẠN</p>
-          <h2>Hẹn nhau ở Mộc.</h2>
+          <h2>Hẹn nhau ở Gia Viên.</h2>
           <div class="summary-table-icon">⌑</div>
           <h3 id="selected-label">Chưa chọn bàn</h3>
           <p id="selected-capacity" class="muted-text">
@@ -173,7 +182,7 @@
             khi tính hóa đơn.
           </p>
           <div class="policy-note">
-            <strong>Đổi kế hoạch? Mộc hiểu.</strong>
+            <strong>Đổi kế hoạch? Gia Viên hiểu.</strong>
             <p>
               Hoàn toàn bộ cọc khi hủy trước giờ đến ít nhất <b>3 tiếng</b>. Sửa
               món trước ít nhất <b>2 tiếng</b>.
