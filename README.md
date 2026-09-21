@@ -1,4 +1,4 @@
-# Mộc — Website đặt bàn và đặt món trước
+# Gia Viên — Website đặt bàn và đặt món trước
 
 Đồ án Phân tích thiết kế hướng đối tượng, dành cho **một quán ăn**. Đây là phiên bản đầu chạy được bằng Java; tên quán và hình minh họa là dữ liệu mẫu.
 
@@ -33,7 +33,7 @@ Khách cũng có thể đăng ký tài khoản mới. Quản lý có thể tạo
 - Giao diện tiếng Việt, responsive, trang chủ và thực đơn có bộ lọc.
 - Đăng ký/đăng nhập/đăng xuất; ba vai trò khách, nhân viên, quản lý.
 - Chọn ngày, giờ đến, giờ kết thúc, 1–12 người.
-- Sơ đồ 12 bàn, mỗi bàn 4 chỗ. Nhóm đông chọn tổ hợp 2–3 bàn được quán cho phép.
+- Sơ đồ 10 bàn, mỗi bàn 4 chỗ, bao quanh khu vườn giữa quán. Nhóm đông chọn tổ hợp 2–3 bàn liền nhau theo hàng ngang hoặc dọc, ví dụ B01 + B04. Không ghép xuyên qua vườn.
 - Chọn món trước, số lượng, ghi chú; giá món và tiền cọc được lưu tại thời điểm đặt.
 - Giữ bàn có thời hạn, chống đặt trùng bằng transaction và khóa trong database.
 - Thanh toán demo chạy ngay, không thu tiền thật; tích hợp tạo URL và xác minh IPN VNPAY sandbox.

@@ -118,7 +118,17 @@ public class BookingService {
                 ids ->
                     new TableOption(
                         ids,
-                        String.join(" + ", ids.stream().map(i -> "B%02d".formatted(i)).toList()),
+                        String.join(
+                            " + ",
+                            ids.stream()
+                                .map(
+                                    id ->
+                                        tables.stream()
+                                            .filter(t -> t.id() == id)
+                                            .findFirst()
+                                            .orElseThrow()
+                                            .code())
+                                .toList()),
                         ids.size() * 4,
                         ids.size() * settings.depositPerTable()))
             .toList();
@@ -556,7 +566,10 @@ public class BookingService {
             .noneMatch(b -> b.tableIds().contains(id) && b.endAt().isAfter(now())),
         "Bàn còn lượt đặt đang hiệu lực; hãy xử lý các lượt đặt trước.");
     require(
-        repo.jdbc().update("UPDATE dining_table SET active=NOT active WHERE id=?", id) == 1,
+        repo.jdbc()
+                .update(
+                    "UPDATE dining_table SET active=NOT active WHERE id=? AND retired=FALSE", id)
+            == 1,
         "Bàn không tồn tại.");
   }
 
@@ -565,13 +578,7 @@ public class BookingService {
     repo.lockSchedule();
     List<Long> ids;
     try {
-      ids =
-          Arrays.stream(text.split(","))
-              .map(String::trim)
-              .map(Long::valueOf)
-              .distinct()
-              .sorted()
-              .toList();
+      ids = resolveTableNumbers(text).stream().distinct().sorted().toList();
     } catch (RuntimeException e) {
       throw new IllegalArgumentException("Nhập mã số bàn cách nhau bằng dấu phẩy, ví dụ 1,2,3.");
     }
@@ -580,9 +587,33 @@ public class BookingService {
         repo.tables().stream().map(DiningTable::id).toList().containsAll(ids),
         "Tổ hợp chứa bàn không tồn tại.");
     String canonical = String.join(",", ids.stream().map(String::valueOf).toList());
+    require(
+        remove
+            || vn.edu.moc.domain.FloorPlan.canJoin(
+                repo.tables().stream().filter(t -> ids.contains(t.id())).toList()),
+        "Chỉ ghép các bàn liền nhau theo hàng ngang hoặc dọc, không đi qua khu vườn.");
     if (remove) repo.jdbc().update("DELETE FROM table_combination WHERE table_ids=?", canonical);
     else if (!repo.combinations().contains(ids))
       repo.jdbc().update("INSERT INTO table_combination(table_ids) VALUES(?)", canonical);
+  }
+
+  public List<Long> resolveTableNumbers(String text) {
+    var tables = repo.tables();
+    try {
+      return Arrays.stream(text.split(","))
+          .map(String::trim)
+          .map(n -> "B%02d".formatted(Integer.parseInt(n)))
+          .map(
+              code ->
+                  tables.stream()
+                      .filter(t -> t.code().equals(code))
+                      .findFirst()
+                      .orElseThrow(() -> new IllegalArgumentException("Bàn không tồn tại."))
+                      .id())
+          .toList();
+    } catch (NumberFormatException e) {
+      throw new IllegalArgumentException("Nhập mã số bàn cách nhau bằng dấu phẩy, ví dụ 1,4.");
+    }
   }
 
   public static String checkedText(String value, int min, int max, String name) {

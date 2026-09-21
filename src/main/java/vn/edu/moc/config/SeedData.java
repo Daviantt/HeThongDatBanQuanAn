@@ -1,11 +1,13 @@
 package vn.edu.moc.config;
 
+import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.moc.data.RestaurantRepository;
+import vn.edu.moc.domain.FloorPlan;
 
 @Component
 public class SeedData implements CommandLineRunner {
@@ -31,7 +33,7 @@ public class SeedData implements CommandLineRunner {
         int row = (i - 1) / 3, col = (i - 1) % 3;
         repo.jdbc()
             .update(
-                "INSERT INTO dining_table VALUES(?,?,?,?,?,TRUE)",
+                "INSERT INTO dining_table(id,code,zone,map_x,map_y,active) VALUES(?,?,?,?,?,TRUE)",
                 i,
                 "B%02d".formatted(i),
                 row < 2 ? "Bên cửa sổ" : "Sân vườn",
@@ -46,6 +48,7 @@ public class SeedData implements CommandLineRunner {
             }) repo.jdbc().update("INSERT INTO table_combination(table_ids) VALUES(?)", combo);
       }
     }
+    migrateGardenLayout();
     if (repo.dishes().isEmpty()) {
       dish(
           "Gỏi cuốn tôm thịt",
@@ -88,8 +91,48 @@ public class SeedData implements CommandLineRunner {
     }
     if (demo) {
       account("khach@moc.local", "Khách trải nghiệm", "0901234567", "CUSTOMER");
-      account("nhanvien@moc.local", "Nhân viên Mộc", "0901234568", "STAFF");
-      account("admin@moc.local", "Quản lý Mộc", "0901234569", "ADMIN");
+      account("nhanvien@moc.local", "Nhân viên Gia Viên", "0901234568", "STAFF");
+      account("admin@moc.local", "Quản lý Gia Viên", "0901234569", "ADMIN");
+    }
+  }
+
+  private void migrateGardenLayout() {
+    if (repo.jdbc()
+            .queryForObject(
+                "SELECT COUNT(*) FROM app_migration WHERE name='garden-layout-v1'", Integer.class)
+        > 0) return;
+    // Keep physical IDs and reservation links, including the two retired tables.
+    repo.jdbc().update("UPDATE dining_table SET code='OLD-' || code");
+    repo.jdbc().update("UPDATE dining_table SET active=FALSE,retired=TRUE WHERE id IN (5,8)");
+    var remaining = repo.tables();
+    for (int i = 0; i < remaining.size(); i++) {
+      var table = remaining.get(i);
+      repo.jdbc()
+          .update(
+              "UPDATE dining_table SET code=?,zone=? WHERE id=?",
+              "B%02d".formatted(i + 1),
+              table.mapY() == 0 ? "Bên cửa sổ" : table.mapY() == 3 ? "Hiên nhà" : "Bên vườn",
+              table.id());
+    }
+    repo.jdbc().update("DELETE FROM table_combination");
+    var tables = repo.tables();
+    for (int a = 0; a < tables.size(); a++) {
+      for (int b = a + 1; b < tables.size(); b++) {
+        addCombination(List.of(tables.get(a), tables.get(b)));
+        for (int c = b + 1; c < tables.size(); c++) {
+          addCombination(List.of(tables.get(a), tables.get(b), tables.get(c)));
+        }
+      }
+    }
+    repo.jdbc().update("INSERT INTO app_migration(name) VALUES('garden-layout-v1')");
+  }
+
+  private void addCombination(List<vn.edu.moc.domain.Models.DiningTable> tables) {
+    if (FloorPlan.canJoin(tables)) {
+      repo.jdbc()
+          .update(
+              "INSERT INTO table_combination(table_ids) VALUES(?)",
+              String.join(",", tables.stream().map(t -> Long.toString(t.id())).toList()));
     }
   }
 

@@ -44,6 +44,7 @@ class BookingIntegrationTest {
   @Autowired MutableClock clock;
   @Autowired MockMvc mvc;
   @Autowired PlatformTransactionManager transactions;
+  @Autowired vn.edu.moc.config.SeedData seed;
   Account customer, staff, admin;
   final LocalDateTime baseline = LocalDateTime.of(2026, 9, 21, 10, 0);
 
@@ -119,6 +120,74 @@ class BookingIntegrationTest {
     String id = create(start);
     service.demoPay(id, customer);
     return id;
+  }
+
+  @Test
+  void gardenLayoutHasTenNumberedTablesAndVerticalBookingsBlockEveryTable() {
+    assertThat(repo.tables())
+        .extracting(DiningTable::code)
+        .containsExactly("B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B09", "B10");
+    assertThat(repo.tables()).noneMatch(t -> t.mapX() == 1 && (t.mapY() == 1 || t.mapY() == 2));
+    var start = baseline.plusHours(4);
+    var pair =
+        service.availability(start, start.plusHours(2), 8).options().stream()
+            .filter(o -> o.label().equals("B01 + B04"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(pair.deposit()).isEqualTo(200000);
+    service.create(customer, input(start, 8, pair.tableIds()));
+    assertThat(service.availability(start, start.plusHours(2), 2).unavailable()).contains(1L, 4L);
+    assertThat(service.availability(start, start.plusHours(2), 8).options())
+        .noneMatch(o -> o.tableIds().contains(1L) || o.tableIds().contains(4L));
+    var triple = service.resolveTableNumbers("3,5,7");
+    String id = service.create(customer, input(start, 9, triple));
+    assertThat(repo.booking(id).orElseThrow().tablesLabel()).isEqualTo("B03 + B05 + B07");
+    assertThat(repo.booking(id).orElseThrow().deposit()).isEqualTo(300000);
+    assertThatThrownBy(() -> service.create(customer, input(start, 2, List.of(5L))))
+        .hasMessageContaining("không còn phục vụ");
+  }
+
+  @Test
+  void combinationsCannotCrossGardenOrSkipTablesAndUseVisibleNumbers() {
+    assertThatThrownBy(() -> service.saveCombination(admin, "4,5", false))
+        .hasMessageContaining("khu vườn");
+    assertThatThrownBy(() -> service.saveCombination(admin, "1,6", false))
+        .hasMessageContaining("liền nhau");
+    assertThatThrownBy(() -> service.saveCombination(admin, "1,5", false))
+        .hasMessageContaining("liền nhau");
+    service.saveCombination(admin, "5,7", true);
+    assertThat(repo.combinations()).doesNotContain(List.of(6L, 9L));
+    service.saveCombination(admin, "5,7", false);
+    assertThat(repo.combinations()).contains(List.of(6L, 9L));
+  }
+
+  @Test
+  void layoutUpgradePreservesExistingReservationsAndRunsOnlyOnce() {
+    new TransactionTemplate(transactions)
+        .executeWithoutResult(
+            status -> {
+              repo.jdbc().update("DELETE FROM app_migration WHERE name='garden-layout-v1'");
+              repo.jdbc().update("UPDATE dining_table SET code='TMP-' || id");
+              for (int id = 1; id <= 12; id++) {
+                repo.jdbc()
+                    .update(
+                        "UPDATE dining_table SET code=?,retired=FALSE,active=TRUE WHERE id=?",
+                        "B%02d".formatted(id),
+                        id);
+              }
+              String existing =
+                  service.create(customer, input(baseline.plusHours(4), 2, List.of(5L)));
+              seed.run();
+              assertThat(repo.booking(existing).orElseThrow().tableIds()).containsExactly(5L);
+              assertThat(repo.booking(existing).orElseThrow().tablesLabel()).isEqualTo("OLD-B05");
+              assertThat(repo.tables()).hasSize(10);
+              assertThat(repo.combinations()).hasSize(16);
+              service.saveCombination(admin, "1,4", true);
+              seed.run();
+              assertThat(repo.combinations()).doesNotContain(List.of(1L, 4L));
+              assertThat(repo.tables()).extracting(DiningTable::code).contains("B05", "B10");
+              status.setRollbackOnly();
+            });
   }
 
   @Test

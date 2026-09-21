@@ -74,7 +74,7 @@ public class RestaurantRepository {
 
   public List<DiningTable> tables() {
     return jdbc.query(
-        "SELECT * FROM dining_table ORDER BY id",
+        "SELECT * FROM dining_table WHERE retired=FALSE ORDER BY id",
         (r, n) ->
             new DiningTable(
                 r.getLong("id"),
@@ -144,6 +144,11 @@ public class RestaurantRepository {
         r.getObject("paid_at", LocalDateTime.class),
         r.getObject("released_at", LocalDateTime.class),
         tableIds(id),
+        jdbc.queryForList(
+            "SELECT t.code FROM dining_table t JOIN reservation_table rt ON rt.table_id=t.id WHERE"
+                + " rt.reservation_id=? ORDER BY t.id",
+            String.class,
+            id),
         lines(id));
   }
 

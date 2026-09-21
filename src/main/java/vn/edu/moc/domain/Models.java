@@ -89,13 +89,14 @@ public final class Models {
       LocalDateTime paidAt,
       LocalDateTime releasedAt,
       List<Long> tableIds,
+      List<String> tableCodes,
       List<OrderLine> lines) {
     public String code() {
-      return "MOC-" + id.substring(0, 8).toUpperCase();
+      return "GV-" + id.substring(0, 8).toUpperCase();
     }
 
     public String tablesLabel() {
-      return String.join(" + ", tableIds.stream().map(i -> "B%02d".formatted(i)).toList());
+      return String.join(" + ", tableCodes);
     }
 
     public long foodTotal() {
