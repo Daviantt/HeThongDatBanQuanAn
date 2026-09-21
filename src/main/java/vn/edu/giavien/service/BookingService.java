@@ -1,4 +1,4 @@
-package vn.edu.moc.service;
+package vn.edu.giavien.service;
 
 import java.time.*;
 import java.util.*;
@@ -8,9 +8,9 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import vn.edu.moc.data.RestaurantRepository;
-import vn.edu.moc.domain.BookingPolicy;
-import vn.edu.moc.domain.Models.*;
+import vn.edu.giavien.data.RestaurantRepository;
+import vn.edu.giavien.domain.BookingPolicy;
+import vn.edu.giavien.domain.Models.*;
 
 @Service
 @Transactional
@@ -114,6 +114,11 @@ public class BookingService {
     List<TableOption> options =
         sets.stream()
             .filter(ids -> ids.size() == required && Collections.disjoint(ids, busy))
+            .filter(
+                ids ->
+                    ids.size() == 1
+                        || vn.edu.giavien.domain.FloorPlan.canJoin(
+                            tables.stream().filter(t -> ids.contains(t.id())).toList()))
             .map(
                 ids ->
                     new TableOption(
@@ -167,7 +172,10 @@ public class BookingService {
             repo.tables().stream().filter(DiningTable::active).map(DiningTable::id).toList());
     require(active.containsAll(ids), "Bàn đã chọn không còn phục vụ.");
     require(
-        ids.size() == 1 || repo.combinations().contains(ids),
+        ids.size() == 1
+            || (repo.combinations().contains(ids)
+                && vn.edu.giavien.domain.FloorPlan.canJoin(
+                    repo.tables().stream().filter(t -> ids.contains(t.id())).toList())),
         "Các bàn này không thuộc một tổ hợp được phép ghép.");
     require(
         Collections.disjoint(ids, busyTables(start, end, exclude)),
@@ -589,9 +597,9 @@ public class BookingService {
     String canonical = String.join(",", ids.stream().map(String::valueOf).toList());
     require(
         remove
-            || vn.edu.moc.domain.FloorPlan.canJoin(
+            || vn.edu.giavien.domain.FloorPlan.canJoin(
                 repo.tables().stream().filter(t -> ids.contains(t.id())).toList()),
-        "Chỉ ghép các bàn liền nhau theo hàng ngang hoặc dọc, không đi qua khu vườn.");
+        "Chỉ ghép các bàn liền nhau cùng tầng theo hàng ngang hoặc dọc, không đi qua khu vườn.");
     if (remove) repo.jdbc().update("DELETE FROM table_combination WHERE table_ids=?", canonical);
     else if (!repo.combinations().contains(ids))
       repo.jdbc().update("INSERT INTO table_combination(table_ids) VALUES(?)", canonical);

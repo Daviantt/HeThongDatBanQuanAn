@@ -1,4 +1,4 @@
-package vn.edu.moc.data;
+package vn.edu.giavien.data;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -7,7 +7,7 @@ import java.util.*;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
-import vn.edu.moc.domain.Models.*;
+import vn.edu.giavien.domain.Models.*;
 
 @Repository
 public class RestaurantRepository {
@@ -82,7 +82,8 @@ public class RestaurantRepository {
                 r.getString("zone"),
                 r.getInt("map_x"),
                 r.getInt("map_y"),
-                r.getBoolean("active")));
+                r.getBoolean("active"),
+                r.getInt("floor")));
   }
 
   public List<List<Long>> combinations() {

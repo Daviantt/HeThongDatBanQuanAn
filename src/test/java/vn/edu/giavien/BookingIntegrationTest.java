@@ -1,4 +1,4 @@
-package vn.edu.moc;
+package vn.edu.giavien;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.*;
@@ -24,14 +24,14 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
-import vn.edu.moc.data.RestaurantRepository;
-import vn.edu.moc.domain.BookingPolicy;
-import vn.edu.moc.domain.Models.*;
-import vn.edu.moc.service.BookingService;
+import vn.edu.giavien.data.RestaurantRepository;
+import vn.edu.giavien.domain.BookingPolicy;
+import vn.edu.giavien.domain.Models.*;
+import vn.edu.giavien.service.BookingService;
 
 @SpringBootTest(
     properties = {
-      "spring.datasource.url=jdbc:h2:mem:moc-test;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=10000",
+      "spring.datasource.url=jdbc:h2:mem:giavien-test;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=10000",
       "app.demo=true",
       "app.vnpay.tmn-code=TESTCODE",
       "app.vnpay.hash-secret=test-secret"
@@ -44,7 +44,7 @@ class BookingIntegrationTest {
   @Autowired MutableClock clock;
   @Autowired MockMvc mvc;
   @Autowired PlatformTransactionManager transactions;
-  @Autowired vn.edu.moc.config.SeedData seed;
+  @Autowired vn.edu.giavien.config.SeedData seed;
   Account customer, staff, admin;
   final LocalDateTime baseline = LocalDateTime.of(2026, 9, 21, 10, 0);
 
@@ -124,7 +124,7 @@ class BookingIntegrationTest {
 
   @Test
   void gardenLayoutHasTenNumberedTablesAndVerticalBookingsBlockEveryTable() {
-    assertThat(repo.tables())
+    assertThat(repo.tables().stream().filter(t -> t.floor() == 1).toList())
         .extracting(DiningTable::code)
         .containsExactly("B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B09", "B10");
     assertThat(repo.tables()).noneMatch(t -> t.mapX() == 1 && (t.mapY() == 1 || t.mapY() == 2));
@@ -167,7 +167,10 @@ class BookingIntegrationTest {
         .executeWithoutResult(
             status -> {
               repo.jdbc().update("DELETE FROM app_migration WHERE name='garden-layout-v1'");
-              repo.jdbc().update("UPDATE dining_table SET code='TMP-' || id");
+              repo.jdbc().update("DELETE FROM app_migration WHERE name='upper-floor-v1'");
+              repo.jdbc().update("DELETE FROM table_combination");
+              repo.jdbc().update("DELETE FROM dining_table WHERE floor=2");
+              repo.jdbc().update("UPDATE dining_table SET code='TMP-' || id WHERE floor=1");
               for (int id = 1; id <= 12; id++) {
                 repo.jdbc()
                     .update(
@@ -180,12 +183,72 @@ class BookingIntegrationTest {
               seed.run();
               assertThat(repo.booking(existing).orElseThrow().tableIds()).containsExactly(5L);
               assertThat(repo.booking(existing).orElseThrow().tablesLabel()).isEqualTo("OLD-B05");
-              assertThat(repo.tables()).hasSize(10);
-              assertThat(repo.combinations()).hasSize(16);
+              assertThat(repo.tables()).hasSize(20);
+              assertThat(repo.combinations()).hasSize(32);
               service.saveCombination(admin, "1,4", true);
               seed.run();
               assertThat(repo.combinations()).doesNotContain(List.of(1L, 4L));
               assertThat(repo.tables()).extracting(DiningTable::code).contains("B05", "B10");
+              status.setRollbackOnly();
+            });
+  }
+
+  @Test
+  void upperFloorCanBeBookedWithoutBlockingGroundFloor() {
+    var upper = repo.tables().stream().filter(t -> t.floor() == 2).toList();
+    assertThat(upper)
+        .extracting(DiningTable::code)
+        .containsExactly("B11", "B12", "B13", "B14", "B15", "B16", "B17", "B18", "B19", "B20");
+    var start = baseline.plusHours(4);
+    var ids = service.resolveTableNumbers("11,14");
+    String booking = service.create(customer, input(start, 8, ids));
+    assertThat(repo.booking(booking).orElseThrow().tablesLabel()).isEqualTo("B11 + B14");
+    assertThat(repo.booking(booking).orElseThrow().deposit()).isEqualTo(200000);
+    var availability = service.availability(start, start.plusHours(2), 8);
+    assertThat(availability.unavailable()).containsAll(ids).doesNotContain(1L, 4L);
+    assertThat(availability.options()).anyMatch(o -> o.label().equals("B01 + B04"));
+    assertThat(availability.options()).noneMatch(o -> o.label().equals("B11 + B14"));
+  }
+
+  @Test
+  void crossFloorCombinationsAreRejectedEvenIfStoredInDatabase() {
+    new TransactionTemplate(transactions)
+        .executeWithoutResult(
+            status -> {
+              assertThatThrownBy(() -> service.saveCombination(admin, "1,14", false))
+                  .hasMessageContaining("cùng tầng");
+              var ids = service.resolveTableNumbers("1,14");
+              String raw = String.join(",", ids.stream().map(String::valueOf).toList());
+              repo.jdbc().update("INSERT INTO table_combination(table_ids) VALUES(?)", raw);
+              var start = baseline.plusHours(4);
+              assertThat(service.availability(start, start.plusHours(2), 8).options())
+                  .noneMatch(o -> o.tableIds().equals(ids));
+              assertThatThrownBy(() -> service.create(customer, input(start, 8, ids)))
+                  .hasMessageContaining("tổ hợp");
+              status.setRollbackOnly();
+            });
+  }
+
+  @Test
+  void restartingPreservesUpperFloorSettingsAndExistingBooking() {
+    new TransactionTemplate(transactions)
+        .executeWithoutResult(
+            status -> {
+              String existing = create(baseline.plusHours(4));
+              var oldTables = repo.booking(existing).orElseThrow().tableIds();
+              service.saveCombination(admin, "11,14", true);
+              service.toggleTable(admin, service.resolveTableNumbers("20").getFirst());
+              seed.run();
+              assertThat(repo.tables()).hasSize(20);
+              assertThat(repo.booking(existing).orElseThrow().tableIds()).isEqualTo(oldTables);
+              assertThat(repo.combinations()).doesNotContain(service.resolveTableNumbers("11,14"));
+              assertThat(
+                      repo.tables().stream()
+                          .filter(t -> t.code().equals("B20"))
+                          .findFirst()
+                          .orElseThrow()
+                          .active())
+                  .isFalse();
               status.setRollbackOnly();
             });
   }

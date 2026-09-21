@@ -1,4 +1,4 @@
-# Gia Viên — Website đặt bàn và đặt món trước
+# GiaViên — Website đặt bàn và đặt món trước
 
 Đồ án Phân tích thiết kế hướng đối tượng, dành cho **một quán ăn**. Đây là phiên bản đầu chạy được bằng Java; tên quán và hình minh họa là dữ liệu mẫu.
 
@@ -12,7 +12,7 @@ Mở PowerShell trong thư mục dự án:
 
 Truy cập **http://localhost:8080**. Dừng bằng `Ctrl+C` tại terminal đang chạy.
 
-JDK 21 và Maven đã được chuẩn bị trong `.tools`, không thay Java mặc định của Windows. Nếu máy chặn chạy file `.ps1`, có thể mở dự án bằng IntelliJ IDEA, chọn JDK 21 và chạy `MocApplication`.
+JDK 21 và Maven đã được chuẩn bị trong `.tools`, không thay Java mặc định của Windows. Nếu máy chặn chạy file `.ps1`, có thể mở dự án bằng IntelliJ IDEA, chọn JDK 21 và chạy `GiaVienApplication`.
 
 Trên máy Windows khác: chạy `./setup.ps1` một lần để tải JDK và Maven chính thức, có kiểm tra checksum, sau đó `./run.ps1`. Cần kết nối Internet cho lần tải dependency đầu tiên. Hoặc dùng JDK 21 và Maven cài sẵn: `mvn spring-boot:run`.
 
@@ -33,7 +33,8 @@ Khách cũng có thể đăng ký tài khoản mới. Quản lý có thể tạo
 - Giao diện tiếng Việt, responsive, trang chủ và thực đơn có bộ lọc.
 - Đăng ký/đăng nhập/đăng xuất; ba vai trò khách, nhân viên, quản lý.
 - Chọn ngày, giờ đến, giờ kết thúc, 1–12 người.
-- Sơ đồ 10 bàn, mỗi bàn 4 chỗ, bao quanh khu vườn giữa quán. Nhóm đông chọn tổ hợp 2–3 bàn liền nhau theo hàng ngang hoặc dọc, ví dụ B01 + B04. Không ghép xuyên qua vườn.
+- Sơ đồ 2 tầng, tổng cộng 20 bàn, mỗi bàn 4 chỗ. Tầng 1 gồm B01–B10 quanh vườn; tầng 2 gồm B11–B20 quanh khoảng thông tầng và ban công. Chuyển tầng bằng nút trên sơ đồ; đổi tầng sẽ bỏ lựa chọn bàn trước đó.
+- Ghép 2–3 bàn liền nhau cùng tầng theo hàng ngang hoặc dọc, ví dụ B01 + B04 hoặc B11 + B14. Không ghép xuyên vườn, thông tầng hoặc giữa hai tầng.
 - Chọn món trước, số lượng, ghi chú; giá món và tiền cọc được lưu tại thời điểm đặt.
 - Giữ bàn có thời hạn, chống đặt trùng bằng transaction và khóa trong database.
 - Thanh toán demo chạy ngay, không thu tiền thật; tích hợp tạo URL và xác minh IPN VNPAY sandbox.
@@ -42,7 +43,9 @@ Khách cũng có thể đăng ký tài khoản mới. Quản lý có thể tạo
 - Nhân viên nhận khách, hoàn tất phục vụ, ghi nhận không đến, quán hủy và ghi nhận đã hoàn cọc.
 - Quản lý thực đơn, tạm ngừng bàn, tổ hợp ghép, cấu hình cọc/thời gian và tạo tài khoản nhân viên.
 - Nhật ký thao tác của mỗi lượt đặt.
-- Dữ liệu H2 lưu bền trong `data/moc.mv.db`, còn sau khi khởi động lại.
+- Dữ liệu H2 mới lưu trong `data/giavien.mv.db`. Khi chạy bằng `GiaVienApplication`, `run.ps1` hoặc JAR, ứng dụng tự nhận lại `data/moc.mv.db` nếu đó là database cũ duy nhất, để giữ lịch đặt và tài khoản. Có thể chỉ định database bằng biến môi trường `DATABASE_URL`.
+
+Tên hiển thị là **GiaViên**; package Java là `vn.edu.giavien`, file khởi động là `GiaVienApplication.java`, giao diện dùng `giavien.css` và `giavien.js`. `run.ps1` và `setup.ps1` giữ tên theo chức năng. Tài khoản và mật khẩu demo cũ vẫn giữ nguyên để người đang dùng không bị mất quyền đăng nhập.
 
 ## Quy tắc đã thống nhất
 
@@ -102,8 +105,8 @@ Tài liệu nguồn: https://sandbox.vnpayment.vn/apis/docs/thanh-toan-pay/pay.h
 ## Kiến trúc để học và viết báo cáo
 
 ```text
-src/main/java/vn/edu/moc/
-  MocApplication.java          Điểm khởi động
+src/main/java/vn/edu/giavien/
+  GiaVienApplication.java          Điểm khởi động
   config/                      Security, tài khoản/dữ liệu mẫu
   domain/                      Đối tượng nghiệp vụ, trạng thái và quy tắc thời gian
   data/                        Truy vấn database bằng JDBC có tham số
@@ -126,8 +129,15 @@ Stack: Java 21, Spring Boot 4.0.5, Spring MVC, Thymeleaf, Spring Security, Sprin
 .\run.ps1 -Package
 ```
 
-JAR sau đóng gói: `target/moc-restaurant-0.1.0.jar`. Chạy bằng `java -jar ...` với **JDK 21**, không dùng Java 8 mặc định trên máy.
+JAR sau đóng gói: `target/giavien-restaurant-0.1.0.jar`. Chạy bằng `java -jar ...` với **JDK 21**, không dùng Java 8 mặc định trên máy.
 
 Test dùng database trong bộ nhớ riêng, không xóa dữ liệu demo. Bao gồm biên 3 giờ/2 giờ, giao dịch đồng thời, ghép bàn, thời gian dọn bàn, cọc lưu theo lượt đặt, dữ liệu món, callback trễ/lặp/sai tiền, đăng nhập, CSRF, phân quyền và template.
+
+Kiểm thử JavaScript cho luồng chuyển tầng (cần Node.js):
+
+```powershell
+npm.cmd install --prefix .tools/ui-test --no-audit --no-fund jsdom@29.1.1
+node --test src/test/js/booking.test.cjs
+```
 
 Demo gợi ý: đăng nhập khách → ngày mai, 18:00–20:00, 9 người → B01+B02+B03 → chọn món → cọc 300.000đ → thanh toán demo → gửi yêu cầu đổi giờ → đăng nhập nhân viên xử lý → khách hủy → nhân viên ghi nhận hoàn cọc.

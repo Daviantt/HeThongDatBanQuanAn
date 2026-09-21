@@ -1,4 +1,4 @@
-package vn.edu.moc.service;
+package vn.edu.giavien.service;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -10,7 +10,7 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import vn.edu.moc.domain.Models.Booking;
+import vn.edu.giavien.domain.Models.Booking;
 
 @Service
 public class VnpayGateway {

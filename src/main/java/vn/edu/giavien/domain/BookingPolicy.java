@@ -1,7 +1,7 @@
-package vn.edu.moc.domain;
+package vn.edu.giavien.domain;
 
 import java.time.LocalDateTime;
-import vn.edu.moc.domain.Models.*;
+import vn.edu.giavien.domain.Models.*;
 
 /** Quy tắc thời gian dùng chung cho giao diện và các thao tác nghiệp vụ. */
 public final class BookingPolicy {

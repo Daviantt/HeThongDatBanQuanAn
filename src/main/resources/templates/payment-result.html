@@ -10,7 +10,7 @@
           th:text="${verified ? 'Đã trở về từ cổng thanh toán.' : 'Chưa xác minh được kết quả.'}"
         ></h1>
         <p th:if="${verified}">
-          Trạng thái lượt đặt được cập nhật khi Gia Viên nhận xác nhận trực tiếp từ
+          Trạng thái lượt đặt được cập nhật khi GiaViên nhận xác nhận trực tiếp từ
           VNPAY.<br />Vui lòng mở lịch hẹn để kiểm tra kết quả mới nhất.
         </p>
         <p th:unless="${verified}">

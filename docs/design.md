@@ -1,5 +1,7 @@
 # Phân tích thiết kế — phiên bản đầu
 
+GiaViên có hai tầng: B01–B10 ở tầng 1 quanh vườn, B11–B20 ở tầng 2 quanh khoảng thông tầng. `DiningTable.floor` xác định tầng; `FloorPlan.canJoin` chỉ cho phép ghép 2–3 bàn liên tiếp trên cùng hàng/cột và cùng tầng. ID vật lý của bàn cũ được giữ nguyên để bảo toàn liên kết đặt bàn; tên hiển thị lấy từ `code`.
+
 ## Tác nhân và use case
 
 | Tác nhân             | Use case                                                                                                           |

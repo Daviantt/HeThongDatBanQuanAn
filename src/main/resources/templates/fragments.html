@@ -6,15 +6,15 @@
     <meta name="theme-color" content="#334b3f" />
     <meta name="_csrf" th:content="${_csrf.token}" />
     <meta name="_csrf_header" th:content="${_csrf.headerName}" />
-    <title th:text="${title} + ' · Gia Viên'">Gia Viên</title>
-    <link rel="stylesheet" href="/css/site.css" />
-    <script src="/js/site.js" defer></script>
+    <title th:text="${title} + ' · GiaViên'">GiaViên</title>
+    <link rel="stylesheet" href="/css/giavien.css" />
+    <script src="/js/giavien.js" defer></script>
   </head>
   <body>
     <header th:fragment="header" class="site-header">
-      <a href="/" class="brand" aria-label="Gia Viên, trang chủ"
+      <a href="/" class="brand" aria-label="GiaViên, trang chủ"
         ><span class="brand-symbol" aria-hidden="true">g</span
-        ><span>Gia Viên<span class="brand-sub">BẾP NHÀ · VƯỜN XANH</span></span></a
+        ><span>GiaViên<span class="brand-sub">BẾP NHÀ · VƯỜN XANH</span></span></a
       >
       <nav aria-label="Điều hướng chính">
         <a href="/menu">Thực đơn</a><a href="/book">Đặt bàn</a
@@ -45,7 +45,7 @@
       ></div>
     </div>
     <footer th:fragment="footer" class="site-footer">
-      <a class="footer-brand" href="/">gia viên.</a>
+      <a class="footer-brand" href="/">GiaViên.</a>
       <p>Một chiếc bàn. Một bữa ngon. Một câu chuyện mới.</p>
       <span
         >Giờ phục vụ

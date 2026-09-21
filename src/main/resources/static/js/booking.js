@@ -8,6 +8,8 @@
     selected: null,
     submitting: false,
     request: 0,
+    floor: 1,
+    availability: null,
   };
   const error = (id, message) => {
     $(id).textContent = message;
@@ -17,7 +19,7 @@
     const option = state.selected;
     $("selected-label").textContent = option ? option.label : "Chưa chọn bàn";
     $("selected-capacity").textContent = option
-      ? `${option.tableIds.length} bàn · Tối đa ${option.capacity} người`
+      ? `Tầng ${state.floor} · ${option.tableIds.length} bàn · Tối đa ${option.capacity} người`
       : "Một chỗ ngồi thật vừa ý đang đợi bạn.";
     $("summary-deposit").textContent = option ? money(option.deposit) : "—";
     let total = 0;
@@ -59,7 +61,15 @@
     error("booking-error", "");
     updateSummary();
   }
-  function showAvailability(data) {
+  function showAvailability(all) {
+    state.availability = all;
+    const tables = all.tables.filter((table) => table.floor === state.floor);
+    const floorIds = new Set(tables.map((table) => table.id));
+    const data = {
+      ...all,
+      tables,
+      options: all.options.filter((option) => option.tableIds.every((id) => floorIds.has(id))),
+    };
     state.options = data.options;
     $("table-grid").querySelectorAll(".table-seat").forEach((table) => table.remove());
     $("combination-options").replaceChildren();
@@ -101,14 +111,43 @@
     $("map-placeholder").hidden = true;
     $("floor-plan").hidden = false;
     $("map-caption").textContent = data.options.length
-      ? `${data.options.length} phương án còn trống. ${state.search.guests > 4 ? "Chọn tổ hợp bên dưới hoặc nhấn vào bàn trên sơ đồ." : "Nhấn vào một bàn để chọn."}`
-      : "Chưa có bàn phù hợp trong khung giờ này. Bạn thử đổi giờ hoặc ngày nhé.";
+      ? `Tầng ${state.floor}: ${data.options.length} phương án còn trống. ${state.search.guests > 4 ? "Chọn tổ hợp bên dưới hoặc nhấn vào bàn trên sơ đồ." : "Nhấn vào một bàn để chọn."}`
+      : `Tầng ${state.floor} chưa có bàn phù hợp. Bạn thử chọn tầng khác hoặc đổi thời gian nhé.`;
     updateSummary();
   }
+  document.querySelectorAll("[data-floor]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (state.submitting || state.floor === Number(button.dataset.floor)) return;
+      state.floor = Number(button.dataset.floor);
+      state.selected = null;
+      const upper = state.floor === 2;
+      document.querySelectorAll("[data-floor]").forEach((tab) => {
+        const active = Number(tab.dataset.floor) === state.floor;
+        tab.classList.toggle("active", active);
+        tab.setAttribute("aria-pressed", String(active));
+      });
+      $("floor-plan").classList.toggle("upper-floor", upper);
+      $("floor-title").textContent = `GIAVIÊN / TẦNG ${state.floor}`;
+      $("floor-window").textContent = upper ? "DÃY CỬA SỔ · GÓC NHÌN TỪ TẦNG 2" : "DÃY CỬA SỔ · ÁNH SÁNG TỰ NHIÊN";
+      $("courtyard-title").textContent = upper ? "Khoảng thông tầng" : "Vườn giữa nhà";
+      $("courtyard-caption").textContent = upper ? "Nhìn xuống vườn xanh · Có lan can bảo vệ" : "Một khoảng xanh, một chút bình yên";
+      $("courtyard").setAttribute("aria-label", upper ? "Khoảng thông tầng nhìn xuống vườn, có lan can, không bố trí bàn" : "Khu vườn ở giữa quán, không bố trí bàn");
+      $("veranda-title").textContent = upper ? "BAN CÔNG" : "HIÊN NHÀ";
+      $("veranda-caption").textContent = upper ? "Góc ngồi đón gió" : "Lối dạo quanh vườn";
+      $("floor-reception").textContent = upper ? "QUẦY PHỤC VỤ" : "QUẦY ĐÓN KHÁCH";
+      $("floor-entrance").textContent = upper ? "CẦU THANG XUỐNG TẦNG 1 ↓" : "LỐI VÀO ↑ · CẦU THANG ⇧";
+      $("floor-service").textContent = upper ? "KHU NGHỈ" : "BẾP NHÀ";
+      error("booking-error", "");
+      if (state.availability && state.search) showAvailability(state.availability);
+      else updateSummary();
+    });
+  });
   $("availability-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     state.selected = null;
     state.search = null;
+    state.availability = null;
+    state.options = [];
     updateSummary();
     const requestId = ++state.request;
     const search = {
@@ -153,6 +192,7 @@
       state.selected = null;
       state.search = null;
       state.options = [];
+      state.availability = null;
       $("floor-plan").hidden = true;
       $("map-placeholder").hidden = false;
       $("combination-options").replaceChildren();

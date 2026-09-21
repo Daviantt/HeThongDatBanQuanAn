@@ -809,6 +809,21 @@ details summary > span:last-child {
   border: 7px solid #e3dfd2;
   border-radius: 20px;
 }
+.floor-switcher { display: flex; gap: 12px; margin: 20px 0; }
+.floor-tab { flex: 1; text-align: left; padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px; background: #faf9f4; color: var(--ink); font-weight: 600; }
+.floor-tab span { display: block; font-size: 11px; font-weight: 400; margin-top: 4px; }
+.floor-tab.active { background: var(--green); border-color: var(--green); color: white; }
+.floor-tab:hover:not(.active) { background: #e7eddf; }
+.upper-floor { background: repeating-linear-gradient(90deg, #f0ece2 0, #f0ece2 49px, #e5dfd3 50px); }
+.upper-floor .courtyard { border: 4px double #909c83; background: #e8ecdf; box-shadow: 0 0 0 7px #f8f4e9, 0 0 0 9px #a5ae99; }
+.upper-floor .courtyard img { opacity: .7; transform: scale(.85); }
+.upper-floor .veranda { border-bottom: 4px double #a5ae99; }
+@media (max-width: 540px) {
+  .floor-switcher { gap: 8px; }
+  .floor-tab { padding: 11px 10px; font-size: 13px; }
+  .floor-tab span { font-size: 10px; }
+  .map-bottom { gap: 8px; flex-wrap: wrap; }
+}
 .room-top { display: flex; justify-content: space-between; gap: 12px; font-size: 10px; letter-spacing: 1px; color: #777c68; }
 .room-top span:last-child { letter-spacing: 0; white-space: nowrap; }
 .courtyard {

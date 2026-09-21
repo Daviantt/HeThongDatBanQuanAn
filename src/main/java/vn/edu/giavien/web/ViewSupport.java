@@ -1,4 +1,4 @@
-package vn.edu.moc.web;
+package vn.edu.giavien.web;
 
 import java.security.Principal;
 import java.text.NumberFormat;
@@ -10,9 +10,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ModelAttribute;
-import vn.edu.moc.data.RestaurantRepository;
-import vn.edu.moc.service.BookingService;
-import vn.edu.moc.service.VnpayGateway;
+import vn.edu.giavien.data.RestaurantRepository;
+import vn.edu.giavien.service.BookingService;
+import vn.edu.giavien.service.VnpayGateway;
 
 @Component("fmt")
 public class ViewSupport {
