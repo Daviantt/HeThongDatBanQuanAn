@@ -83,6 +83,8 @@ public class PageController {
     return "book";
   }
 
+
+
   @GetMapping("/bookings")
   public String bookings(Principal principal, Model model) {
     service.expireHolds();
@@ -300,4 +302,5 @@ public class PageController {
     flash.addFlashAttribute("success", "Đã cập nhật tổ hợp ghép bàn.");
     return "redirect:/admin";
   }
+
 }

@@ -1996,3 +1996,12 @@ details summary > span:last-child {
     transition: none !important;
   }
 }
+
+.clickable-dish {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.clickable-dish:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
