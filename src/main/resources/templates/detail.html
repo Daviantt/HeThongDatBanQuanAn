@@ -10,8 +10,8 @@
       <div class="page-heading">
         <p class="eyebrow" th:text="${booking.code()}"></p>
         <h1>Cuộc hẹn ở GiaViên.</h1>
-        <p class="notice warning" th:if="${#strings.contains(booking.tablesLabel(), 'OLD-')}">
-          Sơ đồ quán đã thay đổi. Bàn có tiền tố OLD- thuộc khu vực đã chuyển thành vườn;
+        <p class="notice warning" th:if="${@fmt.hasRetiredTables(booking.tableIds)}">
+          Sơ đồ quán đã thay đổi. Lượt đặt có bàn thuộc khu vực đã ngừng bố trí chỗ ngồi;
           vui lòng liên hệ nhân viên để bố trí lại bàn. Thông tin đặt bàn và tiền cọc vẫn được giữ.
         </p>
         <span
@@ -351,25 +351,23 @@
                   Thanh toán VNPAY sandbox ↗
                 </button>
               </form>
-              <form
-                th:if="${demo}"
-                th:action="@{/bookings/{id}/demo-pay(id=${booking.id})}"
-                method="post"
-              >
-                <button
-                  type="submit"
-                  class="button full"
-                  th:classappend="${gatewayReady ? 'outline' : ''}"
-                >
-                  Thanh toán demo →
-                </button>
-                <p class="helper">
-                  Mô phỏng thanh toán để thử đồ án. Không thu tiền thật.
-                </p>
+              <p th:if="${gatewayReady}" class="helper">Bạn sẽ chọn phương thức thanh toán tại VNPAY. Môi trường thử nghiệm, không thu tiền thật.</p>
+              <form th:if="${demoPaymentEnabled}" th:action="@{/bookings/{id}/demo-payment(id=${booking.id})}" method="post">
+                <button type="submit" class="button full">Thanh toán bằng QR demo →</button>
+                <p class="helper">Quét QR để mở trang mô phỏng, hoặc đợi 1 phút rồi tự bấm thanh toán thành công. Không thu tiền thật.</p>
               </form>
-              <p th:if="${!gatewayReady and !demo}" class="notice warning">
+              <p th:if="${!gatewayReady and !demoPaymentEnabled}" class="notice warning">
                 Cổng thanh toán chưa sẵn sàng. Vui lòng liên hệ quán.
               </p>
+            </div>
+            <p th:if="${demoPayment}" class="notice warning">Khoản cọc này được xác nhận bằng mô phỏng demo. Không có tiền thật được chuyển; các thao tác hoàn cọc cũng chỉ là dữ liệu thử.</p>
+            <div th:each="attempt : ${paymentAttempts}" th:if="${attempt.status == 'EXTRA_REFUND_PENDING'}" class="notice warning">
+              <p>Đã nhận thêm một khoản cọc <strong th:text="${@fmt.money(attempt.amount)}"></strong>. Nhân viên sẽ xử lý hoàn khoản thu thêm này.</p>
+              <form th:if="${isStaff}" th:action="@{/staff/bookings/{id}/payments/{attemptId}/refund(id=${booking.id},attemptId=${attempt.id})}" method="post" class="form-stack">
+                <small th:text="|Giao dịch VNPAY: ${attempt.gatewayReference}|"></small>
+                <label>Mã giao dịch hoàn tiền<input name="reference" minlength="3" maxlength="150" required /></label>
+                <button class="button outline" type="submit">Ghi nhận đã hoàn khoản thu thêm</button>
+              </form>
             </div>
             <div class="policy-note">
               <strong>Điều kiện hoàn cọc</strong>

@@ -40,6 +40,8 @@ import vn.edu.giavien.service.BookingService;
 @Import(BookingIntegrationTest.TimeConfig.class)
 class BookingIntegrationTest {
   @Autowired BookingService service;
+  @Autowired vn.edu.giavien.service.VnpayPaymentService payments;
+  @Autowired vn.edu.giavien.service.VnpayGateway gateway;
   @Autowired RestaurantRepository repo;
   @Autowired MutableClock clock;
   @Autowired MockMvc mvc;
@@ -91,6 +93,8 @@ class BookingIntegrationTest {
               for (String table :
                   List.of(
                       "audit_event",
+                      "demo_payment",
+                      "payment_attempt",
                       "change_request",
                       "order_line",
                       "reservation_table",
@@ -118,15 +122,48 @@ class BookingIntegrationTest {
 
   String paid(LocalDateTime start) {
     String id = create(start);
-    service.demoPay(id, customer);
+    simulateVerifiedPayment(id);
     return id;
   }
 
+  void simulateVerifiedPayment(String id) {
+    assertThat(service.gatewayPayment(id, repo.booking(id).orElseThrow().deposit(), "123456", true))
+        .isEqualTo("00");
+  }
+
+  Map<String, String> urlParameters(String url) {
+    var result = new TreeMap<String, String>();
+    for (String part : java.net.URI.create(url).getRawQuery().split("&")) {
+      String[] pair = part.split("=", 2);
+      result.put(
+          java.net.URLDecoder.decode(pair[0], StandardCharsets.UTF_8),
+          java.net.URLDecoder.decode(pair[1], StandardCharsets.UTF_8));
+    }
+    return result;
+  }
+
+  Map<String, String> callbackParameters(String reference, String code, String transaction)
+      throws Exception {
+    var params = new TreeMap<String, String>();
+    params.put("vnp_TmnCode", "TESTCODE");
+    params.put("vnp_TxnRef", reference);
+    params.put("vnp_Amount", "10000000");
+    params.put("vnp_ResponseCode", code);
+    params.put("vnp_TransactionStatus", code.equals("00") ? "00" : "02");
+    params.put("vnp_TransactionNo", transaction);
+    params.put("vnp_SecureHash", signature(params));
+    return params;
+  }
+
+  String startPayment(String id) {
+    return urlParameters(payments.start(id, customer, "127.0.0.1")).get("vnp_TxnRef");
+  }
+
   @Test
-  void gardenLayoutHasTenNumberedTablesAndVerticalBookingsBlockEveryTable() {
+  void gardenLayoutKeepsEntranceClearAndVerticalBookingsBlockEveryTable() {
     assertThat(repo.tables().stream().filter(t -> t.floor() == 1).toList())
         .extracting(DiningTable::code)
-        .containsExactly("B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B09", "B10");
+        .containsExactly("B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B10");
     assertThat(repo.tables()).noneMatch(t -> t.mapX() == 1 && (t.mapY() == 1 || t.mapY() == 2));
     var start = baseline.plusHours(4);
     var pair =
@@ -168,6 +205,7 @@ class BookingIntegrationTest {
             status -> {
               repo.jdbc().update("DELETE FROM app_migration WHERE name='garden-layout-v1'");
               repo.jdbc().update("DELETE FROM app_migration WHERE name='upper-floor-v1'");
+              repo.jdbc().update("DELETE FROM app_migration WHERE name='entrance-clearance-v1'");
               repo.jdbc().update("DELETE FROM table_combination");
               repo.jdbc().update("DELETE FROM dining_table WHERE floor=2");
               repo.jdbc().update("UPDATE dining_table SET code='TMP-' || id WHERE floor=1");
@@ -183,8 +221,8 @@ class BookingIntegrationTest {
               seed.run();
               assertThat(repo.booking(existing).orElseThrow().tableIds()).containsExactly(5L);
               assertThat(repo.booking(existing).orElseThrow().tablesLabel()).isEqualTo("OLD-B05");
-              assertThat(repo.tables()).hasSize(20);
-              assertThat(repo.combinations()).hasSize(32);
+              assertThat(repo.tables()).hasSize(19);
+              assertThat(repo.combinations()).hasSize(29);
               service.saveCombination(admin, "1,4", true);
               seed.run();
               assertThat(repo.combinations()).doesNotContain(List.of(1L, 4L));
@@ -239,7 +277,7 @@ class BookingIntegrationTest {
               service.saveCombination(admin, "11,14", true);
               service.toggleTable(admin, service.resolveTableNumbers("20").getFirst());
               seed.run();
-              assertThat(repo.tables()).hasSize(20);
+              assertThat(repo.tables()).hasSize(19);
               assertThat(repo.booking(existing).orElseThrow().tableIds()).isEqualTo(oldTables);
               assertThat(repo.combinations()).doesNotContain(service.resolveTableNumbers("11,14"));
               assertThat(
@@ -249,6 +287,50 @@ class BookingIntegrationTest {
                           .orElseThrow()
                           .active())
                   .isFalse();
+              status.setRollbackOnly();
+            });
+  }
+
+  @Test
+  void entranceMigrationPreservesPaidBookingButPreventsNewUseOfB09() {
+    new TransactionTemplate(transactions)
+        .executeWithoutResult(
+            status -> {
+              long retiredId =
+                  repo.jdbc()
+                      .queryForObject(
+                          "SELECT id FROM dining_table WHERE code='B09' AND floor=1", Long.class);
+              repo.jdbc()
+                  .update(
+                      "UPDATE dining_table SET active=TRUE,retired=FALSE WHERE id=?", retiredId);
+              repo.jdbc().update("DELETE FROM app_migration WHERE name='entrance-clearance-v1'");
+              service.saveCombination(admin, "8,9", false);
+              service.saveCombination(admin, "9,10", false);
+              service.saveCombination(admin, "8,9,10", false);
+              var start = baseline.plusHours(4);
+              String existing = service.create(customer, input(start, 2, List.of(retiredId)));
+              simulateVerifiedPayment(existing);
+              seed.run();
+              seed.run();
+              assertThat(repo.tables()).hasSize(19).noneMatch(t -> t.code().equals("B09"));
+              assertThat(repo.tables())
+                  .anyMatch(t -> t.code().equals("B19") && t.floor() == 2 && t.active());
+              assertThat(repo.combinations()).noneMatch(ids -> ids.contains(retiredId));
+              assertThat(repo.combinations()).contains(service.resolveTableNumbers("18,19,20"));
+              var booking = repo.booking(existing).orElseThrow();
+              assertThat(booking.tablesLabel()).isEqualTo("B09");
+              assertThat(booking.paymentStatus()).isEqualTo(PaymentStatus.PAID);
+              assertThat(booking.deposit()).isEqualTo(100000);
+              assertThat(
+                      new vn.edu.giavien.web.ViewSupport(repo).hasRetiredTables(booking.tableIds()))
+                  .isTrue();
+              assertThat(service.availability(start, start.plusHours(2), 2).options())
+                  .noneMatch(o -> o.tableIds().contains(retiredId));
+              assertThatThrownBy(
+                      () -> service.create(customer, input(start, 2, List.of(retiredId))))
+                  .hasMessageContaining("không còn phục vụ");
+              assertThatThrownBy(() -> service.saveCombination(admin, "8,10", false))
+                  .hasMessageContaining("liền nhau");
               status.setRollbackOnly();
             });
   }
@@ -505,7 +587,7 @@ class BookingIntegrationTest {
     String id = create(baseline.plusHours(4));
     var params = new TreeMap<String, String>();
     params.put("vnp_TmnCode", "TESTCODE");
-    params.put("vnp_TxnRef", id);
+    params.put("vnp_TxnRef", startPayment(id));
     params.put("vnp_Amount", "10000000");
     params.put("vnp_ResponseCode", "00");
     params.put("vnp_TransactionStatus", "00");
@@ -517,6 +599,188 @@ class BookingIntegrationTest {
     assertThat(repo.booking(id).orElseThrow().status()).isEqualTo(BookingStatus.CONFIRMED);
     mvc.perform(get("/payment/vnpay/ipn").param("vnp_SecureHash", "fake"))
         .andExpect(jsonPath("$.RspCode").value("97"));
+  }
+
+  @Test
+  void vnpayCheckoutSignsStoredAmountAndReusesPendingAttempt() {
+    String id = create(baseline.plusHours(4));
+    clock.set(baseline.plusMinutes(1));
+    String url = payments.start(id, customer, "127.0.0.1");
+    assertThat(url).startsWith("https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?");
+    var params = urlParameters(url);
+    assertThat(gateway.verified(params)).isTrue();
+    assertThat(params.get("vnp_Amount")).isEqualTo("10000000");
+    assertThat(params.get("vnp_CreateDate")).isEqualTo("20260921100100");
+    assertThat(params.get("vnp_ExpireDate")).isEqualTo("20260921101500");
+    assertThat(params.get("vnp_TxnRef")).matches("[a-f0-9]{32}");
+    assertThat(startPayment(id)).isEqualTo(params.get("vnp_TxnRef"));
+    assertThat(payments.attempts(id)).hasSize(1);
+    assertThat(
+            new vn.edu.giavien.service.VnpayGateway(
+                    "", "", "http://localhost:8080/payment/vnpay/return")
+                .configured())
+        .isFalse();
+  }
+
+  @Test
+  void browserReturnCannotConfirmButSignedIpnDoesExactlyOnce() throws Exception {
+    String id = create(baseline.plusHours(4));
+    var params = callbackParameters(startPayment(id), "00", "1234");
+    assertThat(payments.browserReturn(params).waiting()).isTrue();
+    assertThat(repo.booking(id).orElseThrow().paymentStatus()).isEqualTo(PaymentStatus.UNPAID);
+    var browser = get("/payment/vnpay/return");
+    params.forEach(browser::param);
+    mvc.perform(browser)
+        .andExpect(status().isOk())
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("Đang chờ xác nhận")));
+    assertThat(payments.ipn(params)).isEqualTo("00");
+    assertThat(payments.ipn(params)).isEqualTo("02");
+    assertThat(repo.booking(id).orElseThrow().paymentStatus()).isEqualTo(PaymentStatus.PAID);
+    assertThat(payments.browserReturn(params).waiting()).isFalse();
+    assertThat(payments.attempts(id).getFirst().status()).isEqualTo("SUCCEEDED");
+  }
+
+  @Test
+  void signedFailurePermitsNewAttemptAndKeepsDepositUnpaid() throws Exception {
+    String id = create(baseline.plusHours(4));
+    String first = startPayment(id);
+    var cancelled = callbackParameters(first, "24", "0");
+    assertThat(payments.browserReturn(cancelled).message()).contains("hủy");
+    assertThat(payments.ipn(cancelled)).isEqualTo("00");
+    assertThat(payments.ipn(cancelled)).isEqualTo("02");
+    assertThat(repo.booking(id).orElseThrow().paymentStatus()).isEqualTo(PaymentStatus.UNPAID);
+    String retry = startPayment(id);
+    assertThat(retry).isNotEqualTo(first);
+    assertThat(payments.statusFor(id, customer).waiting()).isTrue();
+    assertThat(payments.ipn(callbackParameters(retry, "00", "6789"))).isEqualTo("00");
+    assertThat(repo.booking(id).orElseThrow().status()).isEqualTo(BookingStatus.CONFIRMED);
+  }
+
+  @Test
+  void invalidSignatureMerchantAmountUnknownAndMalformedCallbacksAreRejected() throws Exception {
+    String id = create(baseline.plusHours(4));
+    var params = callbackParameters(startPayment(id), "00", "1234");
+    params.put("vnp_Amount", "20000000");
+    assertThat(payments.ipn(params)).isEqualTo("97");
+    params.remove("vnp_SecureHash");
+    params.put("vnp_SecureHash", signature(params));
+    assertThat(payments.ipn(params)).isEqualTo("04");
+    params.put("vnp_Amount", "invalid");
+    params.remove("vnp_SecureHash");
+    params.put("vnp_SecureHash", signature(params));
+    assertThat(payments.ipn(params)).isEqualTo("04");
+    var unknown = callbackParameters("f".repeat(32), "00", "1234");
+    assertThat(payments.ipn(unknown)).isEqualTo("01");
+    var wrongMerchant = callbackParameters(startPayment(id), "00", "1234");
+    wrongMerchant.put("vnp_TmnCode", "OTHER123");
+    wrongMerchant.remove("vnp_SecureHash");
+    wrongMerchant.put("vnp_SecureHash", signature(wrongMerchant));
+    assertThat(payments.ipn(wrongMerchant)).isEqualTo("97");
+    var malformed = callbackParameters(startPayment(id), "00", "1234");
+    malformed.remove("vnp_TransactionStatus");
+    malformed.remove("vnp_SecureHash");
+    malformed.put("vnp_SecureHash", signature(malformed));
+    assertThat(payments.ipn(malformed)).isEqualTo("99");
+    var request = get("/payment/vnpay/ipn");
+    callbackParameters(startPayment(id), "00", "1234").forEach(request::param);
+    mvc.perform(request.param("vnp_Amount", "1")).andExpect(jsonPath("$.RspCode").value("97"));
+    assertThat(repo.booking(id).orElseThrow().paymentStatus()).isEqualTo(PaymentStatus.UNPAID);
+  }
+
+  @Test
+  void lateIpnQueuesRefundAndCannotReclaimAnotherCustomersHold() throws Exception {
+    String id = create(baseline.plusHours(4));
+    var callback = callbackParameters(startPayment(id), "00", "3456");
+    clock.set(baseline.plusMinutes(16));
+    String replacement = create(baseline.plusHours(4));
+    assertThatThrownBy(() -> startPayment(id)).hasMessageContaining("hết hạn");
+    assertThat(payments.ipn(callback)).isEqualTo("00");
+    assertThat(repo.booking(id).orElseThrow().paymentStatus())
+        .isEqualTo(PaymentStatus.REFUND_PENDING);
+    assertThat(repo.booking(replacement).orElseThrow().status()).isEqualTo(BookingStatus.PENDING);
+    assertThat(payments.browserReturn(callback).title()).contains("chờ hoàn");
+  }
+
+  @Test
+  void secondDistinctSuccessfulTransactionIsTrackedForRefund() throws Exception {
+    String id = create(baseline.plusHours(4));
+    String first = startPayment(id);
+    payments.ipn(callbackParameters(first, "24", "0"));
+    String retry = startPayment(id);
+    payments.ipn(callbackParameters(first, "00", "4567"));
+    var extra = callbackParameters(retry, "00", "8910");
+    assertThat(payments.ipn(extra)).isEqualTo("00");
+    assertThat(payments.ipn(extra)).isEqualTo("02");
+    assertThat(payments.attempts(id))
+        .anyMatch(a -> a.id().equals(retry) && a.status().equals("EXTRA_REFUND_PENDING"));
+    mvc.perform(get("/bookings/" + id).with(user(staff.email()).roles("STAFF")))
+        .andExpect(status().isOk())
+        .andExpect(
+            content().string(org.hamcrest.Matchers.containsString("Đã nhận thêm một khoản cọc")));
+    assertThatThrownBy(() -> payments.recordExtraRefund(id, retry, customer, "BANK-EXTRA"))
+        .hasMessageContaining("nhân viên");
+    payments.recordExtraRefund(id, retry, staff, "BANK-EXTRA");
+    assertThat(payments.attempts(id))
+        .anyMatch(a -> a.id().equals(retry) && a.status().equals("REFUNDED"));
+    assertThat(repo.booking(id).orElseThrow().paymentStatus()).isEqualTo(PaymentStatus.PAID);
+  }
+
+  @Test
+  void paymentEndpointsRequireOwnerAndCsrfAndHaveNoDemoBypass() throws Exception {
+    String id = create(baseline.plusHours(4));
+    mvc.perform(post("/bookings/" + id + "/pay").with(user(customer.email()).roles("CUSTOMER")))
+        .andExpect(status().isForbidden());
+    mvc.perform(
+            post("/bookings/" + id + "/pay")
+                .with(user(customer.email()).roles("CUSTOMER"))
+                .with(csrf()))
+        .andExpect(status().is3xxRedirection())
+        .andExpect(
+            header()
+                .string(
+                    "Location", org.hamcrest.Matchers.startsWith("https://sandbox.vnpayment.vn/")));
+    mvc.perform(
+            post("/bookings/" + id + "/demo-pay")
+                .with(user(customer.email()).roles("CUSTOMER"))
+                .with(csrf()))
+        .andExpect(status().isNotFound());
+    mvc.perform(get("/api/bookings/" + id + "/payment-status"))
+        .andExpect(status().isUnauthorized());
+    mvc.perform(
+            get("/api/bookings/" + id + "/payment-status")
+                .with(user(customer.email()).roles("CUSTOMER")))
+        .andExpect(status().isOk())
+        .andExpect(header().string("Cache-Control", "no-store"));
+    service.register("payment-other@example.com", "OtherPass123!", "Khách khác", "0901234567");
+    mvc.perform(
+            get("/api/bookings/" + id + "/payment-status")
+                .with(user("payment-other@example.com").roles("CUSTOMER")))
+        .andExpect(status().isForbidden());
+    assertThatThrownBy(
+            () -> payments.start(id, service.account("payment-other@example.com"), "127.0.0.1"))
+        .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+  }
+
+  @Test
+  void missingGatewayConfigurationDoesNotCreatePaymentAttemptOrChangeDeposit() {
+    var missing = new vn.edu.giavien.service.VnpayGateway("", "", "");
+    assertThat(missing.configured()).isFalse();
+    for (String url :
+        List.of(
+            "", "payment/return", "javascript:alert(1)", "https://user:pass@example.com/return")) {
+      assertThat(
+              new vn.edu.giavien.service.VnpayGateway("TESTCODE", "test-secret", url).configured())
+          .isFalse();
+    }
+    String id = create(baseline.plusHours(4));
+    var paymentService = new vn.edu.giavien.service.VnpayPaymentService(repo, service, missing);
+    assertThatThrownBy(
+            () ->
+                new TransactionTemplate(transactions)
+                    .execute(status -> paymentService.start(id, customer, "127.0.0.1")))
+        .hasMessageContaining("chưa sẵn sàng");
+    assertThat(payments.attempts(id)).isEmpty();
+    assertThat(repo.booking(id).orElseThrow().paymentStatus()).isEqualTo(PaymentStatus.UNPAID);
   }
 
   private String signature(Map<String, String> params) throws Exception {

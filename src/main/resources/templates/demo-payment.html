@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{fragments :: head('Thanh toán QR demo')}"></head>
+  <body>
+    <header th:replace="~{fragments :: header}"></header>
+    <main class="shell page">
+      <section class="panel demo-checkout" id="demo-checkout"
+          th:attr="data-status-url=@{/payment/demo/{token}/status(token=${token})},data-state=${payment.status}">
+        <p class="eyebrow">GIAVIÊN · THANH TOÁN MÔ PHỎNG</p>
+        <h1>QR đặt cọc demo</h1>
+        <p class="notice warning">Đây là mô phỏng cho đồ án. QR mở trang GiaViên, không chuyển tiền và không liên kết tài khoản ngân hàng.</p>
+        <div th:replace="~{fragments :: flash}"></div>
+        <p th:if="${error}" class="notice warning" role="alert" th:text="${error}"></p>
+        <p th:text="|Lượt đặt ${payment.code}|"></p>
+        <strong class="payment-amount" th:text="${@fmt.money(payment.amount)}"></strong>
+        <div id="demo-qr" th:hidden="${payment.status == 'PAID' or payment.status == 'CLOSED'}">
+          <img class="demo-qr-image" th:src="@{/payment/demo/{token}/qr.png(token=${token})}"
+              width="320" height="320" alt="QR mở trang thanh toán mô phỏng GiaViên" />
+          <p>Dùng camera điện thoại quét mã để mở trang mô phỏng, hoặc thao tác ngay tại đây.</p>
+          <p class="helper">Điện thoại và máy tính cần cùng Wi-Fi khi chạy trên máy cá nhân.</p>
+          <a class="demo-qr-link" th:href="${qrUrl}" th:text="${qrUrl}"></a>
+        </div>
+        <p id="demo-message" role="status" aria-live="polite" th:text="${payment.message}"></p>
+        <form id="demo-confirm" th:action="@{/payment/demo/{token}/confirm(token=${token})}" method="post"
+            th:hidden="${payment.status == 'PAID' or payment.status == 'CLOSED'}">
+          <button id="demo-pay-button" type="submit" class="button full" th:disabled="${payment.status != 'READY'}"
+              th:text="${payment.status == 'READY' ? 'Mô phỏng thanh toán thành công' : 'Mở nút xác nhận sau ' + payment.remainingSeconds + ' giây'}"></button>
+          <p class="helper">Sau 1 phút, bạn tự bấm xác nhận. Hệ thống không tự đánh dấu đã thanh toán.</p>
+        </form>
+        <noscript><p class="helper">Đợi đủ 1 phút rồi tải lại trang để mở nút xác nhận.</p></noscript>
+        <a class="button outline full" th:href="@{/bookings/{id}(id=${payment.bookingId})}">Xem lượt đặt →</a>
+      </section>
+    </main>
+    <footer th:replace="~{fragments :: footer}"></footer>
+    <script src="/js/demo-payment.js" defer></script>
+  </body>
+</html>

@@ -39,6 +39,7 @@ public class SecurityConfig {
                         "/js/**",
                         "/images/**",
                         "/error",
+                        "/payment/demo/**",
                         "/payment/vnpay/**")
                     .permitAll()
                     .requestMatchers("/admin/**")

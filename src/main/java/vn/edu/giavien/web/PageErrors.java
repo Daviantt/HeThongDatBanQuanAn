@@ -4,7 +4,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
-@ControllerAdvice(assignableTypes = PageController.class)
+@ControllerAdvice(assignableTypes = {PageController.class, DemoPaymentController.class})
 public class PageErrors {
   @ExceptionHandler(IllegalArgumentException.class)
   @ResponseStatus(HttpStatus.BAD_REQUEST)

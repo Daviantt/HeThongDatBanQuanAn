@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import vn.edu.giavien.data.RestaurantRepository;
 import vn.edu.giavien.service.BookingService;
+import vn.edu.giavien.service.DemoPaymentService;
 import vn.edu.giavien.service.VnpayGateway;
 
 @Component("fmt")
@@ -36,6 +37,11 @@ public class ViewSupport {
                         .orElse(""))
             .filter(code -> !code.isEmpty())
             .toList());
+  }
+
+  public boolean hasRetiredTables(java.util.List<Long> ids) {
+    var currentIds = repo.tables().stream().map(t -> t.id()).toList();
+    return ids.stream().anyMatch(id -> !currentIds.contains(id));
   }
 
   public String tableLabels(java.util.List<Long> ids) {
@@ -65,16 +71,19 @@ class SharedModel {
   private final RestaurantRepository repo;
   private final BookingService service;
   private final VnpayGateway gateway;
+  private final DemoPaymentService demoPayments;
   private final boolean demo;
 
   SharedModel(
       RestaurantRepository repo,
       BookingService service,
       VnpayGateway gateway,
+      DemoPaymentService demoPayments,
       @Value("${app.demo}") boolean demo) {
     this.repo = repo;
     this.service = service;
     this.gateway = gateway;
+    this.demoPayments = demoPayments;
     this.demo = demo;
   }
 
@@ -86,6 +95,7 @@ class SharedModel {
     model.addAttribute("isAdmin", account != null && account.role().equals("ADMIN"));
     model.addAttribute("demo", demo);
     model.addAttribute("gatewayReady", gateway.configured());
+    model.addAttribute("demoPaymentEnabled", demoPayments.enabled());
     model.addAttribute("settings", repo.settings());
     model.addAttribute("now", service.now());
   }

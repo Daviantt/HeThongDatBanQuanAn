@@ -50,6 +50,7 @@ public class SeedData implements CommandLineRunner {
     }
     migrateGardenLayout();
     addUpperFloor();
+    clearEntrance();
     if (repo.dishes().isEmpty()) {
       dish(
           "Gỏi cuốn tôm thịt",
@@ -168,6 +169,29 @@ public class SeedData implements CommandLineRunner {
       }
     }
     repo.jdbc().update("INSERT INTO app_migration(name) VALUES('upper-floor-v1')");
+  }
+
+  private void clearEntrance() {
+    if (repo.jdbc()
+            .queryForObject(
+                "SELECT COUNT(*) FROM app_migration WHERE name='entrance-clearance-v1'",
+                Integer.class)
+        > 0) return;
+    // Keep the table's identity and reservation history; retire only the entrance seat.
+    var ids =
+        repo.jdbc()
+            .queryForList("SELECT id FROM dining_table WHERE code='B09' AND floor=1", Long.class);
+    for (var combination : repo.combinations()) {
+      if (combination.stream().anyMatch(ids::contains)) {
+        repo.jdbc()
+            .update(
+                "DELETE FROM table_combination WHERE table_ids=?",
+                String.join(",", combination.stream().map(String::valueOf).toList()));
+      }
+    }
+    repo.jdbc()
+        .update("UPDATE dining_table SET active=FALSE,retired=TRUE WHERE code='B09' AND floor=1");
+    repo.jdbc().update("INSERT INTO app_migration(name) VALUES('entrance-clearance-v1')");
   }
 
   private void dish(

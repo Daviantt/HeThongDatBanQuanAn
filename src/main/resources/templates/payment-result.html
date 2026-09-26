@@ -4,22 +4,17 @@
   <body>
     <header th:replace="~{fragments :: header}"></header>
     <main class="shell page">
-      <section class="panel empty-state">
-        <span class="empty-icon">↗</span>
-        <h1
-          th:text="${verified ? 'Đã trở về từ cổng thanh toán.' : 'Chưa xác minh được kết quả.'}"
-        ></h1>
-        <p th:if="${verified}">
-          Trạng thái lượt đặt được cập nhật khi GiaViên nhận xác nhận trực tiếp từ
-          VNPAY.<br />Vui lòng mở lịch hẹn để kiểm tra kết quả mới nhất.
-        </p>
-        <p th:unless="${verified}">
-          Dữ liệu thanh toán không hợp lệ. Hãy kiểm tra lượt đặt hoặc liên hệ
-          quán.
-        </p>
-        <a href="/bookings" class="button">Xem lịch hẹn →</a>
+      <section class="panel empty-state" id="payment-result"
+          th:attr="data-status-url=${result.waiting ? '/api/bookings/' + result.bookingId + '/payment-status' : ''}">
+        <p class="eyebrow">VNPAY SANDBOX</p>
+        <h1 id="payment-title" th:text="${result.title}"></h1>
+        <p id="payment-message" role="status" aria-live="polite" th:text="${result.message}"></p>
+        <a th:if="${result.valid}" th:href="@{/bookings/{id}(id=${result.bookingId})}" class="button">Xem lượt đặt →</a>
+        <a th:unless="${result.valid}" href="/bookings" class="button">Xem lịch hẹn →</a>
+        <p class="helper">Môi trường thử nghiệm của VNPAY, không thu tiền thật.</p>
       </section>
     </main>
     <footer th:replace="~{fragments :: footer}"></footer>
+    <script src="/js/payment.js" defer></script>
   </body>
 </html>

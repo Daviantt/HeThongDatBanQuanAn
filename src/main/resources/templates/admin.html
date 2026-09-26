@@ -10,6 +10,15 @@
         <p>Cấu hình đặt bàn, tổ hợp bàn và thực đơn của quán.</p>
       </div>
       <div th:replace="~{fragments :: flash}"></div>
+      <div th:if="${demoPaymentEnabled}" class="notice warning">
+        <strong>Đang dùng QR demo</strong>
+        <p>Khách quét QR để mở trang mô phỏng. Sau 1 phút, khách tự bấm xác nhận thành công. Hệ thống không thu tiền thật.</p>
+      </div>
+      <div th:unless="${demoPaymentEnabled}" class="notice" th:classappend="${gatewayReady ? 'success' : 'warning'}">
+        <strong>VNPAY Sandbox</strong>
+        <p th:if="${gatewayReady}">Đã có cấu hình kết nối. Cần hoàn tất giao dịch thử và xác nhận IPN trước khi trình diễn.</p>
+        <p th:unless="${gatewayReady}">Chưa đủ cấu hình kết nối. Nhập thông tin được VNPAY cấp vào file config/payment.properties trên máy chủ, rồi khởi động lại ứng dụng.</p>
+      </div>
       <div class="admin-grid">
         <section class="panel">
           <h2>Cấu hình đặt bàn</h2>

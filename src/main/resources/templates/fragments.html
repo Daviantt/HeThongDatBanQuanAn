@@ -52,8 +52,8 @@
         <b
           th:text="|${settings.openHour}:00 – ${settings.closeHour}:00|"
         ></b></span
-      ><small th:if="${demo}"
-        >Bản trải nghiệm đồ án · Thanh toán demo không thu tiền thật</small
+      ><small th:if="${demo}" th:text="${demoPaymentEnabled ? 'Đồ án GiaViên · QR demo · Không thu tiền thật' : 'Đồ án GiaViên · VNPAY Sandbox · Không thu tiền thật'}"
+        >Đồ án GiaViên · Không thu tiền thật</small
       >
     </footer>
     <article th:fragment="dish(dish)" class="dish-card">

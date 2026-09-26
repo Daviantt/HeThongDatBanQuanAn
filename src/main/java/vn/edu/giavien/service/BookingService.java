@@ -418,17 +418,6 @@ public class BookingService {
         now());
   }
 
-  public void demoPay(String id, Account actor) {
-    repo.lockSchedule();
-    repo.expire(now());
-    Booking b = accessible(id, actor);
-    owner(b, actor);
-    require(
-        b.status() == BookingStatus.PENDING && b.paymentStatus() == PaymentStatus.UNPAID,
-        "Lượt đặt đã thanh toán hoặc hết hạn giữ bàn.");
-    confirmPayment(id, "DEMO", "DEMO-" + UUID.randomUUID());
-  }
-
   // Called only after authenticating and validating the gateway callback.
   public String gatewayPayment(String id, long amount, String reference, boolean success) {
     repo.lockSchedule();

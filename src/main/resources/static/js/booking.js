@@ -64,6 +64,7 @@
   function showAvailability(all) {
     state.availability = all;
     const tables = all.tables.filter((table) => table.floor === state.floor);
+    $("floor-capacity").textContent = `${tables.length} bàn · ${tables.length * 4} chỗ`;
     const floorIds = new Set(tables.map((table) => table.id));
     const data = {
       ...all,
@@ -121,6 +122,8 @@
       state.floor = Number(button.dataset.floor);
       state.selected = null;
       const upper = state.floor === 2;
+      $("entrance-aisle").hidden = upper;
+      $("floor-capacity").textContent = upper ? "10 bàn · 40 chỗ" : "9 bàn · 36 chỗ";
       document.querySelectorAll("[data-floor]").forEach((tab) => {
         const active = Number(tab.dataset.floor) === state.floor;
         tab.classList.toggle("active", active);

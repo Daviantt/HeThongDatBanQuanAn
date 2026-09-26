@@ -71,7 +71,7 @@
               ><span><i class="legend-dot busy"></i>Không khả dụng</span>
             </div>
             <div class="floor-switcher" role="group" aria-label="Chọn tầng">
-              <button class="floor-tab active" type="button" data-floor="1" aria-pressed="true">Tầng 1 <span>Vườn giữa nhà · B01–B10</span></button>
+              <button class="floor-tab active" type="button" data-floor="1" aria-pressed="true">Tầng 1 <span>Vườn giữa nhà · 9 bàn</span></button>
               <button class="floor-tab" type="button" data-floor="2" aria-pressed="false">Tầng 2 <span>Giếng trời &amp; ban công · B11–B20</span></button>
             </div>
             <div id="map-placeholder" class="empty-state">
@@ -80,9 +80,10 @@
               <p>Nhấn “Tìm bàn trống” để bắt đầu chọn chỗ ngồi.</p>
             </div>
             <div id="floor-plan" class="floor-plan" hidden>
-              <div class="room-top"><span id="floor-title">GIAVIÊN / TẦNG 1</span><span>10 bàn · 40 chỗ</span></div>
+              <div class="room-top"><span id="floor-title">GIAVIÊN / TẦNG 1</span><span id="floor-capacity">9 bàn · 36 chỗ</span></div>
               <span class="window-label" id="floor-window">DÃY CỬA SỔ · ÁNH SÁNG TỰ NHIÊN</span>
               <div class="table-grid" id="table-grid">
+                <div class="entrance-aisle" id="entrance-aisle" aria-label="Lối đi từ cửa vào, không bố trí bàn"><span aria-hidden="true">↑</span><span>LỐI ĐI</span></div>
                 <div class="courtyard" id="courtyard" aria-label="Khu vườn ở giữa quán, không bố trí bàn">
                   <img src="/images/courtyard.svg" alt="Cây xanh và lối dạo quanh hồ nước nhỏ" />
                   <strong id="courtyard-title">Vườn giữa nhà</strong>

@@ -4,7 +4,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.security.Principal;
 import java.time.LocalDateTime;
 import java.util.*;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -18,18 +17,18 @@ import vn.edu.giavien.service.*;
 public class PageController {
   private final RestaurantRepository repo;
   private final BookingService service;
-  private final VnpayGateway gateway;
-  private final boolean demo;
+  private final VnpayPaymentService payments;
+  private final DemoPaymentService demoPayments;
 
   public PageController(
       RestaurantRepository repo,
       BookingService service,
-      VnpayGateway gateway,
-      @Value("${app.demo}") boolean demo) {
+      VnpayPaymentService payments,
+      DemoPaymentService demoPayments) {
     this.repo = repo;
     this.service = service;
-    this.gateway = gateway;
-    this.demo = demo;
+    this.payments = payments;
+    this.demoPayments = demoPayments;
   }
 
   private Account actor(Principal principal) {
@@ -108,6 +107,8 @@ public class PageController {
     b.lines().forEach(l -> quantities.put(l.menuItemId(), l.quantity()));
     model.addAttribute("quantities", quantities);
     model.addAttribute("events", repo.events(id));
+    model.addAttribute("paymentAttempts", payments.attempts(id));
+    model.addAttribute("demoPayment", demoPayments.isDemoPayment(id));
     return "detail";
   }
 
@@ -147,29 +148,28 @@ public class PageController {
     return "redirect:/bookings/" + id;
   }
 
-  @PostMapping("/bookings/{id}/demo-pay")
-  public String demoPay(@PathVariable String id, Principal principal, RedirectAttributes flash) {
-    BookingService.require(demo, "Chế độ thanh toán demo đã tắt.");
-    service.demoPay(id, actor(principal));
-    flash.addFlashAttribute("success", "Thanh toán DEMO thành công — không phát sinh tiền thật.");
-    return "redirect:/bookings/" + id;
-  }
-
   @PostMapping("/bookings/{id}/pay")
   public String pay(@PathVariable String id, Principal principal, HttpServletRequest request) {
-    service.expireHolds();
-    Booking b = service.accessible(id, actor(principal));
-    BookingService.require(
-        b.userId() == actor(principal).id() && b.status() == BookingStatus.PENDING,
-        "Lượt đặt không thể thanh toán.");
-    return "redirect:" + gateway.paymentUrl(b, request.getRemoteAddr());
+    return "redirect:" + payments.start(id, actor(principal), request.getRemoteAddr());
   }
 
   @GetMapping("/payment/vnpay/return")
   public String paymentReturn(@RequestParam Map<String, String> parameters, Model model) {
-    model.addAttribute("verified", gateway.verified(parameters));
+    model.addAttribute("result", payments.browserReturn(parameters));
     // Browser return never changes payment state. Only a signed IPN can do that.
     return "payment-result";
+  }
+
+  @PostMapping("/staff/bookings/{id}/payments/{attemptId}/refund")
+  public String refundExtra(
+      @PathVariable String id,
+      @PathVariable String attemptId,
+      @RequestParam String reference,
+      Principal principal,
+      RedirectAttributes flash) {
+    payments.recordExtraRefund(id, attemptId, actor(principal), reference);
+    flash.addFlashAttribute("success", "Đã ghi nhận hoàn khoản cọc thu thêm.");
+    return "redirect:/bookings/" + id;
   }
 
   @GetMapping("/staff")
