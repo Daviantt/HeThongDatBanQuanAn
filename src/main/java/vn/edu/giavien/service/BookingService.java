@@ -533,7 +533,7 @@ public class BookingService {
       repo.jdbc()
           .update(
               "INSERT INTO menu_item(name,description,category,price,available,illustration)"
-                  + " VALUES(?,?,?,?,?,'rice')",
+                    + " VALUES(?,?,?,?,?,'default')",
               name,
               description,
               category,

@@ -567,6 +567,67 @@ class BookingIntegrationTest {
   }
 
   @Test
+  void gardenMenuMigrationAddsFourDishesOnceAndPreservesExistingEdits() {
+    new TransactionTemplate(transactions)
+        .executeWithoutResult(
+            transaction -> {
+              repo.lockSchedule();
+              repo.jdbc().update("DELETE FROM app_migration WHERE name='garden-menu-v1'");
+              repo.jdbc()
+                  .update(
+                      "DELETE FROM menu_item WHERE illustration IN"
+                          + " ('beef','prawns','mushrooms','flan')");
+              repo.jdbc().update("UPDATE menu_item SET price=77000,available=FALSE WHERE id=1");
+              int before = repo.dishes().size();
+              seed.run();
+              seed.run();
+              assertThat(repo.dishes()).hasSize(before + 4);
+              assertThat(repo.dishes())
+                  .extracting(Dish::name)
+                  .contains("Bò lúc lắc", "Tôm nướng muối ớt", "Nấm kho tiêu", "Bánh flan caramel");
+              var original =
+                  repo.dishes().stream().filter(d -> d.id() == 1).findFirst().orElseThrow();
+              assertThat(original.price()).isEqualTo(77000);
+              assertThat(original.available()).isFalse();
+              transaction.setRollbackOnly();
+            });
+  }
+
+  @Test
+  void menuPhotosAndNewDishOrderingWorkWithoutChangingTableDeposit() throws Exception {
+    var fmt = new vn.edu.giavien.web.ViewSupport(repo);
+    for (var dish : repo.dishes()) {
+      String path = fmt.dishImage(dish);
+      mvc.perform(get(path))
+          .andExpect(status().isOk())
+          .andExpect(content().contentType("image/jpeg"));
+    }
+    var beef =
+        repo.dishes().stream()
+            .filter(d -> d.illustration().equals("beef"))
+            .findFirst()
+            .orElseThrow();
+    String id =
+        service.create(
+            customer,
+            new BookingService.BookingInput(
+                baseline.plusDays(1).withHour(18),
+                baseline.plusDays(1).withHour(20),
+                2,
+                List.of(1L),
+                Map.of(beef.id(), 2),
+                ""));
+    var booking = repo.booking(id).orElseThrow();
+    assertThat(booking.foodTotal()).isEqualTo(beef.price() * 2);
+    assertThat(booking.deposit()).isEqualTo(repo.settings().depositPerTable());
+    mvc.perform(get("/book").with(user(customer.email())))
+        .andExpect(status().isOk())
+        .andExpect(
+            content().string(org.hamcrest.Matchers.containsString("/images/menu/bo-luc-lac.jpg")))
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"dish-search\"")));
+  }
+
+  @Test
   void realLoginRegistrationAndSignedGatewayCallbackWork() throws Exception {
     mvc.perform(
             post("/login")

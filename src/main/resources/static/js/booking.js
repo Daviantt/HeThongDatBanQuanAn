@@ -10,7 +10,23 @@
     request: 0,
     floor: 1,
     availability: null,
+    menuFilter: "all",
   };
+  const normalizeText = (text) => text.toLocaleLowerCase("vi").normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
+  function filterMenu() {
+    const query = normalizeText($("dish-search")?.value.trim() || "");
+    let visible = 0;
+    document.querySelectorAll(".preorder-item").forEach((card) => {
+      const quantity = Number(card.querySelector(".dish-quantity").value) || 0;
+      const matchesCategory = state.menuFilter === "all"
+        || (state.menuFilter === "selected" ? quantity > 0 : card.dataset.menuCategory === state.menuFilter);
+      card.hidden = !matchesCategory || !normalizeText(card.dataset.menuSearch || "").includes(query);
+      if (!card.hidden) visible++;
+    });
+    if ($("dish-empty")) $("dish-empty").hidden = visible !== 0;
+    if ($("dish-results")) $("dish-results").textContent = `${visible} món trong danh sách`;
+  }
   const error = (id, message) => {
     $(id).textContent = message;
     $(id).hidden = !message;
@@ -23,9 +39,45 @@
       : "Một chỗ ngồi thật vừa ý đang đợi bạn.";
     $("summary-deposit").textContent = option ? money(option.deposit) : "—";
     let total = 0;
+    let portions = 0, dishCount = 0;
+    const selectedList = $("selected-food-list");
+    selectedList?.replaceChildren();
     document.querySelectorAll(".dish-quantity").forEach((input) => {
-      total += (Number(input.value) || 0) * Number(input.dataset.price);
+      const count = Number(input.value) || 0;
+      const subtotal = count * Number(input.dataset.price);
+      total += subtotal;
+      portions += count;
+      const card = input.closest(".preorder-item");
+      card?.classList.toggle("is-selected", count > 0);
+      const badge = card?.querySelector(".dish-selected");
+      if (badge) { badge.hidden = count === 0; badge.textContent = `Đã chọn ${count}`; }
+      input.parentElement.querySelectorAll("[data-quantity]").forEach((button) => {
+        button.disabled = state.submitting || (Number(button.dataset.quantity) < 0 ? count === 0 : count >= 20);
+      });
+      if (count > 0) {
+        dishCount++;
+        if (selectedList) {
+          const row = document.createElement("li");
+          const label = document.createElement("span");
+          label.textContent = `${count} × ${input.dataset.dishName}`;
+          const price = document.createElement("strong");
+          price.textContent = money(subtotal);
+          const remove = document.createElement("button");
+          remove.type = "button";
+          remove.className = "remove-dish";
+          remove.textContent = "×";
+          remove.disabled = state.submitting;
+          remove.setAttribute("aria-label", `Bỏ ${input.dataset.dishName}`);
+          remove.addEventListener("click", () => { input.value = 0; updateSummary(); });
+          row.append(label, price, remove);
+          selectedList.append(row);
+        }
+      }
     });
+    if ($("selected-dish-count")) $("selected-dish-count").textContent = dishCount;
+    if ($("selected-food-summary")) $("selected-food-summary").hidden = dishCount === 0;
+    if ($("selected-food-note")) $("selected-food-note").textContent = `${dishCount} món · ${portions} phần · Thanh toán tiền món tại quán`;
+    filterMenu();
     $("summary-food").textContent = money(total);
     $("summary-guests").textContent = state.search
       ? `${state.search.guests} người`
@@ -217,6 +269,22 @@
       updateSummary();
     }),
   );
+  document.querySelectorAll("[data-menu-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.menuFilter = button.dataset.menuFilter;
+      document.querySelectorAll("[data-menu-filter]").forEach((tab) => {
+        const active = tab === button;
+        tab.classList.toggle("active", active);
+        tab.setAttribute("aria-pressed", String(active));
+      });
+      filterMenu();
+    });
+  });
+  $("dish-search")?.addEventListener("input", filterMenu);
+  $("reset-menu-filter")?.addEventListener("click", () => {
+    $("dish-search").value = "";
+    document.querySelector('[data-menu-filter="all"]').click();
+  });
   document.querySelectorAll(".dish-quantity").forEach((input) =>
     input.addEventListener("input", () => {
       input.value = Math.max(
@@ -282,4 +350,5 @@
       updateSummary();
     }
   });
+  updateSummary();
 })();

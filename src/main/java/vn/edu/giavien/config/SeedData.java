@@ -91,6 +91,7 @@ public class SeedData implements CommandLineRunner {
           "dessert");
       dish("Trà sen", "Trà ướp sen dịu nhẹ, dùng nóng hoặc thêm đá.", "Đồ uống", 35000, "tea");
     }
+    addGardenMenu();
     if (demo) {
       account("khach@moc.local", "Khách trải nghiệm", "0901234567", "CUSTOMER");
       account("nhanvien@moc.local", "Nhân viên GiaViên", "0901234568", "STAFF");
@@ -192,6 +193,46 @@ public class SeedData implements CommandLineRunner {
     repo.jdbc()
         .update("UPDATE dining_table SET active=FALSE,retired=TRUE WHERE code='B09' AND floor=1");
     repo.jdbc().update("INSERT INTO app_migration(name) VALUES('entrance-clearance-v1')");
+  }
+
+  private void addGardenMenu() {
+    if (repo.jdbc()
+            .queryForObject(
+                "SELECT COUNT(*) FROM app_migration WHERE name='garden-menu-v1'", Integer.class)
+        > 0) return;
+    // Add once to existing databases without resetting edited prices or availability.
+    newDish(
+        "Bò lúc lắc",
+        "Bò áp chảo cùng ớt chuông, hành tây và cải xoong.",
+        "Món chính",
+        189000,
+        "beef");
+    newDish(
+        "Tôm nướng muối ớt",
+        "Tôm nướng nguyên vỏ, muối ớt và chanh tươi.",
+        "Món chính",
+        179000,
+        "prawns");
+    newDish(
+        "Nấm kho tiêu",
+        "Nấm đùi gà và nấm hương kho tiêu trong nồi đất.",
+        "Món chính",
+        89000,
+        "mushrooms");
+    newDish(
+        "Bánh flan caramel",
+        "Bánh flan trứng sữa mềm mịn, phủ caramel vàng nâu.",
+        "Tráng miệng",
+        39000,
+        "flan");
+    repo.jdbc().update("INSERT INTO app_migration(name) VALUES('garden-menu-v1')");
+  }
+
+  private void newDish(
+      String name, String description, String category, long price, String illustration) {
+    if (repo.jdbc()
+            .queryForObject("SELECT COUNT(*) FROM menu_item WHERE name=?", Integer.class, name)
+        == 0) dish(name, description, category, price, illustration);
   }
 
   private void dish(

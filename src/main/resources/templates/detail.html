@@ -85,7 +85,8 @@
                 method="post"
                 class="form-stack"
               >
-                <div class="edit-dish" th:each="dish : ${dishes}">
+                <div class="edit-dish with-photo" th:each="dish : ${dishes}">
+                  <img th:src="${@fmt.dishImage(dish)}" th:alt="|Ảnh minh họa ${dish.name}|" width="80" height="64" loading="lazy" />
                   <label
                     th:for="|qty-${dish.id}|"
                     th:text="|${dish.name} · ${@fmt.money(dish.price)}|"
