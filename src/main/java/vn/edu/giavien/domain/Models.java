@@ -84,6 +84,7 @@ public final class Models {
       BookingStatus status,
       PaymentStatus paymentStatus,
       long deposit,
+      long foodDeposit,
       LocalDateTime createdAt,
       LocalDateTime holdUntil,
       LocalDateTime paidAt,
@@ -101,6 +102,10 @@ public final class Models {
 
     public long foodTotal() {
       return lines.stream().mapToLong(OrderLine::subtotal).sum();
+    }
+
+    public long tableDeposit() {
+      return deposit - foodDeposit;
     }
   }
 

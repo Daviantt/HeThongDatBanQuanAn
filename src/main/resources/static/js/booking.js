@@ -37,7 +37,7 @@
     $("selected-capacity").textContent = option
       ? `Tầng ${state.floor} · ${option.tableIds.length} bàn · Tối đa ${option.capacity} người`
       : "Một chỗ ngồi thật vừa ý đang đợi bạn.";
-    $("summary-deposit").textContent = option ? money(option.deposit) : "—";
+    $("summary-table-deposit").textContent = option ? money(option.deposit) : "—";
     let total = 0;
     let portions = 0, dishCount = 0;
     const selectedList = $("selected-food-list");
@@ -76,9 +76,12 @@
     });
     if ($("selected-dish-count")) $("selected-dish-count").textContent = dishCount;
     if ($("selected-food-summary")) $("selected-food-summary").hidden = dishCount === 0;
-    if ($("selected-food-note")) $("selected-food-note").textContent = `${dishCount} món · ${portions} phần · Thanh toán tiền món tại quán`;
+    if ($("selected-food-note")) $("selected-food-note").textContent = `${dishCount} món · ${portions} phần · Cọc 20% tiền món`;
     filterMenu();
     $("summary-food").textContent = money(total);
+    const foodDeposit = Math.ceil(total / 5);
+    $("summary-food-deposit").textContent = money(foodDeposit);
+    $("summary-deposit").textContent = option ? money(option.deposit + foodDeposit) : "—";
     $("summary-guests").textContent = state.search
       ? `${state.search.guests} người`
       : "—";

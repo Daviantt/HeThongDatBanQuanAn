@@ -66,6 +66,9 @@ test('accent-insensitive search and category filters preserve selected quantitie
     $('availability-form').dispatchEvent(search);
     await settle();
     doc.querySelector('.table-seat').click();
+    assert.equal($('summary-table-deposit').textContent,'100.000 ₫');
+    assert.equal($('summary-food-deposit').textContent,'75.600 ₫');
+    assert.equal($('summary-deposit').textContent,'175.600 ₫');
     $('accept-policy').checked=true;
     $('accept-policy').dispatchEvent(new window.Event('change'));
     $('create-booking').click();
@@ -76,6 +79,8 @@ test('accent-insensitive search and category filters preserve selected quantitie
     assert.equal(flan.hidden,true);
     doc.querySelector('.remove-dish').click();
     assert.equal(beef.querySelector('input').value,'0');
+    assert.equal($('summary-food-deposit').textContent,'0 ₫');
+    assert.equal($('summary-deposit').textContent,'100.000 ₫');
     assert.equal($('selected-food-summary').hidden,true);
     assert.equal($('dish-empty').hidden,false);
     $('reset-menu-filter').click();
@@ -97,5 +102,25 @@ test('quantity input clamps invalid values and quantity buttons stop at zero and
     input.value='2.8'; input.dispatchEvent(new window.Event('input'));
     assert.equal(input.value,'2');
     assert.equal($('summary-food').textContent,'378.000 ₫');
+  } finally {window.close();}
+});
+
+test('food deposit is twenty percent of the combined total rounded up to a whole dong',async()=>{
+  const {window,doc,$}=setup();
+  try {
+    const inputs=doc.querySelectorAll('.dish-quantity');
+    inputs[0].dataset.price='10001';
+    inputs[1].dataset.price='10002';
+    inputs.forEach(input=>{input.value='1';input.dispatchEvent(new window.Event('input'));});
+    assert.equal($('summary-food').textContent.replace(/[^0-9]/g,''),'20003');
+    assert.equal($('summary-food-deposit').textContent.replace(/[^0-9]/g,''),'4001');
+    $('guests').innerHTML='<option value="2">2</option>';
+    $('visit-date').value='2026-10-04';
+    const search=new window.Event('submit',{cancelable:true});
+    Object.defineProperty(search,'submitter',{value:doc.querySelector('#availability-form button')});
+    $('availability-form').dispatchEvent(search);
+    await settle();
+    doc.querySelector('.table-seat').click();
+    assert.equal($('summary-deposit').textContent.replace(/[^0-9]/g,''),'104001');
   } finally {window.close();}
 });

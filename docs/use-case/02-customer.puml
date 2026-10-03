@@ -1,0 +1,56 @@
+@startuml
+' UTF-8. UML content matches the accompanying vector drawings.
+left to right direction
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+skinparam usecaseBackgroundColor #F5FAF9
+skinparam usecaseBorderColor #21323A
+skinparam ArrowColor #52646C
+title GiaViên - Đặt bàn và quản lý lượt cá nhân
+actor "Người dùng đã đăng nhập" as A_auth <<abstract>>
+actor "Khách hàng" as A_customer
+actor "Nhân viên" as A_staff
+actor "Quản lý" as A_admin
+rectangle "Hệ thống đặt bàn và đặt món trước GiaViên" {
+  usecase "KH01\nTra cứu bàn trống" as U_0
+  usecase "KH02\nĐặt bàn" as U_1
+  usecase "KH07\nĐặt món trước" as U_2
+  usecase "KH08\nXem lịch sử lượt đặt" as U_3
+  usecase "KH09\nXem chi tiết / trạng thái\nPhản hồi và nhật ký" as U_4
+  usecase "KH10\nSửa món / ghi chú" as U_5
+  usecase "KH11\nGửi yêu cầu đổi bàn / giờ" as U_6
+  usecase "KH12\nHủy lượt đặt" as U_7
+  usecase "KH04\nKiểm tra thời gian\nvà số khách" as U_8
+  usecase "KH03\nChọn bàn / tổ hợp ghép" as U_9
+  usecase "KH05\nKiểm tra bàn / tổ hợp\nvà xung đột lịch" as U_10
+  usecase "KH06\nTính cọc và giữ bàn" as U_11
+  usecase "KH13\nXác định xử lý cọc\nkhi hủy" as U_12
+}
+A_auth -- U_0
+A_auth -- U_1
+A_auth -- U_3
+A_auth -- U_4
+A_auth -- U_5
+A_auth -- U_6
+A_auth -- U_7
+U_0 ..> U_8 : <<include>>
+U_1 ..> U_9 : <<include>>
+U_1 ..> U_8 : <<include>>
+U_1 ..> U_10 : <<include>>
+U_1 ..> U_11 : <<include>>
+U_2 ..> U_1 : <<extend>>\n[có chọn món; trước khi gửi đặt]
+U_7 ..> U_12 : <<include>>
+A_customer --|> A_auth
+A_staff --|> A_auth
+A_admin --|> A_staff
+note as N0
+Sửa / hủy / yêu cầu đổi chỉ dành cho chủ lượt đặt.
+end note
+note as N1
+Thanh toán cọc là mục tiêu riêng, không include trong KH02.
+end note
+note as N2
+Tra cứu kiểm tra thời gian; tạo lượt kiểm tra lại bàn trong transaction.
+end note
+@enduml

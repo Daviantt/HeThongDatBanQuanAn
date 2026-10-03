@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS reservation (
 );
 CREATE INDEX IF NOT EXISTS reservation_schedule ON reservation(start_at, end_at, status);
 ALTER TABLE reservation ADD COLUMN IF NOT EXISTS released_at TIMESTAMP;
+ALTER TABLE reservation ADD COLUMN IF NOT EXISTS food_deposit BIGINT NOT NULL DEFAULT 0;
 CREATE TABLE IF NOT EXISTS reservation_table (
  reservation_id VARCHAR(36) NOT NULL REFERENCES reservation(id), table_id BIGINT NOT NULL REFERENCES dining_table(id),
  PRIMARY KEY(reservation_id, table_id)

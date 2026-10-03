@@ -147,7 +147,9 @@ class BookingIntegrationTest {
     var params = new TreeMap<String, String>();
     params.put("vnp_TmnCode", "TESTCODE");
     params.put("vnp_TxnRef", reference);
-    params.put("vnp_Amount", "10000000");
+    var amounts = repo.jdbc().queryForList(
+        "SELECT amount FROM payment_attempt WHERE id=?", Long.class, reference);
+    params.put("vnp_Amount", Long.toString((amounts.isEmpty() ? 100000 : amounts.getFirst()) * 100));
     params.put("vnp_ResponseCode", code);
     params.put("vnp_TransactionStatus", code.equals("00") ? "00" : "02");
     params.put("vnp_TransactionNo", transaction);
@@ -163,7 +165,7 @@ class BookingIntegrationTest {
   void gardenLayoutKeepsEntranceClearAndVerticalBookingsBlockEveryTable() {
     assertThat(repo.tables().stream().filter(t -> t.floor() == 1).toList())
         .extracting(DiningTable::code)
-        .containsExactly("B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B10");
+        .containsExactly("B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B09");
     assertThat(repo.tables()).noneMatch(t -> t.mapX() == 1 && (t.mapY() == 1 || t.mapY() == 2));
     var start = baseline.plusHours(4);
     var pair =
@@ -179,7 +181,7 @@ class BookingIntegrationTest {
     var triple = service.resolveTableNumbers("3,5,7");
     String id = service.create(customer, input(start, 9, triple));
     assertThat(repo.booking(id).orElseThrow().tablesLabel()).isEqualTo("B03 + B05 + B07");
-    assertThat(repo.booking(id).orElseThrow().deposit()).isEqualTo(300000);
+    assertThat(repo.booking(id).orElseThrow().tableDeposit()).isEqualTo(300000);
     assertThatThrownBy(() -> service.create(customer, input(start, 2, List.of(5L))))
         .hasMessageContaining("không còn phục vụ");
   }
@@ -206,6 +208,7 @@ class BookingIntegrationTest {
               repo.jdbc().update("DELETE FROM app_migration WHERE name='garden-layout-v1'");
               repo.jdbc().update("DELETE FROM app_migration WHERE name='upper-floor-v1'");
               repo.jdbc().update("DELETE FROM app_migration WHERE name='entrance-clearance-v1'");
+              repo.jdbc().update("DELETE FROM app_migration WHERE name='ground-numbering-v2'");
               repo.jdbc().update("DELETE FROM table_combination");
               repo.jdbc().update("DELETE FROM dining_table WHERE floor=2");
               repo.jdbc().update("UPDATE dining_table SET code='TMP-' || id WHERE floor=1");
@@ -226,7 +229,7 @@ class BookingIntegrationTest {
               service.saveCombination(admin, "1,4", true);
               seed.run();
               assertThat(repo.combinations()).doesNotContain(List.of(1L, 4L));
-              assertThat(repo.tables()).extracting(DiningTable::code).contains("B05", "B10");
+              assertThat(repo.tables()).extracting(DiningTable::code).contains("B05", "B09");
               status.setRollbackOnly();
             });
   }
@@ -241,7 +244,7 @@ class BookingIntegrationTest {
     var ids = service.resolveTableNumbers("11,14");
     String booking = service.create(customer, input(start, 8, ids));
     assertThat(repo.booking(booking).orElseThrow().tablesLabel()).isEqualTo("B11 + B14");
-    assertThat(repo.booking(booking).orElseThrow().deposit()).isEqualTo(200000);
+    assertThat(repo.booking(booking).orElseThrow().tableDeposit()).isEqualTo(200000);
     var availability = service.availability(start, start.plusHours(2), 8);
     assertThat(availability.unavailable()).containsAll(ids).doesNotContain(1L, 4L);
     assertThat(availability.options()).anyMatch(o -> o.label().equals("B01 + B04"));
@@ -292,10 +295,13 @@ class BookingIntegrationTest {
   }
 
   @Test
-  void entranceMigrationPreservesPaidBookingButPreventsNewUseOfB09() {
+  void entranceMigrationAndRenumberingPreserveHistoryAndKeepEntranceClear() {
     new TransactionTemplate(transactions)
         .executeWithoutResult(
             status -> {
+              repo.jdbc().update("DELETE FROM app_migration WHERE name='ground-numbering-v2'");
+              repo.jdbc().update("UPDATE dining_table SET code='B10' WHERE code='B09' AND retired=FALSE AND floor=1");
+              repo.jdbc().update("UPDATE dining_table SET code='B09' WHERE code='OLD-B09' AND floor=1");
               long retiredId =
                   repo.jdbc()
                       .queryForObject(
@@ -309,16 +315,23 @@ class BookingIntegrationTest {
               service.saveCombination(admin, "8,9,10", false);
               var start = baseline.plusHours(4);
               String existing = service.create(customer, input(start, 2, List.of(retiredId)));
+              repo.jdbc().update("UPDATE reservation SET deposit=100000,food_deposit=0 WHERE id=?", existing);
+              String corner = service.create(customer, input(start, 2, service.resolveTableNumbers("10")));
+              var cornerIds = repo.booking(corner).orElseThrow().tableIds();
               simulateVerifiedPayment(existing);
               seed.run();
               seed.run();
-              assertThat(repo.tables()).hasSize(19).noneMatch(t -> t.code().equals("B09"));
+              assertThat(repo.tables()).hasSize(19).noneMatch(t -> t.id() == retiredId);
+              assertThat(repo.tables()).anyMatch(t -> t.code().equals("B09") && t.mapX() == 2 && t.mapY() == 3);
+              assertThat(repo.tables()).noneMatch(t -> t.floor() == 1 && t.mapX() == 1 && t.mapY() == 3);
+              assertThat(repo.booking(corner).orElseThrow().tableIds()).isEqualTo(cornerIds);
+              assertThat(repo.booking(corner).orElseThrow().tablesLabel()).isEqualTo("B09");
               assertThat(repo.tables())
                   .anyMatch(t -> t.code().equals("B19") && t.floor() == 2 && t.active());
               assertThat(repo.combinations()).noneMatch(ids -> ids.contains(retiredId));
               assertThat(repo.combinations()).contains(service.resolveTableNumbers("18,19,20"));
               var booking = repo.booking(existing).orElseThrow();
-              assertThat(booking.tablesLabel()).isEqualTo("B09");
+              assertThat(booking.tablesLabel()).isEqualTo("OLD-B09");
               assertThat(booking.paymentStatus()).isEqualTo(PaymentStatus.PAID);
               assertThat(booking.deposit()).isEqualTo(100000);
               assertThat(
@@ -329,7 +342,7 @@ class BookingIntegrationTest {
               assertThatThrownBy(
                       () -> service.create(customer, input(start, 2, List.of(retiredId))))
                   .hasMessageContaining("không còn phục vụ");
-              assertThatThrownBy(() -> service.saveCombination(admin, "8,10", false))
+              assertThatThrownBy(() -> service.saveCombination(admin, "8,9", false))
                   .hasMessageContaining("liền nhau");
               status.setRollbackOnly();
             });
@@ -363,9 +376,9 @@ class BookingIntegrationTest {
   @Test
   void validThreeTableCombinationSupportsNineGuestsAndSnapshotsDeposit() {
     String id = service.create(customer, input(baseline.plusHours(5), 9, List.of(3L, 1L, 2L)));
-    assertThat(repo.booking(id).orElseThrow().deposit()).isEqualTo(300000);
+    assertThat(repo.booking(id).orElseThrow().tableDeposit()).isEqualTo(300000);
     service.updateSettings(admin, 200000, 15, 15, 15);
-    assertThat(repo.booking(id).orElseThrow().deposit()).isEqualTo(300000);
+    assertThat(repo.booking(id).orElseThrow().tableDeposit()).isEqualTo(300000);
     assertThatThrownBy(
             () -> service.create(customer, input(baseline.plusHours(5), 9, List.of(4L, 5L))))
         .hasMessageContaining("Số bàn");
@@ -455,11 +468,12 @@ class BookingIntegrationTest {
     clock.set(baseline.plusMinutes(16));
     service.expireHolds();
     String replacement = create(baseline.plusHours(3));
-    assertThat(service.gatewayPayment(id, 100000, "12345", true)).isEqualTo("00");
+    long amount = repo.booking(id).orElseThrow().deposit();
+    assertThat(service.gatewayPayment(id, amount, "12345", true)).isEqualTo("00");
     Booking late = repo.booking(id).orElseThrow();
     assertThat(late.status()).isEqualTo(BookingStatus.EXPIRED);
     assertThat(late.paymentStatus()).isEqualTo(PaymentStatus.REFUND_PENDING);
-    assertThat(service.gatewayPayment(id, 100000, "12345", true)).isEqualTo("02");
+    assertThat(service.gatewayPayment(id, amount, "12345", true)).isEqualTo("02");
     assertThat(repo.booking(replacement).orElseThrow().status()).isEqualTo(BookingStatus.PENDING);
   }
 
@@ -594,7 +608,7 @@ class BookingIntegrationTest {
   }
 
   @Test
-  void menuPhotosAndNewDishOrderingWorkWithoutChangingTableDeposit() throws Exception {
+  void menuPhotosAndNewDishOrderingIncludeFoodInTotalDeposit() throws Exception {
     var fmt = new vn.edu.giavien.web.ViewSupport(repo);
     for (var dish : repo.dishes()) {
       String path = fmt.dishImage(dish);
@@ -619,12 +633,79 @@ class BookingIntegrationTest {
                 ""));
     var booking = repo.booking(id).orElseThrow();
     assertThat(booking.foodTotal()).isEqualTo(beef.price() * 2);
-    assertThat(booking.deposit()).isEqualTo(repo.settings().depositPerTable());
+    assertThat(booking.foodDeposit()).isEqualTo(beef.price() * 2 / 5);
+    assertThat(booking.tableDeposit()).isEqualTo(repo.settings().depositPerTable());
+    assertThat(booking.deposit()).isEqualTo(repo.settings().depositPerTable() + beef.price() * 2 / 5);
     mvc.perform(get("/book").with(user(customer.email())))
         .andExpect(status().isOk())
         .andExpect(
             content().string(org.hamcrest.Matchers.containsString("/images/menu/bo-luc-lac.jpg")))
         .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"dish-search\"")));
+  }
+
+  @Test
+  void itemEditsUpdateUnpaidDepositButKeepPaidAmountAndTableRateSnapshot() throws Exception {
+    String id = create(baseline.plusDays(1).withHour(18));
+    long price = repo.booking(id).orElseThrow().lines().getFirst().unitPrice();
+    service.updateSettings(admin, 200000, 15, 15, 15);
+    service.editItems(id, customer, Map.of(1L, 3), "Ít cay");
+    Booking beforePayment = repo.booking(id).orElseThrow();
+    assertThat(beforePayment.tableDeposit()).isEqualTo(100000);
+    assertThat(beforePayment.foodDeposit()).isEqualTo(price * 3 / 5);
+    assertThat(beforePayment.deposit()).isEqualTo(100000 + price * 3 / 5);
+    mvc.perform(get("/bookings/" + id).with(user(customer.email())))
+        .andExpect(status().isOk())
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("Tiền món trả trước")))
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("Chưa thanh toán")));
+    simulateVerifiedPayment(id);
+    service.editItems(id, customer, Map.of(1L, 1), "Đổi số phần");
+    Booking afterPayment = repo.booking(id).orElseThrow();
+    assertThat(afterPayment.foodTotal()).isEqualTo(price);
+    assertThat(afterPayment.foodDeposit()).isEqualTo(beforePayment.foodDeposit());
+    assertThat(afterPayment.deposit()).isEqualTo(beforePayment.deposit());
+    service.cancel(id, customer, false);
+    assertThat(repo.booking(id).orElseThrow().paymentStatus()).isEqualTo(PaymentStatus.REFUND_PENDING);
+    assertThat(repo.booking(id).orElseThrow().deposit()).isEqualTo(beforePayment.deposit());
+  }
+
+  @Test
+  void twentyPercentFoodDepositRoundsOnceOnCombinedTotalAndVnpayUsesThatAmount() {
+    new TransactionTemplate(transactions)
+        .executeWithoutResult(
+            status -> {
+              repo.jdbc().update("UPDATE menu_item SET price=10001 WHERE id=1");
+              repo.jdbc().update("UPDATE menu_item SET price=10002 WHERE id=2");
+              String id = service.create(customer, new BookingService.BookingInput(
+                  baseline.plusHours(4), baseline.plusHours(6), 2, List.of(1L),
+                  Map.of(1L, 1, 2L, 1), ""));
+              Booking booking = repo.booking(id).orElseThrow();
+              assertThat(booking.foodTotal()).isEqualTo(20003);
+              assertThat(booking.foodDeposit()).isEqualTo(4001);
+              assertThat(booking.deposit()).isEqualTo(104001);
+              service.editItems(id, customer, Map.of(1L, 1), "");
+              assertThat(repo.booking(id).orElseThrow().foodDeposit()).isEqualTo(2001);
+              assertThat(repo.booking(id).orElseThrow().deposit()).isEqualTo(102001);
+              var parameters = urlParameters(payments.start(id, customer, "127.0.0.1"));
+              assertThat(parameters.get("vnp_Amount")).isEqualTo("10200100");
+              assertThat(gateway.verified(parameters)).isTrue();
+              status.setRollbackOnly();
+            });
+  }
+
+  @Test
+  void noPreorderedFoodRequiresOnlyTableDepositAndVnpayAmountsCannotChangeAfterCheckout() throws Exception {
+    String id = service.create(customer, new BookingService.BookingInput(
+        baseline.plusHours(4), baseline.plusHours(6), 2, List.of(1L), Map.of(), ""));
+    assertThat(repo.booking(id).orElseThrow().deposit()).isEqualTo(100000);
+    assertThat(repo.booking(id).orElseThrow().foodDeposit()).isZero();
+    String reference = startPayment(id);
+    assertThatThrownBy(() -> service.editItems(id, customer, Map.of(1L, 1), ""))
+        .hasMessageContaining("VNPAY");
+    assertThat(repo.booking(id).orElseThrow().foodTotal()).isZero();
+    assertThat(payments.ipn(callbackParameters(reference, "24", "0"))).isEqualTo("00");
+    assertThatThrownBy(() -> service.editItems(id, customer, Map.of(1L, 1), ""))
+        .hasMessageContaining("VNPAY");
+    assertThat(repo.booking(id).orElseThrow().deposit()).isEqualTo(100000);
   }
 
   @Test
@@ -649,7 +730,7 @@ class BookingIntegrationTest {
     var params = new TreeMap<String, String>();
     params.put("vnp_TmnCode", "TESTCODE");
     params.put("vnp_TxnRef", startPayment(id));
-    params.put("vnp_Amount", "10000000");
+    params.put("vnp_Amount", Long.toString(repo.booking(id).orElseThrow().deposit() * 100));
     params.put("vnp_ResponseCode", "00");
     params.put("vnp_TransactionStatus", "00");
     params.put("vnp_TransactionNo", "98765");
@@ -670,7 +751,7 @@ class BookingIntegrationTest {
     assertThat(url).startsWith("https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?");
     var params = urlParameters(url);
     assertThat(gateway.verified(params)).isTrue();
-    assertThat(params.get("vnp_Amount")).isEqualTo("10000000");
+    assertThat(params.get("vnp_Amount")).isEqualTo(Long.toString(repo.booking(id).orElseThrow().deposit() * 100));
     assertThat(params.get("vnp_CreateDate")).isEqualTo("20260921100100");
     assertThat(params.get("vnp_ExpireDate")).isEqualTo("20260921101500");
     assertThat(params.get("vnp_TxnRef")).matches("[a-f0-9]{32}");

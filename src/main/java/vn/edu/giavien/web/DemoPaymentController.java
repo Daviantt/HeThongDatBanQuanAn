@@ -16,6 +16,7 @@ import javax.imageio.ImageIO;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -49,10 +50,23 @@ public class DemoPaymentController {
       @PathVariable String token,
       Model model,
       HttpServletRequest request,
-      HttpServletResponse response) {
+      HttpServletResponse response,
+      Principal principal) {
     response.setHeader("Cache-Control", "no-store");
     response.setHeader("Referrer-Policy", "no-referrer");
-    model.addAttribute("payment", payments.status(token));
+    var payment = payments.status(token);
+    boolean canViewBooking = false;
+    if (principal != null) {
+      try {
+        bookings.accessible(payment.bookingId(), bookings.account(principal.getName()));
+        canViewBooking = true;
+      } catch (AccessDeniedException ignored) {
+        // Possession of a payment QR does not grant access to private booking details.
+      }
+    }
+    model.addAttribute("payment", payment);
+    model.addAttribute("canViewBooking", canViewBooking);
+    model.addAttribute("signedIn", principal != null);
     model.addAttribute("token", token);
     model.addAttribute("qrUrl", paymentUrl(token, request));
     return "demo-payment";

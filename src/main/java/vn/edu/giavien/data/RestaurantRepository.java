@@ -140,6 +140,7 @@ public class RestaurantRepository {
         BookingStatus.valueOf(r.getString("status")),
         PaymentStatus.valueOf(r.getString("payment_status")),
         r.getLong("deposit"),
+        r.getLong("food_deposit"),
         r.getObject("created_at", LocalDateTime.class),
         r.getObject("hold_until", LocalDateTime.class),
         r.getObject("paid_at", LocalDateTime.class),
@@ -188,13 +189,14 @@ public class RestaurantRepository {
       int guests,
       String notes,
       long deposit,
+      long foodDeposit,
       LocalDateTime now,
       LocalDateTime holdUntil,
       List<Long> tables) {
     jdbc.update(
         "INSERT INTO"
-            + " reservation(id,user_id,start_at,end_at,guests,notes,status,payment_status,deposit,created_at,hold_until)"
-            + " VALUES(?,?,?,?,?,?,'PENDING','UNPAID',?,?,?)",
+            + " reservation(id,user_id,start_at,end_at,guests,notes,status,payment_status,deposit,food_deposit,created_at,hold_until)"
+            + " VALUES(?,?,?,?,?,?,'PENDING','UNPAID',?,?,?,?)",
         id,
         userId,
         start,
@@ -202,6 +204,7 @@ public class RestaurantRepository {
         guests,
         notes,
         deposit,
+        foodDeposit,
         now,
         holdUntil);
     replaceTables(id, tables);

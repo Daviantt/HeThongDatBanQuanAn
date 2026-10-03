@@ -51,6 +51,7 @@ public class SeedData implements CommandLineRunner {
     migrateGardenLayout();
     addUpperFloor();
     clearEntrance();
+    renumberGroundFloor();
     if (repo.dishes().isEmpty()) {
       dish(
           "Gỏi cuốn tôm thịt",
@@ -181,7 +182,9 @@ public class SeedData implements CommandLineRunner {
     // Keep the table's identity and reservation history; retire only the entrance seat.
     var ids =
         repo.jdbc()
-            .queryForList("SELECT id FROM dining_table WHERE code='B09' AND floor=1", Long.class);
+            .queryForList(
+                "SELECT id FROM dining_table WHERE code='B09' AND floor=1 AND map_x=1 AND map_y=3",
+                Long.class);
     for (var combination : repo.combinations()) {
       if (combination.stream().anyMatch(ids::contains)) {
         repo.jdbc()
@@ -191,8 +194,20 @@ public class SeedData implements CommandLineRunner {
       }
     }
     repo.jdbc()
-        .update("UPDATE dining_table SET active=FALSE,retired=TRUE WHERE code='B09' AND floor=1");
+        .update("UPDATE dining_table SET active=FALSE,retired=TRUE WHERE code='B09' AND floor=1 AND map_x=1 AND map_y=3");
     repo.jdbc().update("INSERT INTO app_migration(name) VALUES('entrance-clearance-v1')");
+  }
+
+  private void renumberGroundFloor() {
+    if (repo.jdbc().queryForObject(
+            "SELECT COUNT(*) FROM app_migration WHERE name='ground-numbering-v2'", Integer.class) > 0)
+      return;
+    // The retired entrance seat keeps its ID and history under a distinct archival code.
+    repo.jdbc().update(
+        "UPDATE dining_table SET code='OLD-B09' WHERE code='B09' AND floor=1 AND retired=TRUE");
+    repo.jdbc().update(
+        "UPDATE dining_table SET code='B09' WHERE code='B10' AND floor=1 AND retired=FALSE");
+    repo.jdbc().update("INSERT INTO app_migration(name) VALUES('ground-numbering-v2')");
   }
 
   private void addGardenMenu() {

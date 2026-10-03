@@ -21,6 +21,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.mock.web.MockHttpSession;
 import vn.edu.giavien.data.RestaurantRepository;
 import vn.edu.giavien.domain.Models.*;
 import vn.edu.giavien.service.*;
@@ -141,6 +142,61 @@ class DemoPaymentIntegrationTest {
         .andExpect(jsonPath("$.status").value("WAITING"));
     assertThat(repo.booking(bookingId).orElseThrow().paymentStatus())
         .isEqualTo(PaymentStatus.UNPAID);
+  }
+
+  @Test
+  void localCheckoutAndUnpaidBookingKeepTheAuthenticatedSession() throws Exception {
+    var login = mvc.perform(post("/login").with(csrf())
+            .param("email", customer.email()).param("password", "MocDemo123!"))
+        .andExpect(status().is3xxRedirection()).andReturn();
+    var session = (MockHttpSession) login.getRequest().getSession(false);
+    String path = mvc.perform(post("/bookings/" + bookingId + "/demo-payment")
+            .session(session).with(csrf()))
+        .andExpect(status().is3xxRedirection()).andReturn().getResponse().getRedirectedUrl();
+    String page = mvc.perform(get(path).session(session))
+        .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+    assertThat(page).contains("href=\"" + path + "\"", "Xem lượt đặt →");
+    assertThat(page).doesNotContain("href=\"http://192.168.1.20:8080");
+    mvc.perform(get("/bookings/" + bookingId).session(session))
+        .andExpect(status().isOk())
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("Chưa thanh toán")));
+    assertThat(repo.booking(bookingId).orElseThrow().paymentStatus()).isEqualTo(PaymentStatus.UNPAID);
+  }
+
+  @Test
+  void scannedGuestPageExplainsLoginAndReturnsToBookingAfterLogin() throws Exception {
+    String token = payments.start(bookingId, customer);
+    mvc.perform(get("/payment/demo/" + token))
+        .andExpect(status().isOk())
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("Đăng nhập để xem lượt đặt")));
+    var guest = mvc.perform(get("/bookings/" + bookingId))
+        .andExpect(redirectedUrl("/login")).andReturn();
+    var session = (MockHttpSession) guest.getRequest().getSession(false);
+    var login = mvc.perform(post("/login").session(session).with(csrf())
+            .param("email", customer.email()).param("password", "MocDemo123!"))
+        .andExpect(status().is3xxRedirection()).andReturn();
+    assertThat(login.getResponse().getRedirectedUrl()).contains("/bookings/" + bookingId);
+    mvc.perform(get("/bookings/" + bookingId).session((MockHttpSession) login.getRequest().getSession(false)))
+        .andExpect(status().isOk());
+  }
+
+  @Test
+  void changingUnpaidFoodAmountInvalidatesOldQrAndNewQrUsesFullDeposit() throws Exception {
+    String old = payments.start(bookingId, customer);
+    bookings.editItems(bookingId, customer, Map.of(1L, 2), "Không cay");
+    long food = repo.booking(bookingId).orElseThrow().foodTotal();
+    assertThatThrownBy(() -> payments.confirm(old))
+        .isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+    String token = payments.start(bookingId, customer);
+    assertThat(token).isNotEqualTo(old);
+    assertThat(payments.status(token).amount()).isEqualTo(100000 + food / 5);
+    mvc.perform(get("/payment/demo/" + old)).andExpect(status().isNotFound());
+    clock.set(baseline.plusMinutes(1));
+    payments.confirm(token);
+    var paid = repo.booking(bookingId).orElseThrow();
+    assertThat(paid.deposit()).isEqualTo(100000 + food / 5);
+    assertThat(paid.foodDeposit()).isEqualTo(food / 5);
+    assertThat(paid.paymentStatus()).isEqualTo(PaymentStatus.PAID);
   }
 
   @Test
