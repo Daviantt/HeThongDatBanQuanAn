@@ -51,6 +51,7 @@ public class SeedData implements CommandLineRunner {
     migrateGardenLayout();
     addUpperFloor();
     clearEntrance();
+    renumberGroundFloor();
     if (repo.dishes().isEmpty()) {
       dish(
           "Gỏi cuốn tôm thịt",
@@ -91,6 +92,7 @@ public class SeedData implements CommandLineRunner {
           "dessert");
       dish("Trà sen", "Trà ướp sen dịu nhẹ, dùng nóng hoặc thêm đá.", "Đồ uống", 35000, "tea");
     }
+    addGardenMenu();
     if (demo) {
       account("khach@moc.local", "Khách trải nghiệm", "0901234567", "CUSTOMER");
       account("nhanvien@moc.local", "Nhân viên GiaViên", "0901234568", "STAFF");
@@ -180,7 +182,9 @@ public class SeedData implements CommandLineRunner {
     // Keep the table's identity and reservation history; retire only the entrance seat.
     var ids =
         repo.jdbc()
-            .queryForList("SELECT id FROM dining_table WHERE code='B09' AND floor=1", Long.class);
+            .queryForList(
+                "SELECT id FROM dining_table WHERE code='B09' AND floor=1 AND map_x=1 AND map_y=3",
+                Long.class);
     for (var combination : repo.combinations()) {
       if (combination.stream().anyMatch(ids::contains)) {
         repo.jdbc()
@@ -190,8 +194,60 @@ public class SeedData implements CommandLineRunner {
       }
     }
     repo.jdbc()
-        .update("UPDATE dining_table SET active=FALSE,retired=TRUE WHERE code='B09' AND floor=1");
+        .update("UPDATE dining_table SET active=FALSE,retired=TRUE WHERE code='B09' AND floor=1 AND map_x=1 AND map_y=3");
     repo.jdbc().update("INSERT INTO app_migration(name) VALUES('entrance-clearance-v1')");
+  }
+
+  private void renumberGroundFloor() {
+    if (repo.jdbc().queryForObject(
+            "SELECT COUNT(*) FROM app_migration WHERE name='ground-numbering-v2'", Integer.class) > 0)
+      return;
+    // The retired entrance seat keeps its ID and history under a distinct archival code.
+    repo.jdbc().update(
+        "UPDATE dining_table SET code='OLD-B09' WHERE code='B09' AND floor=1 AND retired=TRUE");
+    repo.jdbc().update(
+        "UPDATE dining_table SET code='B09' WHERE code='B10' AND floor=1 AND retired=FALSE");
+    repo.jdbc().update("INSERT INTO app_migration(name) VALUES('ground-numbering-v2')");
+  }
+
+  private void addGardenMenu() {
+    if (repo.jdbc()
+            .queryForObject(
+                "SELECT COUNT(*) FROM app_migration WHERE name='garden-menu-v1'", Integer.class)
+        > 0) return;
+    // Add once to existing databases without resetting edited prices or availability.
+    newDish(
+        "Bò lúc lắc",
+        "Bò áp chảo cùng ớt chuông, hành tây và cải xoong.",
+        "Món chính",
+        189000,
+        "beef");
+    newDish(
+        "Tôm nướng muối ớt",
+        "Tôm nướng nguyên vỏ, muối ớt và chanh tươi.",
+        "Món chính",
+        179000,
+        "prawns");
+    newDish(
+        "Nấm kho tiêu",
+        "Nấm đùi gà và nấm hương kho tiêu trong nồi đất.",
+        "Món chính",
+        89000,
+        "mushrooms");
+    newDish(
+        "Bánh flan caramel",
+        "Bánh flan trứng sữa mềm mịn, phủ caramel vàng nâu.",
+        "Tráng miệng",
+        39000,
+        "flan");
+    repo.jdbc().update("INSERT INTO app_migration(name) VALUES('garden-menu-v1')");
+  }
+
+  private void newDish(
+      String name, String description, String category, long price, String illustration) {
+    if (repo.jdbc()
+            .queryForObject("SELECT COUNT(*) FROM menu_item WHERE name=?", Integer.class, name)
+        == 0) dish(name, description, category, price, illustration);
   }
 
   private void dish(

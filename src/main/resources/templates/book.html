@@ -114,15 +114,36 @@
               </div>
               <span class="badge muted">Tùy chọn</span>
             </div>
-            <details class="menu-picker">
-              <summary>Xem thực đơn &amp; chọn món <span>＋</span></summary>
-              <div class="preorder-grid">
-                <div class="preorder-item" th:each="dish : ${dishes}">
-                  <div>
-                    <h3 th:text="${dish.name}"></h3>
-                    <p th:text="${@fmt.money(dish.price)}"></p>
+            <div class="menu-picker" id="menu-picker">
+              <div class="menu-tools">
+                <label class="menu-search">Tìm món
+                  <input id="dish-search" type="search" placeholder="Tên món hoặc nguyên liệu…" autocomplete="off" />
+                </label>
+                <p class="helper">Ảnh AI minh họa · Giá theo phần</p>
+              </div>
+              <div class="menu-filters" role="group" aria-label="Lọc món đặt trước">
+                <button class="chip active" type="button" data-menu-filter="all" aria-pressed="true">Tất cả</button>
+                <button class="chip" type="button" data-menu-filter="Khai vị" aria-pressed="false">Khai vị</button>
+                <button class="chip" type="button" data-menu-filter="Món chính" aria-pressed="false">Món chính</button>
+                <button class="chip" type="button" data-menu-filter="Tráng miệng" aria-pressed="false">Tráng miệng</button>
+                <button class="chip" type="button" data-menu-filter="Đồ uống" aria-pressed="false">Đồ uống</button>
+                <button class="chip" type="button" data-menu-filter="selected" aria-pressed="false">Đã chọn <span id="selected-dish-count">0</span></button>
+              </div>
+              <p id="dish-results" class="helper" role="status" aria-live="polite"></p>
+              <div class="preorder-grid" id="preorder-grid">
+                <article class="preorder-item" th:each="dish : ${dishes}"
+                    th:attr="data-menu-category=${dish.category},data-menu-search=|${dish.name} ${dish.description}|">
+                  <div class="preorder-photo">
+                    <img th:src="${@fmt.dishImage(dish)}" th:alt="|Ảnh minh họa ${dish.name}|" width="800" height="600" loading="lazy" />
+                    <span class="dish-category" th:text="${dish.category}"></span>
+                    <span class="dish-selected" hidden>Đã chọn</span>
                   </div>
-                  <div class="quantity">
+                  <div class="preorder-body">
+                    <h3 th:text="${dish.name}"></h3>
+                    <p class="preorder-description" th:text="${dish.description}"></p>
+                    <div class="preorder-bottom">
+                      <strong class="preorder-price" th:text="${@fmt.money(dish.price)}"></strong>
+                      <div class="quantity">
                     <button
                       type="button"
                       data-quantity="-1"
@@ -134,7 +155,7 @@
                       min="0"
                       max="20"
                       value="0"
-                      th:attr="data-dish-id=${dish.id},data-price=${dish.price},aria-label=|Số lượng ${dish.name}|"
+                      th:attr="data-dish-id=${dish.id},data-price=${dish.price},data-dish-name=${dish.name},aria-label=|Số lượng ${dish.name}|"
                       class="dish-quantity"
                     /><button
                       type="button"
@@ -143,10 +164,16 @@
                     >
                       +
                     </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                </article>
               </div>
-            </details>
+              <div id="dish-empty" class="empty-state" hidden>
+                <p>Chưa có món phù hợp với bộ lọc.</p>
+                <button type="button" id="reset-menu-filter" class="button outline">Xem tất cả món</button>
+              </div>
+            </div>
             <label class="notes-label"
               >Ghi chú cho quán<textarea
                 id="booking-notes"
@@ -179,12 +206,23 @@
               <dd id="summary-food">0 ₫</dd>
             </div>
           </dl>
+          <div class="selected-food-summary" id="selected-food-summary" hidden>
+            <h3>Món bạn đã chọn</h3>
+            <ul id="selected-food-list"></ul>
+            <p class="helper" id="selected-food-note" aria-live="polite"></p>
+          </div>
           <div class="deposit-line">
-            <span>Cọc giữ bàn</span><strong id="summary-deposit">—</strong>
+            <span>Cọc giữ bàn</span><strong id="summary-table-deposit">—</strong>
+          </div>
+          <div class="deposit-line">
+            <span>Cọc món ăn (20%)</span><strong id="summary-food-deposit">0 ₫</strong>
+          </div>
+          <div class="deposit-line">
+            <span>Tổng cọc cần thanh toán</span><strong id="summary-deposit" aria-live="polite">—</strong>
           </div>
           <p class="helper">
-            Cọc tính theo số bàn. Tiền món thanh toán tại quán; cọc được đối trừ
-            khi tính hóa đơn.
+            Tổng cọc = số bàn × cọc mỗi bàn + 20% tiền món đặt trước.
+            Khoản đã thanh toán được trừ vào hóa đơn; số tiền còn lại thanh toán tại quán.
           </p>
           <div class="policy-note">
             <strong>Đổi kế hoạch? GiaViên hiểu.</strong>

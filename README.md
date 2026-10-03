@@ -33,9 +33,10 @@ Khách cũng có thể đăng ký tài khoản mới. Quản lý có thể tạo
 - Giao diện tiếng Việt, responsive, trang chủ và thực đơn có bộ lọc.
 - Đăng ký/đăng nhập/đăng xuất; ba vai trò khách, nhân viên, quản lý.
 - Chọn ngày, giờ đến, giờ kết thúc, 1–12 người.
-- Sơ đồ 2 tầng, tổng cộng 19 bàn, mỗi bàn 4 chỗ. Tầng 1 gồm B01–B08 và B10 quanh vườn (9 bàn); vị trí B09 được dành cho lối đi từ cửa vào. Tầng 2 gồm B11–B20 quanh khoảng thông tầng và ban công (10 bàn). Chuyển tầng bằng nút trên sơ đồ; đổi tầng sẽ bỏ lựa chọn bàn trước đó.
+- Sơ đồ 2 tầng, tổng cộng 19 bàn, mỗi bàn 4 chỗ. Tầng 1 gồm B01–B09 quanh vườn (9 bàn); vị trí giữa hàng dưới được dành cho lối đi từ cửa vào. B10 cũ được đổi tên thành B09, giữ nguyên vị trí và ID; bàn cũ tại lối vào được lưu là OLD-B09 để giữ lịch sử. Tầng 2 gồm B11–B20 quanh khoảng thông tầng và ban công (10 bàn). Chuyển tầng bằng nút trên sơ đồ; đổi tầng sẽ bỏ lựa chọn bàn trước đó.
 - Ghép 2–3 bàn liền nhau cùng tầng theo hàng ngang hoặc dọc, ví dụ B01 + B04 hoặc B11 + B14. Không ghép xuyên vườn, thông tầng hoặc giữa hai tầng.
 - Chọn món trước, số lượng, ghi chú; giá món và tiền cọc được lưu tại thời điểm đặt.
+- Thực đơn mẫu có 12 món với ảnh AI riêng: thêm bò lúc lắc, tôm nướng muối ớt, nấm kho tiêu và bánh flan caramel. Chọn món bằng thẻ ảnh, lọc danh mục, tìm kiếm không dấu, xem món đã chọn và tạm tính ngay trên trang đặt bàn.
 - Giữ bàn có thời hạn, chống đặt trùng bằng transaction và khóa trong database.
 - Thanh toán QR demo: quét mã mở trang mô phỏng, đợi 60 giây rồi tự bấm xác nhận thành công; đồng bộ kết quả giữa điện thoại và máy tính. Không cần tài khoản thanh toán, không chuyển tiền thật.
 - Có sẵn tích hợp VNPAY Sandbox khi cần: tạo giao dịch, ký URL, nhận IPN và kiểm tra kết quả. Khi cấu hình VNPAY hợp lệ, QR demo tự tắt.
@@ -54,7 +55,7 @@ Tên hiển thị là **GiaViên**; package Java là `vn.edu.giavien`, file kh�
 | ---------------------------- | -------------------------------------------------------------------- |
 | Số bàn                       | `ceil(số khách / 4)`, tối đa 3 bàn                                   |
 | Ghép bàn                     | Tổ hợp khai báo sẵn; mọi bàn phải khả dụng trong toàn bộ khoảng đặt  |
-| Tiền cọc                     | Số bàn × cọc mỗi bàn; lưu số tiền riêng cho mỗi lượt đặt             |
+| Tiền cọc                     | Số bàn × cọc mỗi bàn + 20% tiền món đặt trước; lưu riêng hai khoản và trừ vào hóa đơn tại quán |
 | Hủy trước ít nhất 3 tiếng    | Hoàn toàn bộ cọc; đúng mốc 3 tiếng vẫn được hoàn                     |
 | Hủy dưới 3 tiếng / không đến | Không hoàn cọc; không có ngoại lệ 15 phút sau thanh toán             |
 | Quán hủy                     | Hoàn toàn bộ cọc                                                     |
@@ -70,7 +71,13 @@ Các giá trị sau là lựa chọn triển khai ban đầu, **không phải y�
 - Quán mở 10:00–22:00; đặt trước tối đa 60 ngày, dùng bàn ít nhất 30 phút và kết thúc trong cùng ngày.
 - Nhận khách từ 15 phút trước giờ hẹn, chỉ khi bàn không xung đột lượt khác.
 - Múi giờ nghiệp vụ: `Asia/Ho_Chi_Minh` (UTC+7).
-- Tổ hợp mặc định gồm 2–3 bàn liên tiếp theo hàng ngang hoặc dọc trên cùng tầng, không băng qua vườn hay khoảng thông tầng. B09 đã ngừng phục vụ nên không xuất hiện trong các tổ hợp; B08 và B10 không ghép qua lối đi.
+- Tổ hợp mặc định gồm 2–3 bàn liên tiếp theo hàng ngang hoặc dọc trên cùng tầng, không băng qua vườn hay khoảng thông tầng. B08 và B09 không ghép qua lối đi; bàn OLD-B09 ở lối vào đã ngừng phục vụ.
+
+Tiền cọc bàn được chốt khi tạo lượt đặt. Khi sửa món trước thanh toán, tổng cọc cập nhật theo giá món đã lưu; QR cũ bị vô hiệu nếu số tiền thay đổi. Lượt đã mở giao dịch VNPAY giữ nguyên tổng cọc để đối soát cả callback đến muộn. Sau thanh toán, sửa món không đổi khoản đã trả; chênh lệch được xử lý trên hóa đơn tại quán. Lượt đặt cũ vẫn giữ số tiền cọc cũ, mặc định phần tiền món trả trước là 0.
+
+Cọc món ăn lấy 20% tổng giá trị các món đặt trước, làm tròn lên đến 1 đồng sau khi cộng toàn bộ món. Ví dụ cọc bàn 100.000đ và món ăn 200.000đ thì tổng cọc là 140.000đ. Khoản cọc đã thanh toán được trừ vào hóa đơn; phần còn lại thanh toán tại quán.
+
+Dữ liệu tài khoản, bàn, món, lịch đặt và thanh toán được backend Java ghi vào database **H2 dạng file**, không dùng `localStorage` của trình duyệt. Phiên đăng nhập nằm trên server; trình duyệt giữ cookie nhận diện phiên. Xem cấu hình kết nối tại `src/main/resources/application.properties` và cấu trúc bảng tại `src/main/resources/schema.sql`.
 
 ## Giới hạn hiện tại
 
@@ -79,7 +86,7 @@ Các giá trị sau là lựa chọn triển khai ban đầu, **không phải y�
 - Tài khoản nhân viên có thể tạo mới; chưa có khóa tài khoản, quên mật khẩu hoặc xác minh email.
 - Tiền món tại quán và việc đối trừ tiền cọc do nhân viên thực hiện; chưa có module hóa đơn/POS.
 - H2 phù hợp chạy đồ án một tiến trình, không dùng cho triển khai nhiều máy chủ. Chuyển MySQL/PostgreSQL cần migration SQL tương ứng.
-- Hình món ăn hiện là minh họa SVG; cần thay ảnh thật khi chốt thực đơn.
+- Ảnh của 12 món mẫu được tạo bằng AI cho đồ án; cần thay ảnh món thực tế trước khi dùng kinh doanh. Món mới tạo từ trang quản lý dùng hình chung đến khi được bổ sung ảnh riêng. [Ảnh và prompt đã dùng](docs/menu-images.md).
 
 ## Thanh toán QR demo
 
@@ -134,7 +141,7 @@ Kiểm thử JavaScript cho chuyển tầng, QR demo và kết quả VNPAY (cầ
 
 ```powershell
 npm.cmd install --prefix .tools/ui-test --no-audit --no-fund jsdom@29.1.1
-node --test src/test/js/booking.test.cjs src/test/js/payment.test.cjs src/test/js/demo-payment.test.cjs
+node --test src/test/js/booking.test.cjs src/test/js/payment.test.cjs src/test/js/demo-payment.test.cjs src/test/js/menu-picker.test.cjs
 ```
 
 Demo gợi ý: đăng nhập khách → ngày mai, 18:00–20:00, 9 người → B01+B02+B03 → chọn món → cọc 300.000đ → thanh toán demo → gửi yêu cầu đổi giờ → đăng nhập nhân viên xử lý → khách hủy → nhân viên ghi nhận hoàn cọc.

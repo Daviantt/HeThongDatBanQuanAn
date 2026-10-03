@@ -75,8 +75,9 @@
               ><strong th:text="${@fmt.money(booking.foodTotal())}"></strong>
             </div>
             <p class="helper">
-              Bếp chỉ chuẩn bị món sau khi nhân viên xác nhận bạn đã đến. Tiền
-              món thanh toán tại quán.
+              Bếp chỉ chuẩn bị món sau khi nhân viên xác nhận bạn đã đến.
+              Phần tiền món trong cọc được trừ vào hóa đơn sau khi bạn thanh toán.
+              Số tiền còn lại thanh toán tại quán.
             </p>
             <details th:if="${canEdit}" class="edit-details">
               <summary>Sửa món &amp; ghi chú</summary>
@@ -85,7 +86,8 @@
                 method="post"
                 class="form-stack"
               >
-                <div class="edit-dish" th:each="dish : ${dishes}">
+                <div class="edit-dish with-photo" th:each="dish : ${dishes}">
+                  <img th:src="${@fmt.dishImage(dish)}" th:alt="|Ảnh minh họa ${dish.name}|" width="80" height="64" loading="lazy" />
                   <label
                     th:for="|qty-${dish.id}|"
                     th:text="|${dish.name} · ${@fmt.money(dish.price)}|"
@@ -102,6 +104,13 @@
                 </div>
                 <p class="helper">
                   Món đã đặt giữ giá cũ; món thêm mới dùng giá hiện tại.
+                </p>
+                <p class="helper" th:if="${booking.paymentStatus.name() == 'UNPAID'}">
+                  Sửa món sẽ cập nhật tổng cọc. Nếu tiền món thay đổi, hãy mở lại QR để thanh toán số tiền mới.
+                  Lượt đã mở giao dịch VNPAY cần giữ nguyên tổng cọc hoặc liên hệ quán.
+                </p>
+                <p class="helper" th:if="${booking.paymentStatus.name() != 'UNPAID'}">
+                  Cọc đã trả được giữ nguyên và trừ vào hóa đơn. Phần chênh lệch sau khi sửa món được tính tại quán.
                 </p>
                 <label
                   >Ghi chú<textarea
@@ -320,7 +329,7 @@
         </div>
         <aside>
           <section class="panel payment-panel">
-            <p class="eyebrow">CỌC GIỮ BÀN</p>
+            <p class="eyebrow">TỔNG TIỀN CỌC</p>
             <h2
               class="payment-amount"
               th:text="${@fmt.money(booking.deposit)}"
@@ -334,6 +343,11 @@
               class="helper"
               th:text="|${booking.tableIds.size()} bàn · Mức cọc được lưu tại thời điểm đặt|"
             ></p>
+            <dl class="summary-lines">
+              <div><dt>Cọc giữ bàn</dt><dd th:text="${@fmt.money(booking.tableDeposit())}"></dd></div>
+              <div><dt>Tiền món trả trước</dt><dd th:text="${@fmt.money(booking.foodDeposit)}"></dd></div>
+            </dl>
+            <p class="helper">Toàn bộ khoản cọc đã trả được trừ vào hóa đơn khi dùng bữa.</p>
             <div th:if="${booking.status.name() == 'PENDING' and owner}">
               <div
                 class="countdown"

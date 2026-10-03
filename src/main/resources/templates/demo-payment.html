@@ -18,7 +18,8 @@
               width="320" height="320" alt="QR mở trang thanh toán mô phỏng GiaViên" />
           <p>Dùng camera điện thoại quét mã để mở trang mô phỏng, hoặc thao tác ngay tại đây.</p>
           <p class="helper">Điện thoại và máy tính cần cùng Wi-Fi khi chạy trên máy cá nhân.</p>
-          <a class="demo-qr-link" th:href="${qrUrl}" th:text="${qrUrl}"></a>
+          <a class="demo-qr-link" th:href="@{/payment/demo/{token}(token=${token})}">Mở trang mô phỏng trên trình duyệt này</a>
+          <p class="helper">Địa chỉ dành cho điện thoại: <code class="demo-qr-link" th:text="${qrUrl}"></code></p>
         </div>
         <p id="demo-message" role="status" aria-live="polite" th:text="${payment.message}"></p>
         <form id="demo-confirm" th:action="@{/payment/demo/{token}/confirm(token=${token})}" method="post"
@@ -28,7 +29,12 @@
           <p class="helper">Sau 1 phút, bạn tự bấm xác nhận. Hệ thống không tự đánh dấu đã thanh toán.</p>
         </form>
         <noscript><p class="helper">Đợi đủ 1 phút rồi tải lại trang để mở nút xác nhận.</p></noscript>
-        <a class="button outline full" th:href="@{/bookings/{id}(id=${payment.bookingId})}">Xem lượt đặt →</a>
+        <a th:if="${canViewBooking}" class="button outline full" th:href="@{/bookings/{id}(id=${payment.bookingId})}">Xem lượt đặt →</a>
+        <div th:if="${!signedIn}">
+          <p class="helper">Thiết bị này chưa đăng nhập. Chi tiết lượt đặt chỉ hiển thị cho tài khoản đã đặt bàn và nhân viên.</p>
+          <a class="button outline full" th:href="@{/bookings/{id}(id=${payment.bookingId})}">Đăng nhập để xem lượt đặt →</a>
+        </div>
+        <p th:if="${signedIn and !canViewBooking}" class="helper">Hãy dùng tài khoản đã đặt bàn để xem chi tiết lượt đặt này.</p>
       </section>
     </main>
     <footer th:replace="~{fragments :: footer}"></footer>

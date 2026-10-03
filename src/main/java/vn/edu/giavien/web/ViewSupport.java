@@ -57,6 +57,26 @@ public class ViewSupport {
     return NumberFormat.getIntegerInstance(Locale.forLanguageTag("vi-VN")).format(value) + " ₫";
   }
 
+  public String dishImage(vn.edu.giavien.domain.Models.Dish dish) {
+    String file =
+        switch (dish.illustration()) {
+          case "rolls" -> "goi-cuon";
+          case "salad" -> "goi-ngo-sen";
+          case "fish" -> "ca-kho-to";
+          case "chicken" -> "ga-nuong-la-chanh";
+          case "soup" -> "canh-chua-ca";
+          case "rice" -> "com-nieu";
+          case "dessert" -> "che-hat-sen";
+          case "tea" -> "tra-sen";
+          case "beef" -> "bo-luc-lac";
+          case "prawns" -> "tom-nuong-muoi-ot";
+          case "mushrooms" -> "nam-kho-tieu";
+          case "flan" -> "banh-flan";
+          default -> null;
+        };
+    return file == null ? "/images/dish.svg" : "/images/menu/" + file + ".jpg";
+  }
+
   public String date(LocalDateTime value) {
     return value.format(DateTimeFormatter.ofPattern("HH:mm · dd/MM/yyyy"));
   }

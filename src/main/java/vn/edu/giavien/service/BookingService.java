@@ -221,6 +221,7 @@ public class BookingService {
         validateTables(input.tableIds(), input.guests(), input.startAt(), input.endAt(), null);
     String notes = checkedText(input.notes(), 0, 500, "Ghi chú");
     List<OrderLine> lines = makeLines(input.items(), List.of());
+    long foodDeposit = BookingPolicy.foodDeposit(lines.stream().mapToLong(OrderLine::subtotal).sum());
     String id = UUID.randomUUID().toString();
     Settings settings = repo.settings();
     LocalDateTime holdUntil = now().plusMinutes(settings.holdMinutes());
@@ -232,7 +233,8 @@ public class BookingService {
         input.endAt(),
         input.guests(),
         notes,
-        ids.size() * settings.depositPerTable(),
+        ids.size() * settings.depositPerTable() + foodDeposit,
+        foodDeposit,
         now(),
         holdUntil,
         ids);
@@ -249,7 +251,24 @@ public class BookingService {
     require(
         BookingPolicy.editable(b, now()),
         "Chỉ được sửa món và ghi chú trước giờ đến ít nhất 2 tiếng.");
-    repo.replaceLines(id, makeLines(items, b.lines()));
+    List<OrderLine> lines = makeLines(items, b.lines());
+    if (b.paymentStatus() == PaymentStatus.UNPAID) {
+      long foodDeposit = BookingPolicy.foodDeposit(lines.stream().mapToLong(OrderLine::subtotal).sum());
+      long totalDeposit = b.tableDeposit() + foodDeposit;
+      if (totalDeposit != b.deposit()) {
+        require(
+            repo.jdbc().queryForObject(
+                    "SELECT COUNT(*) FROM payment_attempt WHERE reservation_id=?",
+                    Integer.class, id) == 0,
+            "Lượt đặt đã mở giao dịch VNPAY nên chưa thể đổi tổng cọc. Vui lòng giữ nguyên món hoặc liên hệ quán.");
+        // Old QR pages must not confirm a different amount than the customer reviewed.
+        repo.jdbc().update("DELETE FROM demo_payment WHERE reservation_id=?", id);
+      }
+      repo.jdbc().update(
+          "UPDATE reservation SET deposit=?,food_deposit=? WHERE id=?", totalDeposit, foodDeposit, id);
+    }
+    // Paid deposits remain the recorded payment; item changes are settled on the final bill.
+    repo.replaceLines(id, lines);
     repo.jdbc()
         .update(
             "UPDATE reservation SET notes=? WHERE id=?", checkedText(notes, 0, 500, "Ghi chú"), id);
@@ -533,7 +552,7 @@ public class BookingService {
       repo.jdbc()
           .update(
               "INSERT INTO menu_item(name,description,category,price,available,illustration)"
-                  + " VALUES(?,?,?,?,?,'rice')",
+                    + " VALUES(?,?,?,?,?,'default')",
               name,
               description,
               category,

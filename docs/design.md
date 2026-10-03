@@ -1,6 +1,10 @@
 # Phân tích thiết kế — phiên bản đầu
 
-GiaViên có hai tầng: B01–B08 và B10 ở tầng 1 quanh vườn, B11–B20 ở tầng 2 quanh khoảng thông tầng. B09 được ngừng phục vụ để chừa lối đi từ cửa vào; lịch đặt cũ vẫn giữ liên kết đến bàn này và hiển thị thông báo cần sắp xếp lại. `DiningTable.floor` xác định tầng; `FloorPlan.canJoin` chỉ cho phép ghép 2–3 bàn liên tiếp trên cùng hàng/cột và cùng tầng. ID vật lý của bàn cũ được giữ nguyên để bảo toàn liên kết đặt bàn; tên hiển thị lấy từ `code`.
+GiaViên có hai tầng: B01–B09 ở tầng 1 quanh vườn, B11–B20 ở tầng 2 quanh khoảng thông tầng. B10 cũ đổi tên thành B09, giữ nguyên vị trí và ID. Bàn cũ ở lối vào ngừng phục vụ, được lưu là OLD-B09 để giữ lịch sử; B08 và B09 không ghép xuyên lối đi. `DiningTable.floor` xác định tầng; `FloorPlan.canJoin` chỉ cho phép ghép 2–3 bàn liên tiếp trên cùng hàng/cột và cùng tầng. ID vật lý của bàn cũ được giữ nguyên để bảo toàn liên kết đặt bàn; tên hiển thị lấy từ `code`.
+
+Tổng cọc = số bàn × cọc mỗi bàn + 20% giá trị món đặt trước. Phần cọc món tính trên tổng giá trị các món rồi làm tròn lên đến 1 đồng. `reservation.deposit` lưu tổng cọc, `food_deposit` lưu phần tiền món trả trước; phần cọc bàn là hiệu của hai số này. Mặc định `food_deposit=0` bảo toàn số tiền của lượt đặt cũ. Sửa món chưa thanh toán cập nhật tổng cọc và thu hồi QR cũ khi số tiền đổi; chặn thay đổi số tiền sau khi mở giao dịch VNPAY. Sửa món sau thanh toán giữ nguyên khoản đã trả để đối trừ hóa đơn tại quán. Chính sách hoàn cọc 3 tiếng áp dụng cho toàn bộ tổng cọc.
+
+Backend dùng Spring JDBC để lưu dữ liệu nghiệp vụ vào H2 dạng file. Trình duyệt không lưu nghiệp vụ trong `localStorage`; cookie phiên đăng nhập tham chiếu tới phiên trên server. URL QR dùng địa chỉ LAN cho điện thoại; các liên kết thao tác trên máy tính giữ cùng host để không chuyển sang phiên đăng nhập khác.
 
 ## Tác nhân và use case
 
