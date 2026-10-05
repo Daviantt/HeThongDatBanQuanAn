@@ -40,6 +40,7 @@ public class SecurityConfig {
                         "/images/**",
                         "/error",
                         "/payment/demo/**",
+                        "/takeaway/payment/**",
                         "/payment/vnpay/**")
                     .permitAll()
                     .requestMatchers("/admin/**")

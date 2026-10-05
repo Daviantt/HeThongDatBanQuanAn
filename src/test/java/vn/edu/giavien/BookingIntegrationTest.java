@@ -28,6 +28,7 @@ import vn.edu.giavien.data.RestaurantRepository;
 import vn.edu.giavien.domain.BookingPolicy;
 import vn.edu.giavien.domain.Models.*;
 import vn.edu.giavien.service.BookingService;
+import vn.edu.giavien.service.TakeawayService;
 
 @SpringBootTest(
     properties = {
@@ -40,6 +41,7 @@ import vn.edu.giavien.service.BookingService;
 @Import(BookingIntegrationTest.TimeConfig.class)
 class BookingIntegrationTest {
   @Autowired BookingService service;
+  @Autowired TakeawayService takeaway;
   @Autowired vn.edu.giavien.service.VnpayPaymentService payments;
   @Autowired vn.edu.giavien.service.VnpayGateway gateway;
   @Autowired RestaurantRepository repo;
@@ -92,6 +94,9 @@ class BookingIntegrationTest {
               repo.lockSchedule();
               for (String table :
                   List.of(
+                      "takeaway_demo_payment",
+                      "takeaway_order_line",
+                      "takeaway_order",
                       "audit_event",
                       "demo_payment",
                       "payment_attempt",
@@ -159,6 +164,21 @@ class BookingIntegrationTest {
 
   String startPayment(String id) {
     return urlParameters(payments.start(id, customer, "127.0.0.1")).get("vnp_TxnRef");
+  }
+
+  @Test
+  void takeawayUsesTheCurrentMenuPriceAndDoesNotCreateAReservation() {
+    String id =
+        takeaway.create(
+            customer,
+            new TakeawayService.Input(
+                "Khách trải nghiệm", "0901234567", baseline.plusMinutes(30), "CASH", Map.of(1L, 2)));
+    TakeawayOrder order = repo.takeaway(id).orElseThrow();
+    assertThat(order.status()).isEqualTo(TakeawayStatus.WAITING_PICKUP);
+    assertThat(order.total())
+        .isEqualTo(repo.dishes().stream().filter(d -> d.id() == 1L).findFirst().orElseThrow().price() * 2);
+    assertThat(order.lines()).singleElement().satisfies(line -> assertThat(line.quantity()).isEqualTo(2));
+    assertThat(repo.bookings(customer.id())).isEmpty();
   }
 
   @Test

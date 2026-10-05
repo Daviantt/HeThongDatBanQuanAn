@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"><head th:replace="~{fragments :: head('Đơn mang về')}"></head><body>
+<header th:replace="~{fragments :: header}"></header><main class="shell page"><section class="panel takeaway-confirmation">
+<p class="eyebrow">ĐƠN MANG VỀ · <span th:text="${order.code()}"></span></p><h1 th:text="${order.status.label}"></h1>
+<p th:if="${order.paymentMethod == 'CASH'}">Bạn thanh toán tiền mặt khi đến quán lấy món.</p><p th:if="${order.paymentMethod == 'TRANSFER' and order.status.name() == 'AWAITING_PAYMENT'}">Đơn sẽ được chuyển đến bếp sau khi bạn xác nhận chuyển khoản.</p><p th:if="${order.paymentMethod == 'TRANSFER' and order.status.name() == 'WAITING_PICKUP'}">Quán đã nhận xác nhận demo và sẽ chuẩn bị món cho bạn.</p>
+<dl class="takeaway-detail"><div><dt>Người nhận</dt><dd th:text="${order.customerName}"></dd></div><div><dt>Số điện thoại</dt><dd th:text="${order.customerPhone}"></dd></div><div><dt>Giờ lấy</dt><dd th:text="${@fmt.date(order.pickupAt)}"></dd></div><div><dt>Tổng tiền</dt><dd th:text="${@fmt.money(order.total)}"></dd></div></dl>
+<ul class="order-lines"><li th:each="line : ${order.lines}"><span th:text="|${line.itemName} × ${line.quantity}|"></span><strong th:text="${@fmt.money(line.subtotal())}"></strong></li></ul>
+<p th:if="${order.paymentReference != null}" class="helper" th:text="|Mã xác nhận: ${order.paymentReference} · ${@fmt.date(order.paidAt)}|"></p>
+<form th:if="${order.paymentMethod == 'TRANSFER' and order.status.name() == 'AWAITING_PAYMENT'}" th:action="@{/takeaway/orders/{id}/demo-payment(id=${order.id})}" method="post"><button class="button" type="submit">Mở QR chuyển khoản demo <span>↗</span></button></form><a th:unless="${order.paymentMethod == 'TRANSFER' and order.status.name() == 'AWAITING_PAYMENT'}" href="/menu" class="button outline">Tiếp tục chọn món</a>
+</section></main><footer th:replace="~{fragments :: footer}"></footer></body></html>
