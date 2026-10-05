@@ -62,3 +62,21 @@ CREATE TABLE IF NOT EXISTS demo_payment (
  token VARCHAR(32) PRIMARY KEY, reservation_id VARCHAR(36) NOT NULL UNIQUE REFERENCES reservation(id),
  created_at TIMESTAMP NOT NULL
 );
+CREATE TABLE IF NOT EXISTS takeaway_order (
+ id VARCHAR(36) PRIMARY KEY, user_id BIGINT NOT NULL REFERENCES app_user(id),
+ customer_name VARCHAR(100) NOT NULL, customer_phone VARCHAR(20) NOT NULL,
+ pickup_at TIMESTAMP NOT NULL, total BIGINT NOT NULL, payment_method VARCHAR(20) NOT NULL,
+ status VARCHAR(30) NOT NULL, created_at TIMESTAMP NOT NULL, paid_at TIMESTAMP, payment_reference VARCHAR(100)
+);
+ALTER TABLE takeaway_order ADD COLUMN IF NOT EXISTS paid_at TIMESTAMP;
+ALTER TABLE takeaway_order ADD COLUMN IF NOT EXISTS payment_reference VARCHAR(100);
+CREATE INDEX IF NOT EXISTS takeaway_order_user ON takeaway_order(user_id, created_at);
+CREATE TABLE IF NOT EXISTS takeaway_order_line (
+ order_id VARCHAR(36) NOT NULL REFERENCES takeaway_order(id), menu_item_id BIGINT NOT NULL REFERENCES menu_item(id),
+ item_name VARCHAR(100) NOT NULL, unit_price BIGINT NOT NULL, quantity INT NOT NULL,
+ PRIMARY KEY(order_id, menu_item_id)
+);
+CREATE TABLE IF NOT EXISTS takeaway_demo_payment (
+ token VARCHAR(32) PRIMARY KEY, order_id VARCHAR(36) NOT NULL UNIQUE REFERENCES takeaway_order(id),
+ created_at TIMESTAMP NOT NULL
+);

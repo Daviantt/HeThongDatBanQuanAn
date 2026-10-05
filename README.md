@@ -39,6 +39,7 @@ Khách cũng có thể đăng ký tài khoản mới. Quản lý có thể tạo
 - Thực đơn mẫu có 12 món với ảnh AI riêng: thêm bò lúc lắc, tôm nướng muối ớt, nấm kho tiêu và bánh flan caramel. Chọn món bằng thẻ ảnh, lọc danh mục, tìm kiếm không dấu, xem món đã chọn và tạm tính ngay trên trang đặt bàn.
 - Giữ bàn có thời hạn, chống đặt trùng bằng transaction và khóa trong database.
 - Thanh toán QR demo: quét mã mở trang mô phỏng, đợi 60 giây rồi tự bấm xác nhận thành công; đồng bộ kết quả giữa điện thoại và máy tính. Không cần tài khoản thanh toán, không chuyển tiền thật.
+- Đặt món mang về: khách chọn món ngay từ thực đơn, chọn **Đặt đến lấy** để thêm vào giỏ, nhập người nhận/giờ lấy và thanh toán tiền mặt hoặc QR demo. Đơn mang về lưu riêng, không chiếm bàn.
 - Có sẵn tích hợp VNPAY Sandbox khi cần: tạo giao dịch, ký URL, nhận IPN và kiểm tra kết quả. Khi cấu hình VNPAY hợp lệ, QR demo tự tắt.
 - Lịch sử đặt bàn, sửa món/ghi chú, hủy và theo dõi hoàn cọc.
 - Khách gửi yêu cầu đổi bàn/giờ; nhân viên chấp nhận với lịch/bàn mới hoặc từ chối kèm lý do.
@@ -78,6 +79,8 @@ Tiền cọc bàn được chốt khi tạo lượt đặt. Khi sửa món trư�
 Cọc món ăn lấy 20% tổng giá trị các món đặt trước, làm tròn lên đến 1 đồng sau khi cộng toàn bộ món. Ví dụ cọc bàn 100.000đ và món ăn 200.000đ thì tổng cọc là 140.000đ. Khoản cọc đã thanh toán được trừ vào hóa đơn; phần còn lại thanh toán tại quán.
 
 Dữ liệu tài khoản, bàn, món, lịch đặt và thanh toán được backend Java ghi vào database **H2 dạng file**, không dùng `localStorage` của trình duyệt. Phiên đăng nhập nằm trên server; trình duyệt giữ cookie nhận diện phiên. Xem cấu hình kết nối tại `src/main/resources/application.properties` và cấu trúc bảng tại `src/main/resources/schema.sql`.
+
+Giỏ món mang về chỉ là trạng thái tạm thời trên trình duyệt để khách đi giữa thực đơn và trang thanh toán; đơn đã xác nhận cùng các dòng món vẫn luôn được ghi vào H2.
 
 ## Giới hạn hiện tại
 

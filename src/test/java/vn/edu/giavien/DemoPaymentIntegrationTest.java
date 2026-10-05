@@ -40,6 +40,7 @@ import vn.edu.giavien.service.*;
 class DemoPaymentIntegrationTest {
   @Autowired BookingService bookings;
   @Autowired DemoPaymentService payments;
+  @Autowired TakeawayService takeaway;
   @Autowired VnpayGateway gateway;
   @Autowired RestaurantRepository repo;
   @Autowired BookingIntegrationTest.MutableClock clock;
@@ -53,6 +54,9 @@ class DemoPaymentIntegrationTest {
     clock.set(baseline);
     for (String table :
         List.of(
+            "takeaway_demo_payment",
+            "takeaway_order_line",
+            "takeaway_order",
             "audit_event",
             "demo_payment",
             "payment_attempt",
@@ -71,6 +75,59 @@ class DemoPaymentIntegrationTest {
                 List.of(1L),
                 Map.of(),
                 ""));
+  }
+
+  @Test
+  void takeawayTransferRecordsTheDemoReferenceExactlyOnce() {
+    String id =
+        takeaway.create(
+            customer,
+            new TakeawayService.Input(
+                "Khách trải nghiệm", "0901234567", baseline.plusMinutes(30), "TRANSFER", Map.of(1L, 1)));
+    String token = takeaway.startDemoPayment(id, customer);
+    clock.set(baseline.plusMinutes(1));
+    takeaway.confirmDemoPayment(token);
+    takeaway.confirmDemoPayment(token);
+    TakeawayOrder order = repo.takeaway(id).orElseThrow();
+    assertThat(order.status()).isEqualTo(TakeawayStatus.WAITING_PICKUP);
+    assertThat(order.paidAt()).isEqualTo(baseline.plusMinutes(1));
+    assertThat(order.paymentReference()).isEqualTo("DEMO-TL-" + token);
+  }
+
+  @Test
+  void takeawayQrOpensThePublicPaymentSessionOnTheConfiguredAddress() throws Exception {
+    String id =
+        takeaway.create(
+            customer,
+            new TakeawayService.Input(
+                "Khách trải nghiệm", "0901234567", baseline.plusMinutes(30), "TRANSFER", Map.of(1L, 1)));
+    var start =
+        mvc.perform(
+                post("/takeaway/orders/" + id + "/demo-payment")
+                    .with(user(customer.email()))
+                    .with(csrf()))
+            .andExpect(status().is3xxRedirection())
+            .andReturn();
+    String path = start.getResponse().getRedirectedUrl();
+    byte[] bytes =
+        mvc.perform(get(path + "/qr.png"))
+            .andExpect(status().isOk())
+            .andExpect(content().contentType("image/png"))
+            .andReturn()
+            .getResponse()
+            .getContentAsByteArray();
+    var image = ImageIO.read(new ByteArrayInputStream(bytes));
+    var source =
+        new RGBLuminanceSource(
+            image.getWidth(),
+            image.getHeight(),
+            image.getRGB(0, 0, image.getWidth(), image.getHeight(), null, 0, image.getWidth()));
+    String decoded =
+        new QRCodeReader().decode(new BinaryBitmap(new HybridBinarizer(source))).getText();
+    assertThat(decoded).isEqualTo("http://192.168.1.20:8080" + path);
+    mvc.perform(get(path + "/status"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("WAITING"));
   }
 
   @Test

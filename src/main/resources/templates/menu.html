@@ -17,18 +17,33 @@
         ><button class="chip" data-filter="Tráng miệng">Tráng miệng</button
         ><button class="chip" data-filter="Đồ uống">Đồ uống</button>
       </div>
-      <div class="dish-grid">
+      <p class="helper">Nhấn vào món để chọn đặt đến lấy hoặc đặt trước khi dùng tại quán.</p>
+      <div class="dish-grid" id="takeaway-menu" th:attr="data-signed-in=${currentUser != null}">
         <div
           th:each="dish : ${dishes}"
           th:attr="data-category=${dish.category}"
         >
-          <article th:replace="~{fragments :: dish(${dish})}"></article>
+          <button class="menu-dish-button" type="button" th:disabled="${!dish.available}"
+              th:attr="data-id=${dish.id},data-name=${dish.name},data-price=${dish.price},data-image=${@fmt.dishImage(dish)}">
+            <article th:replace="~{fragments :: dish(${dish})}"></article>
+          </button>
         </div>
       </div>
       <div class="center section">
         <a href="/book" class="button">Đặt bàn &amp; chọn trước món ↗</a>
       </div>
     </main>
+    <aside id="takeaway-cart" class="takeaway-cart" hidden aria-live="polite">
+      <span class="cart-label">GIỎ ĐẾN LẤY</span><strong id="takeaway-cart-count">0 món</strong>
+      <span id="takeaway-cart-total">0 ₫</span><a href="/takeaway" class="button small">Xem giỏ <span>→</span></a>
+    </aside>
+    <dialog id="order-choice" class="order-choice">
+      <button class="modal-close" type="button" aria-label="Đóng">×</button><p class="eyebrow">BẠN MUỐN DÙNG MÓN NÀY THEO CÁCH NÀO?</p>
+      <h2 id="choice-dish-name">Món ăn</h2><p id="choice-dish-price"></p>
+      <button id="add-takeaway" class="choice-button" type="button"><b>Đặt đến lấy</b><span>Thêm vào giỏ, chọn giờ rồi ghé quán nhận món →</span></button>
+      <a class="choice-button" href="/book"><b>Đặt trước ăn tại quán</b><span>Chọn bàn và thêm món cho buổi hẹn của bạn →</span></a>
+    </dialog>
     <footer th:replace="~{fragments :: footer}"></footer>
+    <script src="/js/takeaway-menu.js" defer></script>
   </body>
 </html>
