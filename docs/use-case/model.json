@@ -1,0 +1,1087 @@
+[
+  {
+    "stem": "01-overview",
+    "title": "Sơ đồ tổng quan",
+    "nodes": [
+      {
+        "id": "UC01–02",
+        "title": [
+          "Xem giới thiệu / thực đơn"
+        ],
+        "x": 565,
+        "y": 270,
+        "rx": 225,
+        "ry": 49,
+        "group": "public"
+      },
+      {
+        "id": "UC03",
+        "title": [
+          "Đăng ký khách hàng"
+        ],
+        "x": 565,
+        "y": 400,
+        "rx": 225,
+        "ry": 49,
+        "group": "public"
+      },
+      {
+        "id": "UC04",
+        "title": [
+          "Đăng nhập"
+        ],
+        "x": 565,
+        "y": 530,
+        "rx": 225,
+        "ry": 49,
+        "group": "public"
+      },
+      {
+        "id": "KH01–07",
+        "title": [
+          "Đặt bàn / đặt món trước"
+        ],
+        "x": 565,
+        "y": 660,
+        "rx": 225,
+        "ry": 49,
+        "group": "customer"
+      },
+      {
+        "id": "KH08–13",
+        "title": [
+          "Theo dõi, sửa, hủy lượt riêng",
+          "Gửi yêu cầu đổi bàn / giờ"
+        ],
+        "x": 565,
+        "y": 800,
+        "rx": 225,
+        "ry": 58,
+        "group": "customer"
+      },
+      {
+        "id": "UC05",
+        "title": [
+          "Đăng xuất"
+        ],
+        "x": 565,
+        "y": 930,
+        "rx": 225,
+        "ry": 49,
+        "group": "public"
+      },
+      {
+        "id": "TT01 / DM01",
+        "title": [
+          "Thanh toán cọc",
+          "VNPAY hoặc QR demo"
+        ],
+        "x": 1160,
+        "y": 270,
+        "rx": 225,
+        "ry": 58,
+        "group": "payment"
+      },
+      {
+        "id": "TT03–06",
+        "title": [
+          "Tiếp nhận / xử lý IPN"
+        ],
+        "x": 1160,
+        "y": 400,
+        "rx": 225,
+        "ry": 49,
+        "group": "payment"
+      },
+      {
+        "id": "NV01–04 / KH09",
+        "title": [
+          "Xem lịch và vận hành phục vụ"
+        ],
+        "x": 1160,
+        "y": 550,
+        "rx": 225,
+        "ry": 49,
+        "group": "staff"
+      },
+      {
+        "id": "NV05–09",
+        "title": [
+          "Đổi lịch / quán hủy",
+          "Ghi nhận kết quả hoàn tiền"
+        ],
+        "x": 1160,
+        "y": 710,
+        "rx": 225,
+        "ry": 58,
+        "group": "staff"
+      },
+      {
+        "id": "QL01–09",
+        "title": [
+          "Quản trị món, bàn, tổ hợp",
+          "Cấu hình và tạo nhân viên"
+        ],
+        "x": 1160,
+        "y": 905,
+        "rx": 225,
+        "ry": 58,
+        "group": "admin"
+      }
+    ],
+    "actors": {
+      "guest": "Khách truy cập",
+      "auth": "Người dùng đã đăng nhập",
+      "customer": "Khách hàng",
+      "staff": "Nhân viên",
+      "admin": "Quản lý",
+      "vnpay": "VNPAY Sandbox"
+    },
+    "associations": [
+      [
+        "guest",
+        "UC01–02"
+      ],
+      [
+        "guest",
+        "UC03"
+      ],
+      [
+        "guest",
+        "UC04"
+      ],
+      [
+        "auth",
+        "KH01–07"
+      ],
+      [
+        "auth",
+        "KH08–13"
+      ],
+      [
+        "auth",
+        "UC05"
+      ],
+      [
+        "auth",
+        "TT01 / DM01"
+      ],
+      [
+        "vnpay",
+        "TT01 / DM01"
+      ],
+      [
+        "vnpay",
+        "TT03–06"
+      ],
+      [
+        "staff",
+        "NV01–04 / KH09"
+      ],
+      [
+        "staff",
+        "NV05–09"
+      ],
+      [
+        "admin",
+        "QL01–09"
+      ]
+    ],
+    "relations": [
+      [
+        "customer",
+        "auth",
+        "generalization"
+      ],
+      [
+        "staff",
+        "auth",
+        "generalization"
+      ],
+      [
+        "admin",
+        "staff",
+        "generalization"
+      ]
+    ],
+    "notes": [
+      "VNPAY liên kết TT01; QR demo là chức năng mô phỏng nội bộ DM01.",
+      "Quyền thao tác lượt cá nhân áp dụng cho chủ lượt đặt, kể cả STAFF / ADMIN.",
+      "Các tài khoản cũng được truy cập trang công khai."
+    ]
+  },
+  {
+    "stem": "02-customer",
+    "title": "Đặt bàn và quản lý lượt cá nhân",
+    "nodes": [
+      {
+        "id": "KH01",
+        "title": [
+          "Tra cứu bàn trống"
+        ],
+        "x": 600,
+        "y": 265,
+        "rx": 225,
+        "ry": 49,
+        "group": "customer"
+      },
+      {
+        "id": "KH02",
+        "title": [
+          "Đặt bàn"
+        ],
+        "x": 600,
+        "y": 450,
+        "rx": 225,
+        "ry": 49,
+        "group": "customer"
+      },
+      {
+        "id": "KH07",
+        "title": [
+          "Đặt món trước"
+        ],
+        "x": 600,
+        "y": 625,
+        "rx": 225,
+        "ry": 49,
+        "group": "customer"
+      },
+      {
+        "id": "KH08",
+        "title": [
+          "Xem lịch sử lượt đặt"
+        ],
+        "x": 600,
+        "y": 760,
+        "rx": 225,
+        "ry": 49,
+        "group": "customer"
+      },
+      {
+        "id": "KH09",
+        "title": [
+          "Xem chi tiết / trạng thái",
+          "Phản hồi và nhật ký"
+        ],
+        "x": 600,
+        "y": 885,
+        "rx": 225,
+        "ry": 58,
+        "group": "customer"
+      },
+      {
+        "id": "KH10",
+        "title": [
+          "Sửa món / ghi chú"
+        ],
+        "x": 600,
+        "y": 1010,
+        "rx": 225,
+        "ry": 49,
+        "group": "customer"
+      },
+      {
+        "id": "KH11",
+        "title": [
+          "Gửi yêu cầu đổi bàn / giờ"
+        ],
+        "x": 600,
+        "y": 1135,
+        "rx": 225,
+        "ry": 49,
+        "group": "customer"
+      },
+      {
+        "id": "KH12",
+        "title": [
+          "Hủy lượt đặt"
+        ],
+        "x": 600,
+        "y": 1260,
+        "rx": 225,
+        "ry": 49,
+        "group": "customer"
+      },
+      {
+        "id": "KH04",
+        "title": [
+          "Kiểm tra thời gian",
+          "và số khách"
+        ],
+        "x": 1180,
+        "y": 265,
+        "rx": 225,
+        "ry": 58,
+        "group": "helper"
+      },
+      {
+        "id": "KH03",
+        "title": [
+          "Chọn bàn / tổ hợp ghép"
+        ],
+        "x": 1180,
+        "y": 400,
+        "rx": 225,
+        "ry": 49,
+        "group": "helper"
+      },
+      {
+        "id": "KH05",
+        "title": [
+          "Kiểm tra bàn / tổ hợp",
+          "và xung đột lịch"
+        ],
+        "x": 1180,
+        "y": 535,
+        "rx": 225,
+        "ry": 58,
+        "group": "helper"
+      },
+      {
+        "id": "KH06",
+        "title": [
+          "Tính cọc và giữ bàn"
+        ],
+        "x": 1180,
+        "y": 670,
+        "rx": 225,
+        "ry": 49,
+        "group": "helper"
+      },
+      {
+        "id": "KH13",
+        "title": [
+          "Xác định xử lý cọc",
+          "khi hủy"
+        ],
+        "x": 1180,
+        "y": 1260,
+        "rx": 225,
+        "ry": 58,
+        "group": "helper"
+      }
+    ],
+    "actors": {
+      "auth": "Người dùng đã đăng nhập",
+      "customer": "Khách hàng",
+      "staff": "Nhân viên",
+      "admin": "Quản lý"
+    },
+    "associations": [
+      [
+        "auth",
+        "KH01"
+      ],
+      [
+        "auth",
+        "KH02"
+      ],
+      [
+        "auth",
+        "KH08"
+      ],
+      [
+        "auth",
+        "KH09"
+      ],
+      [
+        "auth",
+        "KH10"
+      ],
+      [
+        "auth",
+        "KH11"
+      ],
+      [
+        "auth",
+        "KH12"
+      ]
+    ],
+    "relations": [
+      [
+        "KH01",
+        "KH04",
+        "include"
+      ],
+      [
+        "KH02",
+        "KH03",
+        "include"
+      ],
+      [
+        "KH02",
+        "KH04",
+        "include"
+      ],
+      [
+        "KH02",
+        "KH05",
+        "include"
+      ],
+      [
+        "KH02",
+        "KH06",
+        "include"
+      ],
+      [
+        "KH07",
+        "KH02",
+        "extend",
+        "có chọn món; trước khi gửi đặt"
+      ],
+      [
+        "KH12",
+        "KH13",
+        "include"
+      ],
+      [
+        "customer",
+        "auth",
+        "generalization"
+      ],
+      [
+        "staff",
+        "auth",
+        "generalization"
+      ],
+      [
+        "admin",
+        "staff",
+        "generalization"
+      ]
+    ],
+    "notes": [
+      "Sửa / hủy / yêu cầu đổi chỉ dành cho chủ lượt đặt.",
+      "Thanh toán cọc là mục tiêu riêng, không include trong KH02.",
+      "Tra cứu kiểm tra thời gian; tạo lượt kiểm tra lại bàn trong transaction."
+    ]
+  },
+  {
+    "stem": "03-staff",
+    "title": "Vận hành của nhân viên",
+    "nodes": [
+      {
+        "id": "NV01",
+        "title": [
+          "Xem / tìm lịch toàn quán",
+          "Và thống kê nhanh"
+        ],
+        "x": 600,
+        "y": 290,
+        "rx": 225,
+        "ry": 58,
+        "group": "staff"
+      },
+      {
+        "id": "KH09",
+        "title": [
+          "Xem chi tiết / trạng thái",
+          "Phản hồi và nhật ký"
+        ],
+        "x": 600,
+        "y": 415,
+        "rx": 225,
+        "ry": 58,
+        "group": "staff"
+      },
+      {
+        "id": "NV02",
+        "title": [
+          "Ghi nhận khách đã đến"
+        ],
+        "x": 600,
+        "y": 540,
+        "rx": 225,
+        "ry": 49,
+        "group": "staff"
+      },
+      {
+        "id": "NV03",
+        "title": [
+          "Hoàn tất phục vụ"
+        ],
+        "x": 600,
+        "y": 665,
+        "rx": 225,
+        "ry": 49,
+        "group": "staff"
+      },
+      {
+        "id": "NV04",
+        "title": [
+          "Ghi nhận khách không đến"
+        ],
+        "x": 600,
+        "y": 790,
+        "rx": 225,
+        "ry": 49,
+        "group": "staff"
+      },
+      {
+        "id": "NV05",
+        "title": [
+          "Đổi bàn / giờ / số khách"
+        ],
+        "x": 600,
+        "y": 915,
+        "rx": 225,
+        "ry": 49,
+        "group": "staff"
+      },
+      {
+        "id": "NV06",
+        "title": [
+          "Từ chối yêu cầu đổi"
+        ],
+        "x": 600,
+        "y": 1040,
+        "rx": 225,
+        "ry": 49,
+        "group": "staff"
+      },
+      {
+        "id": "NV07",
+        "title": [
+          "Quán hủy lượt đặt"
+        ],
+        "x": 600,
+        "y": 1165,
+        "rx": 225,
+        "ry": 49,
+        "group": "staff"
+      },
+      {
+        "id": "NV08",
+        "title": [
+          "Ghi nhận đã hoàn cọc"
+        ],
+        "x": 600,
+        "y": 1290,
+        "rx": 225,
+        "ry": 49,
+        "group": "staff"
+      },
+      {
+        "id": "NV09",
+        "title": [
+          "Ghi nhận hoàn khoản thu thêm"
+        ],
+        "x": 600,
+        "y": 1415,
+        "rx": 225,
+        "ry": 49,
+        "group": "staff"
+      },
+      {
+        "id": "NV10",
+        "title": [
+          "Kiểm tra bàn sẵn sàng"
+        ],
+        "x": 1180,
+        "y": 540,
+        "rx": 225,
+        "ry": 49,
+        "group": "helper"
+      },
+      {
+        "id": "KH04",
+        "title": [
+          "Kiểm tra thời gian",
+          "và số khách mới"
+        ],
+        "x": 1180,
+        "y": 875,
+        "rx": 225,
+        "ry": 58,
+        "group": "helper"
+      },
+      {
+        "id": "KH05",
+        "title": [
+          "Kiểm tra bàn / tổ hợp",
+          "và xung đột lịch"
+        ],
+        "x": 1180,
+        "y": 1010,
+        "rx": 225,
+        "ry": 58,
+        "group": "helper"
+      },
+      {
+        "id": "KH13",
+        "title": [
+          "Xác định xử lý cọc",
+          "khi hủy"
+        ],
+        "x": 1180,
+        "y": 1165,
+        "rx": 225,
+        "ry": 58,
+        "group": "helper"
+      }
+    ],
+    "actors": {
+      "staff": "Nhân viên",
+      "admin": "Quản lý"
+    },
+    "associations": [
+      [
+        "staff",
+        "NV01"
+      ],
+      [
+        "staff",
+        "KH09"
+      ],
+      [
+        "staff",
+        "NV02"
+      ],
+      [
+        "staff",
+        "NV03"
+      ],
+      [
+        "staff",
+        "NV04"
+      ],
+      [
+        "staff",
+        "NV05"
+      ],
+      [
+        "staff",
+        "NV06"
+      ],
+      [
+        "staff",
+        "NV07"
+      ],
+      [
+        "staff",
+        "NV08"
+      ],
+      [
+        "staff",
+        "NV09"
+      ]
+    ],
+    "relations": [
+      [
+        "admin",
+        "staff",
+        "generalization"
+      ],
+      [
+        "NV02",
+        "NV10",
+        "include"
+      ],
+      [
+        "NV05",
+        "KH04",
+        "include"
+      ],
+      [
+        "NV05",
+        "KH05",
+        "include"
+      ],
+      [
+        "NV07",
+        "KH13",
+        "include"
+      ]
+    ],
+    "notes": [
+      "Chỉ ghi nhận đã hoàn sau khi nhân viên thực hiện chuyển tiền bên ngoài.",
+      "Quán hủy PENDING / CONFIRMED; đã nhận cọc thì chờ hoàn toàn bộ.",
+      "CONFIRMED được xác nhận từ thanh toán, không có nhân viên duyệt cọc thủ công."
+    ]
+  },
+  {
+    "stem": "04-admin",
+    "title": "Quản trị của quản lý",
+    "nodes": [
+      {
+        "id": "QL01",
+        "title": [
+          "Xem món, bàn, tổ hợp",
+          "và tài khoản hệ thống"
+        ],
+        "x": 600,
+        "y": 275,
+        "rx": 225,
+        "ry": 58,
+        "group": "admin"
+      },
+      {
+        "id": "QL02",
+        "title": [
+          "Lưu món ăn"
+        ],
+        "x": 600,
+        "y": 455,
+        "rx": 225,
+        "ry": 49,
+        "group": "admin"
+      },
+      {
+        "id": "QL03",
+        "title": [
+          "Thêm món mới"
+        ],
+        "x": 1180,
+        "y": 365,
+        "rx": 225,
+        "ry": 49,
+        "group": "admin"
+      },
+      {
+        "id": "QL04",
+        "title": [
+          "Sửa món / trạng thái bán"
+        ],
+        "x": 1180,
+        "y": 555,
+        "rx": 225,
+        "ry": 49,
+        "group": "admin"
+      },
+      {
+        "id": "QL05",
+        "title": [
+          "Bật / tạm ngừng bàn"
+        ],
+        "x": 600,
+        "y": 665,
+        "rx": 225,
+        "ry": 49,
+        "group": "admin"
+      },
+      {
+        "id": "QL06",
+        "title": [
+          "Thêm tổ hợp ghép bàn"
+        ],
+        "x": 600,
+        "y": 815,
+        "rx": 225,
+        "ry": 49,
+        "group": "admin"
+      },
+      {
+        "id": "QL07",
+        "title": [
+          "Xóa tổ hợp ghép bàn"
+        ],
+        "x": 600,
+        "y": 965,
+        "rx": 225,
+        "ry": 49,
+        "group": "admin"
+      },
+      {
+        "id": "QL08",
+        "title": [
+          "Cấu hình cọc / giữ bàn",
+          "Dọn bàn / chờ khách muộn"
+        ],
+        "x": 600,
+        "y": 1115,
+        "rx": 225,
+        "ry": 58,
+        "group": "admin"
+      },
+      {
+        "id": "QL09",
+        "title": [
+          "Tạo tài khoản nhân viên"
+        ],
+        "x": 600,
+        "y": 1265,
+        "rx": 225,
+        "ry": 49,
+        "group": "admin"
+      }
+    ],
+    "actors": {
+      "admin": "Quản lý"
+    },
+    "associations": [
+      [
+        "admin",
+        "QL01"
+      ],
+      [
+        "admin",
+        "QL02"
+      ],
+      [
+        "admin",
+        "QL05"
+      ],
+      [
+        "admin",
+        "QL06"
+      ],
+      [
+        "admin",
+        "QL07"
+      ],
+      [
+        "admin",
+        "QL08"
+      ],
+      [
+        "admin",
+        "QL09"
+      ]
+    ],
+    "relations": [
+      [
+        "QL03",
+        "QL02",
+        "generalization"
+      ],
+      [
+        "QL04",
+        "QL02",
+        "generalization"
+      ]
+    ],
+    "notes": [
+      "QL03 và QL04 là hai biến thể của QL02 (id=0 thêm, id khác 0 cập nhật).",
+      "ADMIN kế thừa quyền STAFF; chỉ trang này có quyền quản trị.",
+      "QL08 không cấu hình giờ mở cửa, ngưỡng hoàn 3 giờ hay sửa món 2 giờ."
+    ]
+  },
+  {
+    "stem": "05-vnpay",
+    "title": "Thanh toán cọc VNPAY Sandbox",
+    "nodes": [
+      {
+        "id": "TT01",
+        "title": [
+          "Khởi tạo thanh toán cọc",
+          "qua VNPAY Sandbox"
+        ],
+        "x": 600,
+        "y": 310,
+        "rx": 225,
+        "ry": 58,
+        "group": "payment"
+      },
+      {
+        "id": "TT02",
+        "title": [
+          "Xem kết quả / trạng thái",
+          "thanh toán"
+        ],
+        "x": 600,
+        "y": 555,
+        "rx": 225,
+        "ry": 58,
+        "group": "payment"
+      },
+      {
+        "id": "TT03",
+        "title": [
+          "Tiếp nhận và xử lý IPN"
+        ],
+        "x": 600,
+        "y": 810,
+        "rx": 225,
+        "ry": 49,
+        "group": "payment"
+      },
+      {
+        "id": "TT04",
+        "title": [
+          "Kiểm tra chữ ký, mã",
+          "và số tiền giao dịch"
+        ],
+        "x": 1180,
+        "y": 750,
+        "rx": 225,
+        "ry": 58,
+        "group": "helper"
+      },
+      {
+        "id": "TT05",
+        "title": [
+          "Ghi nhận / đối chiếu",
+          "kết quả thanh toán"
+        ],
+        "x": 1180,
+        "y": 955,
+        "rx": 225,
+        "ry": 58,
+        "group": "helper"
+      },
+      {
+        "id": "TT06",
+        "title": [
+          "Ghi nhận khoản thu thêm",
+          "chờ hoàn riêng"
+        ],
+        "x": 1180,
+        "y": 1170,
+        "rx": 225,
+        "ry": 58,
+        "group": "payment"
+      }
+    ],
+    "actors": {
+      "owner": "Chủ lượt đặt đã đăng nhập",
+      "staff": "Nhân viên / Quản lý (xem trạng thái)",
+      "vnpay": "VNPAY Sandbox"
+    },
+    "associations": [
+      [
+        "owner",
+        "TT01"
+      ],
+      [
+        "owner",
+        "TT02"
+      ],
+      [
+        "staff",
+        "TT02"
+      ],
+      [
+        "vnpay",
+        "TT01"
+      ],
+      [
+        "vnpay",
+        "TT03"
+      ]
+    ],
+    "relations": [
+      [
+        "TT03",
+        "TT04",
+        "include"
+      ],
+      [
+        "TT03",
+        "TT05",
+        "include"
+      ],
+      [
+        "TT06",
+        "TT05",
+        "extend",
+        "thành công thêm một giao dịch khác cọc chính"
+      ]
+    ],
+    "notes": [
+      "TT01 và TT03 độc lập; callback là tương tác bất đồng bộ, không quan hệ include thể hiện thứ tự.",
+      "TT02 trên browser return không thay đổi trạng thái tiền; API trạng thái còn cho phép STAFF / ADMIN xem.",
+      "Nhân viên ghi nhận hoàn cọc ở NV08 / NV09; hệ thống không gọi API hoàn VNPAY."
+    ]
+  },
+  {
+    "stem": "06-demo",
+    "title": "QR thanh toán mô phỏng",
+    "nodes": [
+      {
+        "id": "DM01",
+        "title": [
+          "Mở phiên / tạo QR demo"
+        ],
+        "x": 600,
+        "y": 300,
+        "rx": 225,
+        "ry": 49,
+        "group": "payment"
+      },
+      {
+        "id": "DM02",
+        "title": [
+          "Mở / xem trạng thái",
+          "phiên demo"
+        ],
+        "x": 600,
+        "y": 545,
+        "rx": 225,
+        "ry": 58,
+        "group": "payment"
+      },
+      {
+        "id": "DM03",
+        "title": [
+          "Tự bấm mô phỏng",
+          "thanh toán thành công"
+        ],
+        "x": 600,
+        "y": 810,
+        "rx": 225,
+        "ry": 58,
+        "group": "payment"
+      },
+      {
+        "id": "DM04",
+        "title": [
+          "Kiểm tra token, 60 giây",
+          "và hiệu lực lượt đặt"
+        ],
+        "x": 1180,
+        "y": 745,
+        "rx": 225,
+        "ry": 58,
+        "group": "helper"
+      },
+      {
+        "id": "DM05",
+        "title": [
+          "Xác nhận cọc mô phỏng",
+          "CONFIRMED / PAID"
+        ],
+        "x": 1180,
+        "y": 935,
+        "rx": 225,
+        "ry": 58,
+        "group": "helper"
+      }
+    ],
+    "actors": {
+      "owner": "Chủ lượt đặt đã đăng nhập",
+      "bearer": "Người giữ mã QR demo"
+    },
+    "associations": [
+      [
+        "owner",
+        "DM01"
+      ],
+      [
+        "bearer",
+        "DM02"
+      ],
+      [
+        "bearer",
+        "DM03"
+      ]
+    ],
+    "relations": [
+      [
+        "DM03",
+        "DM04",
+        "include"
+      ],
+      [
+        "DM03",
+        "DM05",
+        "include"
+      ]
+    ],
+    "notes": [
+      "QR và DemoPaymentService nằm trong biên hệ thống; không có actor cổng QR bên ngoài.",
+      "Sau 60 giây vẫn phải chủ động bấm mô phỏng thành công; không tự trả tiền.",
+      "Bearer token hợp lệ đủ quyền xem / xác nhận mô phỏng, không cần đăng nhập."
+    ]
+  }
+]

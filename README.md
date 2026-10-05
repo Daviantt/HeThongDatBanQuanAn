@@ -33,11 +33,14 @@ Khách cũng có thể đăng ký tài khoản mới. Quản lý có thể tạo
 - Giao diện tiếng Việt, responsive, trang chủ và thực đơn có bộ lọc.
 - Đăng ký/đăng nhập/đăng xuất; ba vai trò khách, nhân viên, quản lý.
 - Chọn ngày, giờ đến, giờ kết thúc, 1–12 người.
-- Sơ đồ 2 tầng, tổng cộng 20 bàn, mỗi bàn 4 chỗ. Tầng 1 gồm B01–B10 quanh vườn; tầng 2 gồm B11–B20 quanh khoảng thông tầng và ban công. Chuyển tầng bằng nút trên sơ đồ; đổi tầng sẽ bỏ lựa chọn bàn trước đó.
+- Sơ đồ 2 tầng, tổng cộng 19 bàn, mỗi bàn 4 chỗ. Tầng 1 gồm B01–B09 quanh vườn (9 bàn); vị trí giữa hàng dưới được dành cho lối đi từ cửa vào. B10 cũ được đổi tên thành B09, giữ nguyên vị trí và ID; bàn cũ tại lối vào được lưu là OLD-B09 để giữ lịch sử. Tầng 2 gồm B11–B20 quanh khoảng thông tầng và ban công (10 bàn). Chuyển tầng bằng nút trên sơ đồ; đổi tầng sẽ bỏ lựa chọn bàn trước đó.
 - Ghép 2–3 bàn liền nhau cùng tầng theo hàng ngang hoặc dọc, ví dụ B01 + B04 hoặc B11 + B14. Không ghép xuyên vườn, thông tầng hoặc giữa hai tầng.
 - Chọn món trước, số lượng, ghi chú; giá món và tiền cọc được lưu tại thời điểm đặt.
+- Thực đơn mẫu có 12 món với ảnh AI riêng: thêm bò lúc lắc, tôm nướng muối ớt, nấm kho tiêu và bánh flan caramel. Chọn món bằng thẻ ảnh, lọc danh mục, tìm kiếm không dấu, xem món đã chọn và tạm tính ngay trên trang đặt bàn.
 - Giữ bàn có thời hạn, chống đặt trùng bằng transaction và khóa trong database.
-- Thanh toán demo chạy ngay, không thu tiền thật; tích hợp tạo URL và xác minh IPN VNPAY sandbox.
+- Thanh toán QR demo: quét mã mở trang mô phỏng, đợi 60 giây rồi tự bấm xác nhận thành công; đồng bộ kết quả giữa điện thoại và máy tính. Không cần tài khoản thanh toán, không chuyển tiền thật.
+- Đặt món mang về: khách chọn món ngay từ thực đơn, chọn **Đặt đến lấy** để thêm vào giỏ, nhập người nhận/giờ lấy và thanh toán tiền mặt hoặc QR demo. Đơn mang về lưu riêng, không chiếm bàn.
+- Có sẵn tích hợp VNPAY Sandbox khi cần: tạo giao dịch, ký URL, nhận IPN và kiểm tra kết quả. Khi cấu hình VNPAY hợp lệ, QR demo tự tắt.
 - Lịch sử đặt bàn, sửa món/ghi chú, hủy và theo dõi hoàn cọc.
 - Khách gửi yêu cầu đổi bàn/giờ; nhân viên chấp nhận với lịch/bàn mới hoặc từ chối kèm lý do.
 - Nhân viên nhận khách, hoàn tất phục vụ, ghi nhận không đến, quán hủy và ghi nhận đã hoàn cọc.
@@ -53,7 +56,7 @@ Tên hiển thị là **GiaViên**; package Java là `vn.edu.giavien`, file kh�
 | ---------------------------- | -------------------------------------------------------------------- |
 | Số bàn                       | `ceil(số khách / 4)`, tối đa 3 bàn                                   |
 | Ghép bàn                     | Tổ hợp khai báo sẵn; mọi bàn phải khả dụng trong toàn bộ khoảng đặt  |
-| Tiền cọc                     | Số bàn × cọc mỗi bàn; lưu số tiền riêng cho mỗi lượt đặt             |
+| Tiền cọc                     | Số bàn × cọc mỗi bàn + 20% tiền món đặt trước; lưu riêng hai khoản và trừ vào hóa đơn tại quán |
 | Hủy trước ít nhất 3 tiếng    | Hoàn toàn bộ cọc; đúng mốc 3 tiếng vẫn được hoàn                     |
 | Hủy dưới 3 tiếng / không đến | Không hoàn cọc; không có ngoại lệ 15 phút sau thanh toán             |
 | Quán hủy                     | Hoàn toàn bộ cọc                                                     |
@@ -69,7 +72,15 @@ Các giá trị sau là lựa chọn triển khai ban đầu, **không phải y�
 - Quán mở 10:00–22:00; đặt trước tối đa 60 ngày, dùng bàn ít nhất 30 phút và kết thúc trong cùng ngày.
 - Nhận khách từ 15 phút trước giờ hẹn, chỉ khi bàn không xung đột lượt khác.
 - Múi giờ nghiệp vụ: `Asia/Ho_Chi_Minh` (UTC+7).
-- Tổ hợp mặc định theo từng hàng: B01–B03, B04–B06, B07–B09, B10–B12; mỗi cặp liên tiếp hoặc cả ba bàn.
+- Tổ hợp mặc định gồm 2–3 bàn liên tiếp theo hàng ngang hoặc dọc trên cùng tầng, không băng qua vườn hay khoảng thông tầng. B08 và B09 không ghép qua lối đi; bàn OLD-B09 ở lối vào đã ngừng phục vụ.
+
+Tiền cọc bàn được chốt khi tạo lượt đặt. Khi sửa món trước thanh toán, tổng cọc cập nhật theo giá món đã lưu; QR cũ bị vô hiệu nếu số tiền thay đổi. Lượt đã mở giao dịch VNPAY giữ nguyên tổng cọc để đối soát cả callback đến muộn. Sau thanh toán, sửa món không đổi khoản đã trả; chênh lệch được xử lý trên hóa đơn tại quán. Lượt đặt cũ vẫn giữ số tiền cọc cũ, mặc định phần tiền món trả trước là 0.
+
+Cọc món ăn lấy 20% tổng giá trị các món đặt trước, làm tròn lên đến 1 đồng sau khi cộng toàn bộ món. Ví dụ cọc bàn 100.000đ và món ăn 200.000đ thì tổng cọc là 140.000đ. Khoản cọc đã thanh toán được trừ vào hóa đơn; phần còn lại thanh toán tại quán.
+
+Dữ liệu tài khoản, bàn, món, lịch đặt và thanh toán được backend Java ghi vào database **H2 dạng file**, không dùng `localStorage` của trình duyệt. Phiên đăng nhập nằm trên server; trình duyệt giữ cookie nhận diện phiên. Xem cấu hình kết nối tại `src/main/resources/application.properties` và cấu trúc bảng tại `src/main/resources/schema.sql`.
+
+Giỏ món mang về chỉ là trạng thái tạm thời trên trình duyệt để khách đi giữa thực đơn và trang thanh toán; đơn đã xác nhận cùng các dòng món vẫn luôn được ghi vào H2.
 
 ## Giới hạn hiện tại
 
@@ -78,29 +89,25 @@ Các giá trị sau là lựa chọn triển khai ban đầu, **không phải y�
 - Tài khoản nhân viên có thể tạo mới; chưa có khóa tài khoản, quên mật khẩu hoặc xác minh email.
 - Tiền món tại quán và việc đối trừ tiền cọc do nhân viên thực hiện; chưa có module hóa đơn/POS.
 - H2 phù hợp chạy đồ án một tiến trình, không dùng cho triển khai nhiều máy chủ. Chuyển MySQL/PostgreSQL cần migration SQL tương ứng.
-- Hình món ăn hiện là minh họa SVG; cần thay ảnh thật khi chốt thực đơn.
+- Ảnh của 12 món mẫu được tạo bằng AI cho đồ án; cần thay ảnh món thực tế trước khi dùng kinh doanh. Món mới tạo từ trang quản lý dùng hình chung đến khi được bổ sung ảnh riêng. [Ảnh và prompt đã dùng](docs/menu-images.md).
 
-## VNPAY sandbox
+## Thanh toán QR demo
 
-Chế độ demo không phải kết nối ngân hàng. Phần VNPAY đã có code tạo URL ký HMAC-SHA512, kiểm tra chữ ký/số tiền/mã đơn, xử lý callback lặp và tiền đến sau khi hết hạn giữ bàn. **Chưa kiểm thử giao dịch với VNPAY thật vì chưa có tài khoản sandbox.**
+Chạy `./run.ps1`, đặt bàn rồi chọn **Thanh toán bằng QR demo**. Quét bằng camera điện thoại để mở trang mô phỏng, hoặc thao tác trực tiếp trên máy tính. Sau **60 giây kể từ khi mở phiên**, nút **Mô phỏng thanh toán thành công** được bật. Phải tự bấm nút; chờ hoặc quét mã không tự xác nhận cọc. Tải lại trang không làm đếm lại từ đầu.
 
-1. Đăng ký thông tin tích hợp tại https://sandbox.vnpayment.vn/devreg/.
-2. Cấu hình biến môi trường trước khi chạy, không ghi secret vào Git:
+Sau xác nhận, lượt đặt chuyển thành **Đã xác nhận / Đã nhận cọc**, được lưu với nhà cung cấp `DEMO` và hiện thông báo không thu tiền thật. Trang đang mở trên thiết bị khác tự cập nhật. Bàn đã hủy/hết hạn không thể được xác nhận lại.
 
-```powershell
-$env:VNPAY_TMN_CODE = 'ma-website-duoc-cap'
-$env:VNPAY_HASH_SECRET = 'secret-duoc-cap'
-$env:VNPAY_RETURN_URL = 'https://ten-mien-thu-nghiem/payment/vnpay/return'
-.\run.ps1
-```
+Profile mặc định `demo` cho phép kết nối cùng mạng (`0.0.0.0:8080`); QR tự dùng địa chỉ LAN nếu mở bằng localhost. Điện thoại và máy tính cần cùng Wi-Fi và cổng 8080 phải truy cập được. Nếu QR chọn nhầm card mạng, xem IPv4 của Wi-Fi bằng `ipconfig`, rồi đặt biến trước khi khởi động, ví dụ `$env:DEMO_PAYMENT_BASE_URL='http://192.168.1.20:8080'`. Thay địa chỉ ví dụ bằng IP máy bạn. Có thể mở đường dẫn bên dưới QR trên điện thoại để kiểm tra kết nối. Nếu Windows Firewall chặn Java, cho phép ứng dụng trên mạng riêng mà bạn dùng để demo.
 
-3. Cấu hình IPN với VNPAY: `https://ten-mien-thu-nghiem/payment/vnpay/ipn`. VNPAY phải gọi được địa chỉ này; localhost không nhận callback từ bên ngoài. Việc đưa lên Internet/tạo tunnel chưa được thực hiện.
-4. Return URL chỉ hiển thị kết quả; **chỉ IPN được ký hợp lệ mới cập nhật thanh toán**.
-5. Nếu tiền đến sau hết hạn hoặc sau hủy, lượt đặt không được khôi phục và tiền được đánh dấu chờ hoàn, tránh chiếm bàn đã giao người khác.
+QR là đường dẫn riêng cho một phiên demo, cho phép người cầm mã xác nhận mô phỏng mà không cần đăng nhập trên điện thoại. Không có thông tin ngân hàng trong mã. Có thể tắt bằng `$env:DEMO_PAYMENT_ENABLED='false'`; dùng `$env:SERVER_ADDRESS='127.0.0.1'` nếu chỉ chạy trên máy tính. Profile khác mặc định tắt thanh toán demo.
 
-Tài liệu nguồn: https://sandbox.vnpayment.vn/apis/docs/thanh-toan-pay/pay.html.
+## VNPAY Sandbox (tùy chọn)
 
-Ứng dụng mặc định chạy profile `demo`, chỉ bind `127.0.0.1`. Không công khai profile này vì có tài khoản mẫu và nút xác nhận tiền giả lập. Profile khác mặc định tắt tạo tài khoản demo/nút thanh toán demo; **chuyển profile không xóa tài khoản demo đã lưu trong database**. Khi triển khai cần database riêng, tài khoản quản lý riêng, HTTPS và cấu hình vận hành phù hợp.
+Khi cấu hình đủ VNPAY Sandbox, luồng QR demo tự tắt và nút thanh toán chuyển sang VNPAY. Mỗi lần thanh toán VNPAY được lưu vào `payment_attempt`; chỉ IPN hợp lệ mới xác nhận tiền cọc của luồng này. Giao diện có trang kết quả tự cập nhật, xử lý thất bại/hủy, callback lặp và tiền đến sau khi lượt đặt hết hiệu lực.
+
+Xem [hướng dẫn cấu hình và thử thanh toán](docs/vnpay-sandbox.md). Điền mã website và khóa do VNPAY cấp trong `config/payment.properties` (đã được Git bỏ qua), cấu hình Return URL/IPN công khai rồi khởi động lại. **Chưa thực hiện giao dịch qua VNPAY vì chưa có tài khoản Sandbox và địa chỉ IPN công khai.**
+
+Profile `demo` tạo tài khoản mẫu và bật QR mô phỏng khi chưa có cấu hình VNPAY. Chuyển profile không xóa các tài khoản mẫu đã lưu. Thanh toán Sandbox không thu tiền thật; hoàn cọc vẫn do nhân viên thực hiện và ghi nhận mã đối soát.
 
 ## Kiến trúc để học và viết báo cáo
 
@@ -133,11 +140,11 @@ JAR sau đóng gói: `target/giavien-restaurant-0.1.0.jar`. Chạy bằng `java 
 
 Test dùng database trong bộ nhớ riêng, không xóa dữ liệu demo. Bao gồm biên 3 giờ/2 giờ, giao dịch đồng thời, ghép bàn, thời gian dọn bàn, cọc lưu theo lượt đặt, dữ liệu món, callback trễ/lặp/sai tiền, đăng nhập, CSRF, phân quyền và template.
 
-Kiểm thử JavaScript cho luồng chuyển tầng (cần Node.js):
+Kiểm thử JavaScript cho chuyển tầng, QR demo và kết quả VNPAY (cần Node.js):
 
 ```powershell
 npm.cmd install --prefix .tools/ui-test --no-audit --no-fund jsdom@29.1.1
-node --test src/test/js/booking.test.cjs
+node --test src/test/js/booking.test.cjs src/test/js/payment.test.cjs src/test/js/demo-payment.test.cjs src/test/js/menu-picker.test.cjs
 ```
 
 Demo gợi ý: đăng nhập khách → ngày mai, 18:00–20:00, 9 người → B01+B02+B03 → chọn món → cọc 300.000đ → thanh toán demo → gửi yêu cầu đổi giờ → đăng nhập nhân viên xử lý → khách hủy → nhân viên ghi nhận hoàn cọc.

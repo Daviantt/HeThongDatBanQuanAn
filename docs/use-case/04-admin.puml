@@ -1,0 +1,41 @@
+@startuml
+' UTF-8. UML content matches the accompanying vector drawings.
+left to right direction
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+skinparam usecaseBackgroundColor #F5FAF9
+skinparam usecaseBorderColor #21323A
+skinparam ArrowColor #52646C
+title GiaViên - Quản trị của quản lý
+actor "Quản lý" as A_admin
+rectangle "Hệ thống đặt bàn và đặt món trước GiaViên" {
+  usecase "QL01\nXem món, bàn, tổ hợp\nvà tài khoản hệ thống" as U_0
+  usecase "QL02\nLưu món ăn" as U_1
+  usecase "QL03\nThêm món mới" as U_2
+  usecase "QL04\nSửa món / trạng thái bán" as U_3
+  usecase "QL05\nBật / tạm ngừng bàn" as U_4
+  usecase "QL06\nThêm tổ hợp ghép bàn" as U_5
+  usecase "QL07\nXóa tổ hợp ghép bàn" as U_6
+  usecase "QL08\nCấu hình cọc / giữ bàn\nDọn bàn / chờ khách muộn" as U_7
+  usecase "QL09\nTạo tài khoản nhân viên" as U_8
+}
+A_admin -- U_0
+A_admin -- U_1
+A_admin -- U_4
+A_admin -- U_5
+A_admin -- U_6
+A_admin -- U_7
+A_admin -- U_8
+U_2 --|> U_1
+U_3 --|> U_1
+note as N0
+QL03 và QL04 là hai biến thể của QL02 (id=0 thêm, id khác 0 cập nhật).
+end note
+note as N1
+ADMIN kế thừa quyền STAFF; chỉ trang này có quyền quản trị.
+end note
+note as N2
+QL08 không cấu hình giờ mở cửa, ngưỡng hoàn 3 giờ hay sửa món 2 giờ.
+end note
+@enduml

@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1650" height="1440" viewBox="0 0 1650 1440" role="img" aria-labelledby="title desc">
+<title id="title">Quản trị của quản lý - GiaViên</title>
+<desc id="desc">Sơ đồ UML use-case. Tác nhân ngoài biên; oval là use-case; mũi tên đứt nét include hoặc extend; tam giác rỗng là kế thừa.</desc>
+<rect x="0" y="0" width="1650" height="1440" fill="#ffffff" stroke="none" stroke-width="1.5"/>
+<text x="65" y="63" text-anchor="start" font-family="Arial, sans-serif" font-size="19" font-weight="700" fill="#087b78">GiaViên  /  USE-CASE</text>
+<text x="65" y="109" text-anchor="start" font-family="Arial, sans-serif" font-size="33" font-weight="700" fill="#21323a">Chi tiết quản trị của quản lý</text>
+<text x="65" y="143" text-anchor="start" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#52646c">Chỉ ADMIN có quyền cấu hình • Kế thừa quyền nhân viên ở trang 3</text>
+<rect x="310" y="180" width="1130" height="1140" fill="#ffffff" stroke="#21323a" stroke-width="1.7"/>
+<text x="332" y="211" text-anchor="start" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#21323a">HỆ THỐNG ĐẶT BÀN VÀ ĐẶT MÓN TRƯỚC GIAVIÊN</text>
+<polyline points="65.00,1375.00 129.00,1375.00" fill="none" stroke="#21323a" stroke-width="1.8"/>
+<text x="145" y="1381" text-anchor="start" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#21323a">Liên kết tác nhân</text>
+<polyline points="460.00,1375.00 524.00,1375.00" fill="none" stroke="#087b78" stroke-width="1.8" stroke-dasharray="8 6"/>
+<polyline points="511.58,1381.46 524.00,1375.00 511.58,1368.54" fill="none" stroke="#087b78" stroke-width="1.8"/>
+<text x="540" y="1381" text-anchor="start" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#21323a">Hành vi bắt buộc</text>
+<polyline points="850.00,1375.00 914.00,1375.00" fill="none" stroke="#a65d18" stroke-width="1.8" stroke-dasharray="8 6"/>
+<polyline points="901.58,1381.46 914.00,1375.00 901.58,1368.54" fill="none" stroke="#a65d18" stroke-width="1.8"/>
+<text x="930" y="1381" text-anchor="start" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#21323a">Hành vi tùy chọn / có điều kiện</text>
+<polyline points="1340.00,1375.00 1404.00,1375.00" fill="none" stroke="#21323a" stroke-width="1.8"/>
+<polygon points="1385.37,1384.70 1404.00,1375.00 1385.37,1365.30" fill="#ffffff" stroke="#21323a" stroke-width="1.8"/>
+<text x="1420" y="1381" text-anchor="start" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#21323a">Kế thừa</text>
+<text x="65" y="1419" text-anchor="start" font-family="Arial, sans-serif" font-size="14" font-weight="400" fill="#52646c">Đối chiếu mã nguồn ngày 01/10/2026 • Tác nhân ở ngoài biên hệ thống</text>
+<text x="1585" y="1419" text-anchor="end" font-family="Arial, sans-serif" font-size="14" font-weight="400" fill="#52646c">4 / 6</text>
+<polyline points="165.00,550.00 280.00,550.00 350.00,275.00 375.00,275.00" fill="none" stroke="#6b7c84" stroke-width="1.6"/>
+<polyline points="165.00,550.00 280.00,550.00 350.00,455.00 375.00,455.00" fill="none" stroke="#6b7c84" stroke-width="1.6"/>
+<polyline points="165.00,550.00 280.00,550.00 350.00,665.00 375.00,665.00" fill="none" stroke="#6b7c84" stroke-width="1.6"/>
+<polyline points="165.00,550.00 280.00,550.00 350.00,815.00 375.00,815.00" fill="none" stroke="#6b7c84" stroke-width="1.6"/>
+<polyline points="165.00,550.00 280.00,550.00 350.00,965.00 375.00,965.00" fill="none" stroke="#6b7c84" stroke-width="1.6"/>
+<polyline points="165.00,550.00 280.00,550.00 350.00,1115.00 375.00,1115.00" fill="none" stroke="#6b7c84" stroke-width="1.6"/>
+<polyline points="165.00,550.00 280.00,550.00 350.00,1265.00 375.00,1265.00" fill="none" stroke="#6b7c84" stroke-width="1.6"/>
+<polyline points="996.76,393.43 783.24,426.57" fill="none" stroke="#21323a" stroke-width="1.8"/>
+<polygon points="800.16,414.13 783.24,426.57 803.14,433.29" fill="#ffffff" stroke="#21323a" stroke-width="1.8"/>
+<polyline points="1003.59,524.58 776.41,485.42" fill="none" stroke="#21323a" stroke-width="1.8"/>
+<polygon points="796.41,479.02 776.41,485.42 793.12,498.14" fill="#ffffff" stroke="#21323a" stroke-width="1.8"/>
+<ellipse cx="600" cy="275" rx="225" ry="58" fill="#f5effa" stroke="#21323a" stroke-width="1.6"/>
+<text x="600" y="245" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#52646c">QL01</text>
+<text x="600" y="273" text-anchor="middle" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#21323a">Xem món, bàn, tổ hợp</text>
+<text x="600" y="300" text-anchor="middle" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#21323a">và tài khoản hệ thống</text>
+<ellipse cx="600" cy="455" rx="225" ry="49" fill="#f5effa" stroke="#21323a" stroke-width="1.6"/>
+<text x="600" y="438" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#52646c">QL02</text>
+<text x="600" y="466" text-anchor="middle" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#21323a">Lưu món ăn</text>
+<ellipse cx="1180" cy="365" rx="225" ry="49" fill="#f5effa" stroke="#21323a" stroke-width="1.6"/>
+<text x="1180" y="348" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#52646c">QL03</text>
+<text x="1180" y="376" text-anchor="middle" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#21323a">Thêm món mới</text>
+<ellipse cx="1180" cy="555" rx="225" ry="49" fill="#f5effa" stroke="#21323a" stroke-width="1.6"/>
+<text x="1180" y="538" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#52646c">QL04</text>
+<text x="1180" y="566" text-anchor="middle" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#21323a">Sửa món / trạng thái bán</text>
+<ellipse cx="600" cy="665" rx="225" ry="49" fill="#f5effa" stroke="#21323a" stroke-width="1.6"/>
+<text x="600" y="648" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#52646c">QL05</text>
+<text x="600" y="676" text-anchor="middle" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#21323a">Bật / tạm ngừng bàn</text>
+<ellipse cx="600" cy="815" rx="225" ry="49" fill="#f5effa" stroke="#21323a" stroke-width="1.6"/>
+<text x="600" y="798" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#52646c">QL06</text>
+<text x="600" y="826" text-anchor="middle" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#21323a">Thêm tổ hợp ghép bàn</text>
+<ellipse cx="600" cy="965" rx="225" ry="49" fill="#f5effa" stroke="#21323a" stroke-width="1.6"/>
+<text x="600" y="948" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#52646c">QL07</text>
+<text x="600" y="976" text-anchor="middle" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#21323a">Xóa tổ hợp ghép bàn</text>
+<ellipse cx="600" cy="1115" rx="225" ry="58" fill="#f5effa" stroke="#21323a" stroke-width="1.6"/>
+<text x="600" y="1085" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#52646c">QL08</text>
+<text x="600" y="1113" text-anchor="middle" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#21323a">Cấu hình cọc / giữ bàn</text>
+<text x="600" y="1140" text-anchor="middle" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#21323a">Dọn bàn / chờ khách muộn</text>
+<ellipse cx="600" cy="1265" rx="225" ry="49" fill="#f5effa" stroke="#21323a" stroke-width="1.6"/>
+<text x="600" y="1248" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#52646c">QL09</text>
+<text x="600" y="1276" text-anchor="middle" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#21323a">Tạo tài khoản nhân viên</text>
+<ellipse cx="130" cy="515" rx="15" ry="15" fill="#ffffff" stroke="#21323a" stroke-width="2"/>
+<polyline points="130.00,530.00 130.00,584.00" fill="none" stroke="#21323a" stroke-width="2"/>
+<polyline points="98.00,550.00 162.00,550.00" fill="none" stroke="#21323a" stroke-width="2"/>
+<polyline points="102.00,618.00 130.00,584.00 158.00,618.00" fill="none" stroke="#21323a" stroke-width="2"/>
+<text x="130" y="645" text-anchor="middle" font-family="Arial, sans-serif" font-size="19" font-weight="700" fill="#21323a">Quản lý</text>
+<text x="130" y="670" text-anchor="middle" font-family="Arial, sans-serif" font-size="19" font-weight="400" fill="#21323a">ADMIN</text>
+<rect x="950" y="675" width="455" height="200" fill="#fffdf6" stroke="#c7bfa1" stroke-width="1.2"/>
+<text x="970" y="706" text-anchor="start" font-family="Arial, sans-serif" font-size="19" font-weight="700" fill="#21323a">Bàn và tổ hợp</text>
+<text x="970" y="740" text-anchor="start" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#21323a">• Tạm ngừng bàn cần xử lý lượt hiệu lực.</text>
+<text x="970" y="769" text-anchor="start" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#21323a">• Tổ hợp gồm 2-3 bàn có thật.</text>
+<text x="970" y="798" text-anchor="start" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#21323a">• Khi thêm: liền nhau cùng tầng,</text>
+<text x="970" y="827" text-anchor="start" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#21323a">  không ghép qua vườn / thông tầng.</text>
+<text x="970" y="856" text-anchor="start" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#21323a">• Không thêm / xóa bàn hoặc kéo thả.</text>
+<rect x="950" y="950" width="455" height="200" fill="#fffdf6" stroke="#c7bfa1" stroke-width="1.2"/>
+<text x="970" y="981" text-anchor="start" font-family="Arial, sans-serif" font-size="19" font-weight="700" fill="#21323a">Phạm vi cấu hình</text>
+<text x="970" y="1015" text-anchor="start" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#21323a">• Chỉ 4 thông số cọc và thời gian trên.</text>
+<text x="970" y="1044" text-anchor="start" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#21323a">• Cọc của lượt đặt cũ được giữ nguyên.</text>
+<text x="970" y="1073" text-anchor="start" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#21323a">• Danh mục món cố định; không xóa món.</text>
+<text x="970" y="1102" text-anchor="start" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#21323a">• Tạo tài khoản STAFF mới; email duy nhất.</text>
+<text x="970" y="1131" text-anchor="start" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#21323a">• Chưa sửa / khóa / xóa tài khoản.</text>
+</svg>

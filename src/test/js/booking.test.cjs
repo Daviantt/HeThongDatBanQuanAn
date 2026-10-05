@@ -21,7 +21,8 @@ test('floor switching filters the map, clears selection and submits the visible 
     id: floor === 1 ? groundIds[index] : 13 + index,
     code: 'B' + String(index + (floor === 1 ? 1 : 11)).padStart(2, '0'),
     floor, mapX, mapY, zone: 'Tầng ' + floor,
-  })));
+  }))).filter(table => table.id !== 11);
+  tables.find(table => table.id === 12).code = 'B09';
   let options = [
     { tableIds: [1,4], label: 'B01 + B04', capacity: 8, deposit: 200000 },
     { tableIds: [13,16], label: 'B11 + B14', capacity: 8, deposit: 200000 },
@@ -45,7 +46,11 @@ test('floor switching filters the map, clears selection and submits the visible 
   const floor = n => doc.querySelector(`[data-floor="${n}"]`).click();
   try {
     await search();
-    assert.equal(doc.querySelectorAll('.table-seat').length, 10);
+    assert.equal(doc.querySelectorAll('.table-seat').length, 9);
+    assert.equal(doc.querySelector('.table-seat[data-id="11"]'), null);
+    assert.equal(doc.querySelector('.table-seat[data-id="12"] strong').textContent, 'B09');
+    assert.equal($('floor-capacity').textContent, '9 bàn · 36 chỗ');
+    assert.equal($('entrance-aisle').hidden, false);
     assert.equal(doc.querySelector('.table-seat strong').textContent, 'B01');
     doc.querySelector('[data-option="0"]').click();
     assert.equal($('selected-label').textContent, 'B01 + B04');
@@ -57,6 +62,9 @@ test('floor switching filters the map, clears selection and submits the visible 
     assert.equal($('selected-label').textContent, 'Chưa chọn bàn');
     assert.equal(doc.querySelectorAll('.table-seat').length, 10);
     assert.equal(doc.querySelector('.table-seat strong').textContent, 'B11');
+    assert.equal($('floor-capacity').textContent, '10 bàn · 40 chỗ');
+    assert.equal(doc.querySelector('.table-seat[data-id="21"] strong').textContent, 'B19');
+    assert.equal($('entrance-aisle').hidden, true);
     assert.equal($('courtyard-title').textContent, 'Khoảng thông tầng');
     doc.querySelector('.table-seat[data-id="13"]').click();
     assert.equal($('selected-label').textContent, 'B11 + B14');

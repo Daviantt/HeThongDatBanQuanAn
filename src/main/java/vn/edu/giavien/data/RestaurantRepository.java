@@ -118,6 +118,32 @@ public class RestaurantRepository {
         id);
   }
 
+  public List<OrderLine> takeawayLines(String id) {
+    return jdbc.query(
+        "SELECT * FROM takeaway_order_line WHERE order_id=? ORDER BY menu_item_id",
+        (r, n) -> new OrderLine(r.getLong("menu_item_id"), r.getString("item_name"), r.getLong("unit_price"), r.getInt("quantity")),
+        id);
+  }
+
+  private TakeawayOrder takeawayRow(ResultSet r, int row) throws SQLException {
+    String id = r.getString("id");
+    return new TakeawayOrder(
+        id, r.getLong("user_id"), r.getString("customer_name"), r.getString("customer_phone"),
+        r.getObject("pickup_at", LocalDateTime.class), r.getLong("total"), r.getString("payment_method"),
+        TakeawayStatus.valueOf(r.getString("status")), r.getObject("created_at", LocalDateTime.class),
+        r.getObject("paid_at", LocalDateTime.class), r.getString("payment_reference"), takeawayLines(id));
+  }
+
+  public Optional<TakeawayOrder> takeaway(String id) {
+    return jdbc.query("SELECT * FROM takeaway_order WHERE id=?", this::takeawayRow, id).stream().findFirst();
+  }
+
+  public void insertTakeaway(TakeawayOrder order) {
+    jdbc.update("INSERT INTO takeaway_order(id,user_id,customer_name,customer_phone,pickup_at,total,payment_method,status,created_at,paid_at,payment_reference) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+        order.id(), order.userId(), order.customerName(), order.customerPhone(), order.pickupAt(), order.total(), order.paymentMethod(), order.status().name(), order.createdAt(), order.paidAt(), order.paymentReference());
+    order.lines().forEach(line -> jdbc.update("INSERT INTO takeaway_order_line VALUES(?,?,?,?,?)", order.id(), line.menuItemId(), line.itemName(), line.unitPrice(), line.quantity()));
+  }
+
   public List<Long> tableIds(String id) {
     return jdbc.queryForList(
         "SELECT table_id FROM reservation_table WHERE reservation_id=? ORDER BY table_id",
@@ -140,6 +166,7 @@ public class RestaurantRepository {
         BookingStatus.valueOf(r.getString("status")),
         PaymentStatus.valueOf(r.getString("payment_status")),
         r.getLong("deposit"),
+        r.getLong("food_deposit"),
         r.getObject("created_at", LocalDateTime.class),
         r.getObject("hold_until", LocalDateTime.class),
         r.getObject("paid_at", LocalDateTime.class),
@@ -188,13 +215,14 @@ public class RestaurantRepository {
       int guests,
       String notes,
       long deposit,
+      long foodDeposit,
       LocalDateTime now,
       LocalDateTime holdUntil,
       List<Long> tables) {
     jdbc.update(
         "INSERT INTO"
-            + " reservation(id,user_id,start_at,end_at,guests,notes,status,payment_status,deposit,created_at,hold_until)"
-            + " VALUES(?,?,?,?,?,?,'PENDING','UNPAID',?,?,?)",
+            + " reservation(id,user_id,start_at,end_at,guests,notes,status,payment_status,deposit,food_deposit,created_at,hold_until)"
+            + " VALUES(?,?,?,?,?,?,'PENDING','UNPAID',?,?,?,?)",
         id,
         userId,
         start,
@@ -202,6 +230,7 @@ public class RestaurantRepository {
         guests,
         notes,
         deposit,
+        foodDeposit,
         now,
         holdUntil);
     replaceTables(id, tables);
