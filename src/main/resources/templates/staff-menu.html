@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{fragments :: head('Thực đơn và tồn món')}"></head>
+  <body>
+    <header th:replace="~{fragments :: header}"></header>
+    <main class="shell page">
+      <div class="page-heading">
+        <p class="eyebrow">GIAVIÊN · THỰC ĐƠN VẬN HÀNH</p>
+        <h1>Thực đơn &amp; tồn món.</h1>
+        <p th:if="${isAdmin}">Kiểm kê số phần sẵn có, theo dõi món sắp hết và cập nhật tình trạng phục vụ.</p>
+        <p th:unless="${isAdmin}">Theo dõi số phần tồn và cảnh báo món sắp hết. Liên hệ quản lý khi cần cập nhật.</p>
+      </div>
+      <div th:replace="~{fragments :: flash}"></div>
+      <div class="stats-grid">
+        <article><span>Số món</span><strong th:text="${stockItems.size()}"></strong></article>
+        <article><span>Sắp hết</span><strong th:text="${lowStockCount}"></strong></article>
+        <article><span>Hết món</span><strong th:text="${emptyStockCount}"></strong></article>
+        <article><span>Chưa nhập tồn</span><strong th:text="${unknownStockCount}"></strong></article>
+      </div>
+      <p class="notice warning" th:if="${lowStockCount + emptyStockCount > 0}">Có món sắp hết hoặc hết món. Vui lòng kiểm tra cảnh báo trong danh sách và báo quản lý để bổ sung trước khi nhận thêm khách.</p>
+      <p class="helper">Tồn tính theo số phần món, do quản lý cập nhật thủ công; chưa tự trừ theo đơn. Nhân viên chỉ xem số tồn và cảnh báo. Món có tồn bằng 0 không nhận đặt mới. Cảnh báo khi tồn từ 1 đến ngưỡng đã đặt.</p>
+      <section class="panel">
+        <div class="table-scroll">
+          <table class="data-table stock-table">
+            <thead><tr><th>Món ăn</th><th>Giá</th><th>Số phần tồn</th><th>Cảnh báo</th><th th:if="${isAdmin}">Cập nhật tồn &amp; phục vụ</th></tr></thead>
+            <tbody><tr th:each="stock : ${stockItems}">
+              <td><strong th:text="${stock.dish.name}"></strong><small th:text="${stock.dish.category}"></small></td>
+              <td th:text="${@fmt.money(stock.dish.price)}"></td>
+              <td><strong th:text="${stock.quantity == null ? 'Chưa nhập' : stock.quantity}"></strong><small th:if="${stock.quantity != null}">phần</small></td>
+              <td><span class="badge" th:classappend="${stock.empty() ? 'CANCELLED' : (stock.low() ? 'PENDING' : '')}" th:text="${stock.label()}"></span><small th:text="|Ngưỡng: ${stock.threshold} phần|"></small></td>
+              <td th:if="${isAdmin}">
+                <form th:action="@{/admin/menu/{id}/stock(id=${stock.dish.id})}" method="post" class="stock-form">
+                  <label>Số phần tồn<input name="quantity" type="number" min="0" max="100000" step="1" th:value="${stock.quantity}" placeholder="Nhập sau kiểm kê" required/></label>
+                  <label>Ngưỡng cảnh báo<input name="threshold" type="number" min="0" max="10000" step="1" th:value="${stock.threshold}" required/></label>
+                  <label class="checkbox-label"><input name="available" type="checkbox" value="true" th:checked="${stock.dish.available}"/>Cho phép bán khi còn tồn</label>
+                  <button class="button small" type="submit">Lưu</button>
+                </form>
+              </td>
+            </tr></tbody>
+          </table>
+        </div>
+        <a th:if="${isAdmin}" class="underlined" href="/admin">Quản lý tên, giá và danh mục món ↗</a>
+      </section>
+    </main>
+    <footer th:replace="~{fragments :: footer}"></footer>
+  </body>
+</html>

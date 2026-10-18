@@ -10,7 +10,7 @@
         <p
           th:text="${message != null ? message : 'Trang không tồn tại hoặc bạn chưa có quyền truy cập. Vui lòng kiểm tra lại.'}"
         ></p>
-        <a class="button" href="/bookings">Về lịch hẹn của tôi →</a>
+        <a class="button" th:href="${isStaff ? '/staff' : '/bookings'}" th:text="${isStaff ? 'Về vận hành quán →' : 'Về lịch hẹn của tôi →'}"></a>
       </section>
     </main>
     <footer th:replace="~{fragments :: footer}"></footer>

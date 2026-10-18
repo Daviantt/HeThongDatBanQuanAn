@@ -24,6 +24,19 @@ public class TakeawayApi {
     return Map.of("id", id, "url", "/takeaway/orders/" + id, "paymentUrl", "/takeaway/orders/" + id + "/demo-payment");
   }
 
+  public record QuoteInput(Map<Long, Integer> items) {}
+
+  @PostMapping("/api/takeaway-orders/quote")
+  public TakeawayService.Quote quote(@RequestBody QuoteInput input) {
+    return orders.quote(input.items());
+  }
+
+  @ExceptionHandler(TakeawayService.PriceChangedException.class)
+  @ResponseStatus(HttpStatus.CONFLICT)
+  public Map<String, Object> priceChanged(TakeawayService.PriceChangedException error) {
+    return Map.of("error", error.getMessage(), "quote", error.quote());
+  }
+
   @ExceptionHandler(IllegalArgumentException.class)
   @ResponseStatus(HttpStatus.BAD_REQUEST)
   public Map<String, String> invalid(IllegalArgumentException error) {

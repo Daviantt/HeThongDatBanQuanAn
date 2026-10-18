@@ -49,9 +49,16 @@ class DemoPaymentIntegrationTest {
   Account customer;
   String bookingId;
 
+  TakeawayService.Input takeawayInput(String name, String phone, LocalDateTime pickup, String method, Map<Long, Integer> items) {
+    Map<Long, Long> prices = new java.util.HashMap<>();
+    takeaway.quote(items).lines().forEach(line -> prices.put(line.menuItemId(), line.unitPrice()));
+    return new TakeawayService.Input(name, phone, pickup, method, items, prices);
+  }
   @BeforeEach
   void setup() {
     clock.set(baseline);
+    repo.jdbc().update("UPDATE group_promotion SET enabled=FALSE,minimum_guests=4,discount_percent=10 WHERE id=1");
+    repo.jdbc().update("UPDATE menu_item SET stock_quantity=NULL,low_stock_threshold=5,available=TRUE");
     for (String table :
         List.of(
             "takeaway_demo_payment",
@@ -78,11 +85,37 @@ class DemoPaymentIntegrationTest {
   }
 
   @Test
+  void historyKeepsTableBookingsAndAllowsResumingUnpaidTakeawayOrders() throws Exception {
+    String id = takeaway.create(customer,
+        takeawayInput("Khách trải nghiệm", "0901234567", baseline.plusMinutes(30), "TRANSFER", Map.of(1L, 2)));
+    String page = mvc.perform(get("/bookings").with(user(customer.email()).roles("CUSTOMER")))
+        .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+    assertThat(page).contains("/bookings/" + bookingId, "/takeaway/orders/" + id,
+        "Chờ chuyển khoản", "Tiếp tục thanh toán", "Chưa thanh toán");
+    mvc.perform(get("/takeaway/orders/" + id).with(user(customer.email()).roles("CUSTOMER")))
+        .andExpect(status().isOk())
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("/takeaway/orders/" + id + "/demo-payment")));
+    String paymentPath = mvc.perform(post("/takeaway/orders/" + id + "/demo-payment")
+            .with(user(customer.email()).roles("CUSTOMER")).with(csrf()))
+        .andExpect(status().is3xxRedirection()).andReturn().getResponse().getRedirectedUrl();
+    mvc.perform(get(paymentPath)).andExpect(status().isOk());
+    clock.set(baseline.plusMinutes(1));
+    mvc.perform(post(paymentPath + "/confirm").with(csrf()))
+        .andExpect(redirectedUrl(paymentPath));
+    String paidPage = mvc.perform(get("/bookings").with(user(customer.email()).roles("CUSTOMER")))
+        .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+    assertThat(paidPage).contains("/bookings/" + bookingId, "/takeaway/orders/" + id,
+        "Chờ khách đến lấy", "Đã thanh toán demo").doesNotContain("Tiếp tục thanh toán");
+    assertThat(repo.takeawayOrders(customer.id())).singleElement()
+        .satisfies(order -> assertThat(order.paidAt()).isEqualTo(baseline.plusMinutes(1)));
+  }
+
+  @Test
   void takeawayTransferRecordsTheDemoReferenceExactlyOnce() {
     String id =
         takeaway.create(
             customer,
-            new TakeawayService.Input(
+            takeawayInput(
                 "Khách trải nghiệm", "0901234567", baseline.plusMinutes(30), "TRANSFER", Map.of(1L, 1)));
     String token = takeaway.startDemoPayment(id, customer);
     clock.set(baseline.plusMinutes(1));
@@ -95,16 +128,79 @@ class DemoPaymentIntegrationTest {
   }
 
   @Test
+  void takeawayPaymentExpiresExactlyAtPickupButPaidOrdersArePreserved() throws Exception {
+    var input = takeawayInput("Khách hàng", "0901234567", baseline.plusMinutes(30), "TRANSFER", Map.of(1L, 1));
+    String paid = takeaway.create(customer, input);
+    String unpaid = takeaway.create(customer, input);
+    String paidToken = takeaway.startDemoPayment(paid, customer);
+    String unpaidToken = takeaway.startDemoPayment(unpaid, customer);
+    clock.set(baseline.plusMinutes(30).minusSeconds(1));
+    assertThat(takeaway.paymentStatus(unpaidToken).status()).isEqualTo("READY");
+    takeaway.confirmDemoPayment(paidToken);
+    clock.set(baseline.plusMinutes(30));
+    assertThat(takeaway.paymentStatus(unpaidToken).status()).isEqualTo("CLOSED");
+    assertThatThrownBy(() -> takeaway.confirmDemoPayment(unpaidToken)).hasMessageContaining("không còn");
+    assertThatThrownBy(() -> takeaway.startDemoPayment(unpaid, customer)).hasMessageContaining("không chờ");
+    clock.set(baseline.plusDays(1));
+    takeaway.expireUnpaid();
+    assertThat(repo.takeaway(unpaid).orElseThrow().status()).isEqualTo(TakeawayStatus.EXPIRED);
+    assertThat(repo.takeaway(unpaid).orElseThrow().paidAt()).isNull();
+    assertThat(repo.takeaway(paid).orElseThrow().status()).isEqualTo(TakeawayStatus.WAITING_PICKUP);
+    assertThat(takeaway.paymentStatus(paidToken).status()).isEqualTo("PAID");
+    mvc.perform(get("/takeaway/orders/" + unpaid).with(user(customer.email()).roles("CUSTOMER")))
+        .andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.not(
+            org.hamcrest.Matchers.containsString("Mở QR chuyển khoản demo"))));
+  }
+
+  @Test
+  void unpaidTransferCannotBePreparedAndPaidCancellationRequiresRefundRecord() throws Exception {
+    var staff = bookings.account("nhanvien@moc.local");
+    String id = takeaway.create(customer, takeawayInput("Khách hàng", "0901234567", baseline.plusMinutes(30), "TRANSFER", Map.of(1L, 1)));
+    assertThatThrownBy(() -> takeaway.staffAction(id, staff, "prepare", "")).hasMessageContaining("chưa sẵn sàng");
+    String token = takeaway.startDemoPayment(id, customer);
+    clock.set(baseline.plusMinutes(1));
+    takeaway.confirmDemoPayment(token);
+    takeaway.staffAction(id, staff, "prepare", "");
+    assertThat(takeaway.paymentStatus(token).status()).isEqualTo("PAID");
+    takeaway.staffAction(id, staff, "cancel", "");
+    assertThat(repo.takeaway(id).orElseThrow().status()).isEqualTo(TakeawayStatus.REFUND_PENDING);
+    assertThat(takeaway.paymentStatus(token).status()).isEqualTo("CLOSED");
+    assertThatThrownBy(() -> takeaway.staffAction(id, staff, "refund", "")).hasMessageContaining("Mã xác nhận");
+    mvc.perform(get("/takeaway/orders/" + id).with(user(staff.email()).roles("STAFF")))
+        .andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString("Ghi nhận đã hoàn demo")));
+    takeaway.staffAction(id, staff, "refund", "DEMO-REFUND-001");
+    assertThat(repo.takeaway(id).orElseThrow().status()).isEqualTo(TakeawayStatus.CANCELLED);
+    assertThat(repo.takeaway(id).orElseThrow().refundReference()).isEqualTo("DEMO-REFUND-001");
+    assertThatThrownBy(() -> takeaway.confirmDemoPayment(token)).hasMessageContaining("không còn");
+    assertThatThrownBy(() -> takeaway.staffAction(id, staff, "refund", "DIFFERENT")).hasMessageContaining("không chờ");
+  }
+
+  @Test
+  void simultaneousTakeawayPaymentStartsShareOneToken() throws Exception {
+    String id = takeaway.create(customer, takeawayInput("Khách hàng", "0901234567", baseline.plusMinutes(30), "TRANSFER", Map.of(1L, 1)));
+    var pool = Executors.newFixedThreadPool(2);
+    var start = new CountDownLatch(1);
+    try {
+      Callable<String> task = () -> { start.await(); return takeaway.startDemoPayment(id, customer); };
+      var first = pool.submit(task);
+      var second = pool.submit(task);
+      start.countDown();
+      assertThat(first.get(10, TimeUnit.SECONDS)).isEqualTo(second.get(10, TimeUnit.SECONDS));
+      assertThat(repo.jdbc().queryForObject("SELECT COUNT(*) FROM takeaway_demo_payment WHERE order_id=?", Integer.class, id)).isEqualTo(1);
+    } finally { pool.shutdownNow(); }
+  }
+
+  @Test
   void takeawayQrOpensThePublicPaymentSessionOnTheConfiguredAddress() throws Exception {
     String id =
         takeaway.create(
             customer,
-            new TakeawayService.Input(
+            takeawayInput(
                 "Khách trải nghiệm", "0901234567", baseline.plusMinutes(30), "TRANSFER", Map.of(1L, 1)));
     var start =
         mvc.perform(
                 post("/takeaway/orders/" + id + "/demo-payment")
-                    .with(user(customer.email()))
+                    .with(user(customer.email()).roles("CUSTOMER"))
                     .with(csrf()))
             .andExpect(status().is3xxRedirection())
             .andReturn();
@@ -153,7 +249,7 @@ class DemoPaymentIntegrationTest {
     assertThat(booking.paymentStatus()).isEqualTo(PaymentStatus.PAID);
     assertThat(payments.isDemoPayment(bookingId)).isTrue();
     assertThat(payments.status(token).status()).isEqualTo("PAID");
-    mvc.perform(get("/bookings/" + bookingId).with(user(customer.email())))
+    mvc.perform(get("/bookings/" + bookingId).with(user(customer.email()).roles("CUSTOMER")))
         .andExpect(status().isOk())
         .andExpect(content().string(org.hamcrest.Matchers.containsString("mô phỏng demo")));
   }
@@ -163,7 +259,7 @@ class DemoPaymentIntegrationTest {
     var start =
         mvc.perform(
                 post("/bookings/" + bookingId + "/demo-payment")
-                    .with(user(customer.email()))
+                    .with(user(customer.email()).roles("CUSTOMER"))
                     .with(csrf()))
             .andExpect(status().is3xxRedirection())
             .andReturn();
@@ -260,7 +356,7 @@ class DemoPaymentIntegrationTest {
   void ownerCsrfTokenAndModeAreRequired() throws Exception {
     mvc.perform(post("/bookings/" + bookingId + "/demo-payment").with(csrf()))
         .andExpect(status().is3xxRedirection());
-    mvc.perform(post("/bookings/" + bookingId + "/demo-payment").with(user(customer.email())))
+    mvc.perform(post("/bookings/" + bookingId + "/demo-payment").with(user(customer.email()).roles("CUSTOMER")))
         .andExpect(status().isForbidden());
     mvc.perform(
             post("/bookings/" + bookingId + "/demo-payment")

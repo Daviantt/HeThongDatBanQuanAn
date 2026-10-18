@@ -74,6 +74,10 @@
               <span>Tạm tính món ăn</span
               ><strong th:text="${@fmt.money(booking.foodTotal())}"></strong>
             </div>
+            <div class="deposit-line" th:if="${booking.discount() > 0}">
+              <span th:text="|Khuyến mãi nhóm (${booking.appliedDiscountPercent()}%)|"></span><strong th:text="|−${@fmt.money(booking.discount())}|"></strong>
+            </div>
+            <div class="deposit-line"><span>Tổng tiền món sau giảm</span><strong th:text="${@fmt.money(booking.total())}"></strong></div>
             <p class="helper">
               Bếp chỉ chuẩn bị món sau khi nhân viên xác nhận bạn đã đến.
               Phần tiền món trong cọc được trừ vào hóa đơn sau khi bạn thanh toán.

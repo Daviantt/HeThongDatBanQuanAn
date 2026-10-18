@@ -1,10 +1,54 @@
 <!doctype html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org"><head th:replace="~{fragments :: head('Đơn mang về')}"></head><body>
-<header th:replace="~{fragments :: header}"></header><main class="shell page"><section class="panel takeaway-confirmation">
-<p class="eyebrow">ĐƠN MANG VỀ · <span th:text="${order.code()}"></span></p><h1 th:text="${order.status.label}"></h1>
-<p th:if="${order.paymentMethod == 'CASH'}">Bạn thanh toán tiền mặt khi đến quán lấy món.</p><p th:if="${order.paymentMethod == 'TRANSFER' and order.status.name() == 'AWAITING_PAYMENT'}">Đơn sẽ được chuyển đến bếp sau khi bạn xác nhận chuyển khoản.</p><p th:if="${order.paymentMethod == 'TRANSFER' and order.status.name() == 'WAITING_PICKUP'}">Quán đã nhận xác nhận demo và sẽ chuẩn bị món cho bạn.</p>
-<dl class="takeaway-detail"><div><dt>Người nhận</dt><dd th:text="${order.customerName}"></dd></div><div><dt>Số điện thoại</dt><dd th:text="${order.customerPhone}"></dd></div><div><dt>Giờ lấy</dt><dd th:text="${@fmt.date(order.pickupAt)}"></dd></div><div><dt>Tổng tiền</dt><dd th:text="${@fmt.money(order.total)}"></dd></div></dl>
-<ul class="order-lines"><li th:each="line : ${order.lines}"><span th:text="|${line.itemName} × ${line.quantity}|"></span><strong th:text="${@fmt.money(line.subtotal())}"></strong></li></ul>
-<p th:if="${order.paymentReference != null}" class="helper" th:text="|Mã xác nhận: ${order.paymentReference} · ${@fmt.date(order.paidAt)}|"></p>
-<form th:if="${order.paymentMethod == 'TRANSFER' and order.status.name() == 'AWAITING_PAYMENT'}" th:action="@{/takeaway/orders/{id}/demo-payment(id=${order.id})}" method="post"><button class="button" type="submit">Mở QR chuyển khoản demo <span>↗</span></button></form><a th:unless="${order.paymentMethod == 'TRANSFER' and order.status.name() == 'AWAITING_PAYMENT'}" href="/menu" class="button outline">Tiếp tục chọn món</a>
-</section></main><footer th:replace="~{fragments :: footer}"></footer></body></html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{fragments :: head('Đơn mang về')}"></head>
+  <body>
+    <header th:replace="~{fragments :: header}"></header>
+    <main class="shell page">
+      <div th:replace="~{fragments :: flash}"></div>
+      <section class="panel takeaway-confirmation">
+        <a th:if="${!isStaff}" class="back-link" href="/bookings#takeaway-history">← Lịch hẹn của tôi</a>
+        <a th:if="${isStaff}" class="back-link" href="/staff#takeaway-orders">← Danh sách đơn mang về</a>
+        <p class="eyebrow">ĐƠN MANG VỀ · <span th:text="${order.code()}"></span></p>
+        <h1 th:text="${order.status.label}"></h1>
+        <p th:if="${order.paymentMethod == 'CASH' and order.paidAt == null and order.status.name() != 'CANCELLED'}">Bạn thanh toán tiền mặt khi đến quán lấy món.</p>
+        <p th:if="${order.status.name() == 'AWAITING_PAYMENT'}">Đơn sẽ được chuyển đến bếp sau khi bạn xác nhận chuyển khoản. Thanh toán trước giờ hẹn lấy món.</p>
+        <p th:if="${order.status.name() == 'EXPIRED'}">Đã quá giờ lấy món mà chưa thanh toán. Vui lòng tạo đơn mới.</p>
+        <p th:if="${order.status.name() == 'REFUND_PENDING'}">Quán đã hủy đơn; khoản thanh toán demo đang chờ ghi nhận hoàn. Không có tiền thật được chuyển.</p>
+        <p th:if="${order.paymentMethod == 'CASH' and order.paidAt != null}">Đã thu tiền mặt và giao món.</p>
+        <dl class="takeaway-detail">
+          <div><dt>Người nhận</dt><dd th:text="${order.customerName}"></dd></div>
+          <div><dt>Số điện thoại</dt><dd th:text="${order.customerPhone}"></dd></div>
+          <div><dt>Giờ lấy</dt><dd th:text="${@fmt.date(order.pickupAt)}"></dd></div>
+          <div><dt>Tổng tiền</dt><dd th:text="${@fmt.money(order.total)}"></dd></div>
+        </dl>
+        <ul class="order-lines"><li th:each="line : ${order.lines}"><span th:text="|${line.itemName} × ${line.quantity}|"></span><strong th:text="${@fmt.money(line.subtotal())}"></strong></li></ul>
+        <p th:if="${order.paymentReference != null}" class="helper" th:text="|Mã xác nhận thanh toán: ${order.paymentReference} · ${@fmt.date(order.paidAt)}|"></p>
+        <p th:if="${order.refundReference != null}" class="helper" th:text="|Đã ghi nhận hoàn demo: ${order.refundReference}|"></p>
+        <form th:if="${order.status.name() == 'AWAITING_PAYMENT' and demoPaymentEnabled and currentUser.id == order.userId}" th:action="@{/takeaway/orders/{id}/demo-payment(id=${order.id})}" method="post">
+          <button class="button" type="submit">Mở QR chuyển khoản demo ↗</button>
+        </form>
+        <p th:if="${order.status.name() == 'AWAITING_PAYMENT' and !demoPaymentEnabled}" class="notice warning">Chuyển khoản demo hiện không khả dụng. Vui lòng liên hệ quán để hủy đơn và đặt lại bằng tiền mặt.</p>
+        <div th:if="${isStaff}" class="takeaway-actions">
+          <h2>Xử lý đơn</h2>
+          <form th:if="${order.status.name() == 'WAITING_PICKUP'}" th:action="@{/staff/takeaway-orders/{id}/action(id=${order.id})}" method="post">
+            <input type="hidden" name="action" value="prepare"/><button class="button" type="submit">Bắt đầu chuẩn bị</button>
+          </form>
+          <form th:if="${order.status.name() == 'PREPARING'}" th:action="@{/staff/takeaway-orders/{id}/action(id=${order.id})}" method="post">
+            <input type="hidden" name="action" value="ready"/><button class="button" type="submit">Món đã sẵn sàng</button>
+          </form>
+          <form th:if="${order.status.name() == 'READY'}" th:action="@{/staff/takeaway-orders/{id}/action(id=${order.id})}" method="post" data-confirm="Xác nhận đã giao món và nhận đủ tiền?">
+            <input type="hidden" name="action" value="complete"/><button class="button" type="submit" th:text="${order.paymentMethod == 'CASH' ? 'Đã thu đủ tiền mặt và giao món' : 'Đã giao món'}"></button>
+          </form>
+          <form th:if="${order.status.name() == 'AWAITING_PAYMENT' or order.status.name() == 'WAITING_PICKUP' or order.status.name() == 'PREPARING' or order.status.name() == 'READY'}" th:action="@{/staff/takeaway-orders/{id}/action(id=${order.id})}" method="post" data-confirm="Xác nhận hủy đơn này? Nếu đã thanh toán, đơn sẽ chuyển sang chờ hoàn tiền demo.">
+            <input type="hidden" name="action" value="cancel"/><button class="button outline" type="submit">Hủy đơn</button>
+          </form>
+          <form th:if="${order.status.name() == 'REFUND_PENDING'}" th:action="@{/staff/takeaway-orders/{id}/action(id=${order.id})}" method="post">
+            <input type="hidden" name="action" value="refund"/><label>Mã xác nhận hoàn tiền demo<input name="reference" required minlength="3" maxlength="150"/></label><button class="button" type="submit">Ghi nhận đã hoàn demo</button>
+          </form>
+        </div>
+        <a href="/staff" class="button outline">Tiếp tục</a>
+      </section>
+    </main>
+    <footer th:replace="~{fragments :: footer}"></footer>
+  </body>
+</html>
