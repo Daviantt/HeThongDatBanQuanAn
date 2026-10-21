@@ -19,16 +19,18 @@ public class PageController {
   private final BookingService service;
   private final VnpayPaymentService payments;
   private final DemoPaymentService demoPayments;
+  private final TakeawayService takeaway;
 
   public PageController(
       RestaurantRepository repo,
       BookingService service,
       VnpayPaymentService payments,
-      DemoPaymentService demoPayments) {
+      DemoPaymentService demoPayments, TakeawayService takeaway) {
     this.repo = repo;
     this.service = service;
     this.payments = payments;
     this.demoPayments = demoPayments;
+    this.takeaway = takeaway;
   }
 
   private Account actor(Principal principal) {
@@ -42,9 +44,26 @@ public class PageController {
   }
 
   @GetMapping("/menu")
-  public String menu(Model model) {
+  public String menu(Model model, Principal principal) {
+    if (principal != null && service.staff(actor(principal))) {
+      var stock = repo.stockItems();
+      model.addAttribute("stockItems", stock);
+      model.addAttribute("lowStockCount", stock.stream().filter(StockItem::low).count());
+      model.addAttribute("emptyStockCount", stock.stream().filter(StockItem::empty).count());
+      model.addAttribute("unknownStockCount", stock.stream().filter(s -> s.quantity() == null).count());
+      return "staff-menu";
+    }
     model.addAttribute("dishes", repo.dishes());
     return "menu";
+  }
+
+  @PostMapping("/admin/menu/{id}/stock")
+  public String updateStock(@PathVariable long id, @RequestParam int quantity,
+      @RequestParam int threshold, @RequestParam(defaultValue = "false") boolean available,
+      Principal principal, RedirectAttributes flash) {
+    service.updateStock(actor(principal), id, quantity, threshold, available);
+    flash.addFlashAttribute("success", "Đã cập nhật tồn món. Món có tồn bằng 0 sẽ tạm ngừng nhận đặt mới.");
+    return "redirect:/menu";
   }
 
   @GetMapping("/login")
@@ -82,10 +101,20 @@ public class PageController {
     return "book";
   }
 
+
+
   @GetMapping("/bookings")
-  public String bookings(Principal principal, Model model) {
+  public String bookings(Principal principal, Model model,
+      @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "0") int takeawayPage) {
     service.expireHolds();
-    model.addAttribute("bookings", repo.bookings(actor(principal).id()));
+    takeaway.expireUnpaid();
+    long userId = actor(principal).id();
+    var bookingPage = repo.bookingPage(userId, page, "");
+    var ordersPage = repo.takeawayPage(userId, takeawayPage);
+    model.addAttribute("bookings", bookingPage.items());
+    model.addAttribute("bookingPage", bookingPage);
+    model.addAttribute("takeawayOrders", ordersPage.items());
+    model.addAttribute("ordersPage", ordersPage);
     return "bookings";
   }
 
@@ -95,11 +124,12 @@ public class PageController {
     Account actor = actor(principal);
     Booking b = service.accessible(id, actor);
     model.addAttribute("booking", b);
-    model.addAttribute("owner", b.userId() == actor.id());
+    boolean owner = b.userId() == actor.id() && !service.staff(actor);
+    model.addAttribute("owner", owner);
     model.addAttribute(
-        "canEdit", b.userId() == actor.id() && BookingPolicy.editable(b, service.now()));
+        "canEdit", owner && BookingPolicy.editable(b, service.now()));
     model.addAttribute(
-        "canCancel", b.userId() == actor.id() && BookingPolicy.cancellable(b, service.now()));
+        "canCancel", owner && BookingPolicy.cancellable(b, service.now()));
     model.addAttribute("refundable", BookingPolicy.refundable(service.now(), b.startAt()));
     model.addAttribute("dishes", repo.dishes());
     model.addAttribute("requests", repo.requests(id));
@@ -173,23 +203,22 @@ public class PageController {
   }
 
   @GetMapping("/staff")
-  public String staff(Model model) {
+  public String staff(Model model, @RequestParam(defaultValue = "0") int page,
+      @RequestParam(defaultValue = "0") int takeawayPage, @RequestParam(defaultValue = "") String search) {
     service.expireHolds();
-    var bookings = repo.bookings(null);
-    model.addAttribute("bookings", bookings);
-    model.addAttribute(
-        "todayCount",
-        bookings.stream()
-            .filter(b -> b.startAt().toLocalDate().equals(service.now().toLocalDate()))
-            .count());
-    model.addAttribute(
-        "confirmedCount",
-        bookings.stream().filter(b -> b.status() == BookingStatus.CONFIRMED).count());
-    model.addAttribute(
-        "seatedCount", bookings.stream().filter(b -> b.status() == BookingStatus.SEATED).count());
-    model.addAttribute(
-        "refundCount",
-        bookings.stream().filter(b -> b.paymentStatus() == PaymentStatus.REFUND_PENDING).count());
+    takeaway.expireUnpaid();
+    var bookingPage = repo.bookingPage(null, page, search);
+    var ordersPage = repo.takeawayPage(null, takeawayPage);
+    model.addAttribute("bookings", bookingPage.items());
+    model.addAttribute("bookingPage", bookingPage);
+    model.addAttribute("takeawayOrders", ordersPage.items());
+    model.addAttribute("ordersPage", ordersPage);
+    model.addAttribute("search", search);
+    var counts = repo.staffCounts(service.now());
+    model.addAttribute("todayCount", counts.today());
+    model.addAttribute("confirmedCount", counts.confirmed());
+    model.addAttribute("seatedCount", counts.seated());
+    model.addAttribute("refundCount", counts.refunds());
     return "staff";
   }
 
@@ -268,6 +297,14 @@ public class PageController {
     return "redirect:/admin";
   }
 
+  @PostMapping("/admin/promotion")
+  public String promotion(@RequestParam(defaultValue = "false") boolean enabled,
+      @RequestParam int minimumGuests, @RequestParam int percent, Principal principal, RedirectAttributes flash) {
+    service.updatePromotion(actor(principal), enabled, minimumGuests, percent);
+    flash.addFlashAttribute("success", "Đã lưu khuyến mãi. Lượt đặt cũ giữ chính sách đã chốt khi đặt.");
+    return "redirect:/admin";
+  }
+
   @PostMapping("/admin/dishes")
   public String dish(
       @RequestParam long id,
@@ -300,4 +337,5 @@ public class PageController {
     flash.addFlashAttribute("success", "Đã cập nhật tổ hợp ghép bàn.");
     return "redirect:/admin";
   }
+
 }

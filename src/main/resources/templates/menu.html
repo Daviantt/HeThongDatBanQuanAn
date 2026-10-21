@@ -17,18 +17,53 @@
         ><button class="chip" data-filter="Tráng miệng">Tráng miệng</button
         ><button class="chip" data-filter="Đồ uống">Đồ uống</button>
       </div>
-      <div class="dish-grid">
+      <p class="helper">Nhấn vào món để chọn đặt đến lấy hoặc đặt trước khi dùng tại quán.</p>
+      <div class="dish-grid" id="takeaway-menu" th:attr="data-signed-in=${currentUser != null}">
         <div
           th:each="dish : ${dishes}"
           th:attr="data-category=${dish.category}"
         >
-          <article th:replace="~{fragments :: dish(${dish})}"></article>
+          <button class="menu-dish-button" type="button" th:disabled="${!dish.available}"
+              th:attr="data-id=${dish.id},data-name=${dish.name},data-price=${dish.price},data-image=${@fmt.dishImage(dish)}">
+            <article th:replace="~{fragments :: dish(${dish})}"></article>
+          </button>
         </div>
       </div>
       <div class="center section">
         <a href="/book" class="button">Đặt bàn &amp; chọn trước món ↗</a>
       </div>
     </main>
+    <aside id="takeaway-cart" class="takeaway-cart" hidden aria-label="Giỏ hàng đặt đến lấy">
+      <div class="takeaway-cart-heading"><span class="cart-label">GIỎ ĐẾN LẤY</span><strong id="takeaway-cart-count">0 món</strong></div>
+      <ul id="takeaway-cart-items" class="takeaway-cart-items"></ul>
+      <div class="takeaway-cart-total"><span>Tạm tính</span><strong id="takeaway-cart-total">0 ₫</strong></div>
+      <p id="takeaway-cart-message" class="takeaway-cart-message" role="status"></p>
+      <a id="takeaway-checkout-link" href="/takeaway" class="button">Chốt đơn <span aria-hidden="true">→</span></a>
+    </aside>
+    <dialog id="order-choice" class="order-choice" aria-labelledby="choice-dish-name">
+      <button class="modal-close" type="button" aria-label="Đóng">×</button><p class="eyebrow" id="choice-heading">BẠN MUỐN DÙNG MÓN NÀY THEO CÁCH NÀO?</p>
+      <h2 id="choice-dish-name">Món ăn</h2><p id="choice-dish-price"></p>
+      <div id="order-choice-options">
+        <button id="add-takeaway" class="choice-button" type="button"><b>Đặt đến lấy</b><span>Chọn số lượng, rồi thêm món vào giỏ →</span></button>
+        <a class="choice-button" href="/book"><b>Đặt trước ăn tại quán</b><span>Chọn bàn và thêm món cho buổi hẹn của bạn →</span></a>
+      </div>
+      <form id="takeaway-quantity-form" hidden novalidate>
+        <label for="takeaway-quantity">Số lượng muốn thêm</label>
+        <div class="takeaway-quantity-control">
+          <button id="takeaway-quantity-minus" type="button" aria-label="Giảm số lượng">−</button>
+          <input id="takeaway-quantity" type="number" min="1" max="20" step="1" value="1" required inputmode="numeric" aria-describedby="takeaway-quantity-help takeaway-quantity-error">
+          <button id="takeaway-quantity-plus" type="button" aria-label="Tăng số lượng">+</button>
+        </div>
+        <p id="takeaway-quantity-help" class="helper"></p>
+        <div class="quantity-subtotal"><span>Thành tiền</span><strong id="takeaway-quantity-total">0 ₫</strong></div>
+        <p id="takeaway-quantity-error" class="quantity-error" role="alert" hidden></p>
+        <div class="quantity-actions">
+          <button id="takeaway-quantity-back" class="button outline" type="button">Quay lại</button>
+          <button id="confirm-takeaway" class="button" type="submit">Xác nhận thêm vào giỏ</button>
+        </div>
+      </form>
+    </dialog>
     <footer th:replace="~{fragments :: footer}"></footer>
+    <script src="/js/takeaway-menu.js" defer></script>
   </body>
 </html>

@@ -7,6 +7,10 @@ import vn.edu.giavien.domain.Models.*;
 public final class BookingPolicy {
   private BookingPolicy() {}
 
+  public static long discount(long total, int percent) {
+    return total * percent / 100;
+  }
+
   public static long foodDeposit(long foodTotal) {
     // 20% of the combined food total, rounded up to a whole Vietnamese dong.
     return (foodTotal + 4) / 5;

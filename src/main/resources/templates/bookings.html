@@ -8,18 +8,24 @@
         <div class="page-heading">
           <p class="eyebrow">NHỮNG LẦN GẶP GỠ</p>
           <h1>Lịch hẹn của tôi.</h1>
-          <p>Mọi thông tin cho cuộc hẹn tiếp theo, ở ngay đây.</p>
+          <p>Lượt đặt bàn và đơn đến lấy của bạn, ở ngay đây.</p>
         </div>
         <a href="/book" class="button">Đặt bàn mới ＋</a>
       </div>
       <div th:replace="~{fragments :: flash}"></div>
-      <section class="empty-state panel" th:if="${bookings.isEmpty()}">
+      <section class="empty-state panel" th:if="${bookings.isEmpty() and takeawayOrders.isEmpty()}">
         <span class="empty-icon">⌑</span>
         <h2>Chiếc bàn đầu tiên đang đợi bạn.</h2>
-        <p>Bạn chưa có lượt đặt nào. Cùng lên lịch một bữa ngon nhé.</p>
+        <p>Bạn chưa có lượt đặt bàn hay đơn đến lấy. Cùng lên lịch một bữa ngon nhé.</p>
         <a class="button" href="/book">Chọn bàn ngay ↗</a>
+        <a class="button outline" href="/menu">Đặt món đến lấy</a>
       </section>
-      <div class="booking-cards">
+      <section class="history-section" aria-labelledby="table-history-title" th:if="${!bookings.isEmpty() or !takeawayOrders.isEmpty()}">
+        <div class="history-heading">
+          <h2 id="table-history-title">Đặt bàn <span class="badge" th:text="${bookingPage.total}"></span></h2>
+        </div>
+        <p th:if="${bookings.isEmpty()}" class="muted-text">Bạn chưa có lượt đặt bàn.</p>
+        <div class="booking-cards">
         <a
           class="reservation-card"
           th:each="b : ${bookings}"
@@ -42,7 +48,39 @@
             <span th:text="${b.paymentStatus.label}"></span
             ><strong th:text="${@fmt.money(b.deposit)}"></strong></div
         ></a>
-      </div>
+        </div>
+        <nav th:replace="~{fragments :: pagination(${bookingPage}, @{/bookings(page=${bookingPage.number - 1},takeawayPage=${ordersPage.number})}, @{/bookings(page=${bookingPage.number + 1},takeawayPage=${ordersPage.number})})}"></nav>
+      </section>
+      <section id="takeaway-history" class="history-section" aria-labelledby="takeaway-history-title"
+          th:if="${!bookings.isEmpty() or !takeawayOrders.isEmpty()}">
+        <div class="history-heading">
+          <h2 id="takeaway-history-title">Đặt đến lấy <span class="badge" th:text="${ordersPage.total}"></span></h2>
+          <a href="/menu" class="underlined">Đặt thêm món ↗</a>
+        </div>
+        <p th:if="${takeawayOrders.isEmpty()}" class="muted-text">Bạn chưa có đơn đến lấy.</p>
+        <div class="booking-cards">
+          <a class="reservation-card takeaway-history-card" th:each="order : ${takeawayOrders}"
+              th:href="@{/takeaway/orders/{id}(id=${order.id})}">
+            <div class="row">
+              <span class="eyebrow" th:text="${order.code()}"></span>
+              <span class="badge" th:classappend="${order.status.name()}" th:text="${order.status.label}"></span>
+            </div>
+            <h2>Hẹn lấy món tại quán</h2>
+            <p th:text="${@fmt.date(order.pickupAt)}"></p>
+            <ul class="history-dishes">
+              <li th:each="line : ${order.lines}" th:text="|${line.quantity} × ${line.itemName}|"></li>
+            </ul>
+            <div class="row">
+              <span th:text="${order.refundReference != null ? 'Đã hoàn tiền demo' : (order.paymentMethod == 'CASH' ? (order.paidAt != null ? 'Đã thu tiền mặt' : 'Tiền mặt khi nhận món') : (order.paidAt != null ? 'Đã thanh toán demo' : 'Chưa thanh toán'))}"></span>
+              <span class="text-link" th:text="${order.status.name() == 'AWAITING_PAYMENT' and demoPaymentEnabled ? 'Tiếp tục thanh toán ↗' : 'Xem chi tiết ↗'}"></span>
+            </div>
+            <div class="card-payment">
+              <span>Tổng tiền</span><strong th:text="${@fmt.money(order.total)}"></strong>
+            </div>
+          </a>
+        </div>
+        <nav th:replace="~{fragments :: pagination(${ordersPage}, @{/bookings(page=${bookingPage.number},takeawayPage=${ordersPage.number - 1})}, @{/bookings(page=${bookingPage.number},takeawayPage=${ordersPage.number + 1})})}"></nav>
+      </section>
     </main>
     <footer th:replace="~{fragments :: footer}"></footer>
   </body>

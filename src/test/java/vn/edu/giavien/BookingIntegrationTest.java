@@ -28,6 +28,7 @@ import vn.edu.giavien.data.RestaurantRepository;
 import vn.edu.giavien.domain.BookingPolicy;
 import vn.edu.giavien.domain.Models.*;
 import vn.edu.giavien.service.BookingService;
+import vn.edu.giavien.service.TakeawayService;
 
 @SpringBootTest(
     properties = {
@@ -40,6 +41,7 @@ import vn.edu.giavien.service.BookingService;
 @Import(BookingIntegrationTest.TimeConfig.class)
 class BookingIntegrationTest {
   @Autowired BookingService service;
+  @Autowired TakeawayService takeaway;
   @Autowired vn.edu.giavien.service.VnpayPaymentService payments;
   @Autowired vn.edu.giavien.service.VnpayGateway gateway;
   @Autowired RestaurantRepository repo;
@@ -83,15 +85,25 @@ class BookingIntegrationTest {
     }
   }
 
+  TakeawayService.Input takeawayInput(String name, String phone, LocalDateTime pickup, String method, Map<Long, Integer> items) {
+    Map<Long, Long> prices = new java.util.HashMap<>();
+    takeaway.quote(items).lines().forEach(line -> prices.put(line.menuItemId(), line.unitPrice()));
+    return new TakeawayService.Input(name, phone, pickup, method, items, prices);
+  }
   @BeforeEach
   void setup() {
     clock.set(baseline);
+    repo.jdbc().update("UPDATE group_promotion SET enabled=FALSE,minimum_guests=4,discount_percent=10 WHERE id=1");
+    repo.jdbc().update("UPDATE menu_item SET stock_quantity=NULL,low_stock_threshold=5,available=TRUE");
     new TransactionTemplate(transactions)
         .executeWithoutResult(
             status -> {
               repo.lockSchedule();
               for (String table :
                   List.of(
+                      "takeaway_demo_payment",
+                      "takeaway_order_line",
+                      "takeaway_order",
                       "audit_event",
                       "demo_payment",
                       "payment_attempt",
@@ -159,6 +171,321 @@ class BookingIntegrationTest {
 
   String startPayment(String id) {
     return urlParameters(payments.start(id, customer, "127.0.0.1")).get("vnp_TxnRef");
+  }
+
+  @Test
+  void takeawayUsesTheCurrentMenuPriceAndDoesNotCreateAReservation() {
+    String id =
+        takeaway.create(
+            customer,
+            takeawayInput(
+                "Khách trải nghiệm", "0901234567", baseline.plusMinutes(30), "CASH", Map.of(1L, 2)));
+    TakeawayOrder order = repo.takeaway(id).orElseThrow();
+    assertThat(order.status()).isEqualTo(TakeawayStatus.WAITING_PICKUP);
+    assertThat(order.total())
+        .isEqualTo(repo.dishes().stream().filter(d -> d.id() == 1L).findFirst().orElseThrow().price() * 2);
+    assertThat(order.lines()).singleElement().satisfies(line -> assertThat(line.quantity()).isEqualTo(2));
+    assertThat(repo.bookings(customer.id())).isEmpty();
+  }
+
+  @Test
+  void takeawayHistoryShowsCashOrdersWithoutRequiringATableBooking() throws Exception {
+    String id = takeaway.create(customer,
+        takeawayInput("Khách trải nghiệm", "0901234567", baseline.plusMinutes(30), "CASH", Map.of(1L, 3)));
+    var order = repo.takeaway(id).orElseThrow();
+    String page = mvc.perform(get("/bookings").with(user(customer.email()).roles("CUSTOMER")))
+        .andExpect(status().isOk())
+        .andExpect(model().attribute("takeawayOrders", repo.takeawayOrders(customer.id())))
+        .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+    assertThat(page).contains("Đặt đến lấy", order.code(), "/takeaway/orders/" + id,
+        "3 × " + order.lines().getFirst().itemName(), "Chờ khách đến lấy", "Tiền mặt khi nhận món");
+    assertThat(page).doesNotContain("Chiếc bàn đầu tiên đang đợi bạn.");
+    assertThat(repo.bookings(customer.id())).isEmpty();
+    mvc.perform(get("/takeaway/orders/" + id).with(user(customer.email()).roles("CUSTOMER")))
+        .andExpect(status().isOk())
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("/bookings#takeaway-history")));
+  }
+
+  @Test
+  void unavailableTransferIsRejectedByTheApiWithoutSavingAnOrder() throws Exception {
+    mvc.perform(post("/api/takeaway-orders").with(user(customer.email()).roles("CUSTOMER")).with(csrf())
+        .contentType("application/json").content("""
+          {"customerName":"Khách hàng","phone":"0901234567","pickupAt":"2026-09-21T10:30:00",
+           "paymentMethod":"TRANSFER","items":{"1":1},"expectedUnitPrices":{"1":65000}}
+          """))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("không khả dụng")));
+    assertThat(repo.takeawayOrders(customer.id())).isEmpty();
+  }
+
+  @Test
+  void changedPriceRequiresAnotherConfirmationAndCannotBeBypassedByOmittingPrices() throws Exception {
+    long price = repo.dishes().getFirst().price();
+    String body = """
+        {"customerName":"Khách hàng","phone":"0901234567","pickupAt":"2026-09-21T10:30:00",
+         "paymentMethod":"CASH","items":{"1":2},"expectedUnitPrices":{"1":%d}}
+        """;
+    mvc.perform(post("/api/takeaway-orders/quote").with(user(customer.email()).roles("CUSTOMER")).with(csrf())
+        .contentType("application/json").content("{\"items\":{\"1\":2}}"))
+        .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(price * 2));
+    mvc.perform(post("/api/takeaway-orders").with(user(customer.email()).roles("CUSTOMER")).with(csrf())
+        .contentType("application/json").content(body.formatted(price - 1000)))
+        .andExpect(status().isConflict()).andExpect(jsonPath("$.quote.total").value(price * 2));
+    assertThat(repo.takeawayOrders(customer.id())).isEmpty();
+    assertThatThrownBy(() -> takeaway.create(customer, new TakeawayService.Input("Khách hàng", "0901234567",
+        baseline.plusMinutes(30), "CASH", Map.of(1L, 2), null))).hasMessageContaining("cập nhật giá");
+    mvc.perform(post("/api/takeaway-orders").with(user(customer.email()).roles("CUSTOMER")).with(csrf())
+        .contentType("application/json").content(body.formatted(price)))
+        .andExpect(status().isCreated());
+    assertThat(repo.takeawayOrders(customer.id())).singleElement().satisfies(o -> assertThat(o.total()).isEqualTo(price * 2));
+  }
+
+  @Test
+  void staffCanPrepareDeliverAndCollectCashButCustomersCannot() throws Exception {
+    String id = takeaway.create(customer, takeawayInput("Khách hàng", "0901234567", baseline.plusMinutes(30), "CASH", Map.of(1L, 1)));
+    String path = "/staff/takeaway-orders/" + id + "/action";
+    mvc.perform(get("/staff").with(user(staff.email()).roles("STAFF")))
+        .andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString("/takeaway/orders/" + id)));
+    mvc.perform(post(path).with(user(customer.email()).roles("CUSTOMER")).with(csrf()).param("action", "prepare"))
+        .andExpect(status().isForbidden());
+    mvc.perform(post(path).with(user(staff.email()).roles("STAFF")).param("action", "prepare"))
+        .andExpect(status().isForbidden());
+    assertThatThrownBy(() -> takeaway.staffAction(id, customer, "prepare", ""))
+        .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+    assertThatThrownBy(() -> takeaway.staffAction(id, staff, "complete", "")).hasMessageContaining("sẵn sàng");
+    for (String action : List.of("prepare", "ready", "complete")) {
+      mvc.perform(post(path).with(user(staff.email()).roles("STAFF")).with(csrf()).param("action", action))
+          .andExpect(redirectedUrl("/takeaway/orders/" + id));
+      mvc.perform(get("/takeaway/orders/" + id).with(user(staff.email()).roles("STAFF")))
+          .andExpect(status().isOk());
+    }
+    var order = repo.takeaway(id).orElseThrow();
+    assertThat(order.status()).isEqualTo(TakeawayStatus.COMPLETED);
+    assertThat(order.paidAt()).isEqualTo(baseline);
+    assertThat(order.paymentReference()).startsWith("CASH-");
+    assertThatThrownBy(() -> takeaway.staffAction(id, staff, "complete", "")).hasMessageContaining("sẵn sàng");
+    assertThatThrownBy(() -> takeaway.staffAction(id, staff, "cancel", "")).hasMessageContaining("Không thể hủy");
+    assertThat(repo.takeaway(id).orElseThrow().paidAt()).isEqualTo(order.paidAt());
+  }
+
+  @Test
+  void cashOrderCanBeCanceledWithoutRecordingPayment() {
+    String id = takeaway.create(customer, takeawayInput("Khách hàng", "0901234567", baseline.plusMinutes(30), "CASH", Map.of(1L, 1)));
+    takeaway.staffAction(id, staff, "cancel", "");
+    assertThat(repo.takeaway(id).orElseThrow().status()).isEqualTo(TakeawayStatus.CANCELLED);
+    assertThat(repo.takeaway(id).orElseThrow().paidAt()).isNull();
+  }
+
+  @Test
+  void paginatedHistoryKeepsTotalsSearchAndCustomerIsolation() throws Exception {
+    for (int i = 1; i <= 25; i++) create(baseline.plusDays(i).withHour(18));
+    for (int i = 0; i < 21; i++)
+      takeaway.create(customer, takeawayInput("Khách hàng", "0901234567", baseline.plusMinutes(30), "CASH", Map.of(1L, 1)));
+    var first = repo.bookingPage(customer.id(), 0, "");
+    var second = repo.bookingPage(customer.id(), 1, "");
+    assertThat(first.items()).hasSize(20);
+    assertThat(second.items()).hasSize(5);
+    assertThat(first.total()).isEqualTo(25);
+    assertThat(first.items()).doesNotContainAnyElementsOf(second.items());
+    assertThat(repo.bookingPage(staff.id(), 0, "").total()).isZero();
+    assertThat(repo.bookingPage(customer.id(), -1, "").number()).isZero();
+    assertThat(repo.bookingPage(customer.id(), Integer.MAX_VALUE, "").number()).isEqualTo(1);
+    assertThat(repo.takeawayPage(customer.id(), 0).items()).hasSize(20);
+    assertThat(repo.takeawayPage(customer.id(), 1).items()).hasSize(1);
+    assertThat(repo.takeawayPage(staff.id(), 0).total()).isZero();
+    String search = second.items().getFirst().code();
+    assertThat(repo.bookingPage(null, 0, search).items()).singleElement();
+    mvc.perform(get("/bookings").param("page", "1").param("takeawayPage", "1").with(user(customer.email()).roles("CUSTOMER")))
+        .andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString("Trang 2 / 2")));
+    mvc.perform(get("/staff").param("search", search).with(user(staff.email()).roles("STAFF")))
+        .andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString(search)));
+  }
+
+  @Test
+  void repositoryLoadsListsInBatchesAndAvailabilityDoesNotLoadFood() {
+    for (int i = 1; i <= 25; i++) create(baseline.plusDays(i).withHour(18));
+    var statements = new ArrayList<String>();
+    var source = new org.springframework.jdbc.datasource.DelegatingDataSource(repo.jdbc().getDataSource()) {
+      @Override public java.sql.Connection getConnection() throws java.sql.SQLException {
+        var connection = super.getConnection();
+        return (java.sql.Connection) java.lang.reflect.Proxy.newProxyInstance(
+            getClass().getClassLoader(), new Class<?>[]{java.sql.Connection.class}, (proxy, method, args) -> {
+              if (method.getName().equals("prepareStatement")) statements.add((String) args[0]);
+              try { return method.invoke(connection, args); }
+              catch (java.lang.reflect.InvocationTargetException error) { throw error.getCause(); }
+            });
+      }
+    };
+    var counted = new RestaurantRepository(new org.springframework.jdbc.core.JdbcTemplate(source));
+    assertThat(counted.bookingPage(customer.id(), 0, "").items()).hasSize(20)
+        .allSatisfy(b -> { assertThat(b.tableIds()).containsExactly(1L); assertThat(b.lines()).hasSize(1); });
+    assertThat(statements).hasSize(4); // COUNT + bookings + tables + food, independent of page size.
+    statements.clear();
+    var start = baseline.plusDays(1).withHour(18);
+    assertThat(counted.busyTableIds(start, start.plusHours(2), baseline, 15, null)).contains(1L);
+    assertThat(statements).singleElement().satisfies(sql -> assertThat(sql).doesNotContain("order_line", "app_user"));
+  }
+
+  @Test
+  void takeawayHistoryIsNewestFirstAndRestrictedToTheSignedInCustomer() throws Exception {
+    String own = takeaway.create(customer,
+        takeawayInput("Khách trải nghiệm", "0901234567", baseline.plusHours(1), "CASH", Map.of(1L, 1)));
+    clock.set(baseline.plusMinutes(1));
+    String newer = takeaway.create(customer,
+        takeawayInput("Khách trải nghiệm", "0901234567", baseline.plusHours(1), "CASH", Map.of(2L, 2)));
+    if (repo.account("history.other@moc.local").isEmpty())
+      service.register("history.other@moc.local", "Password123!", "Khách khác", "0911111111");
+    Account otherCustomer = service.account("history.other@moc.local");
+    String other = takeaway.create(otherCustomer,
+        takeawayInput("Người nhận khác", "0911111111", baseline.plusHours(1), "CASH", Map.of(1L, 1)));
+    assertThat(repo.takeawayOrders(customer.id())).extracting(TakeawayOrder::id).containsExactly(newer, own);
+    String page = mvc.perform(get("/bookings").param("userId", String.valueOf(staff.id()))
+            .with(user(customer.email()).roles("CUSTOMER")))
+        .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+    assertThat(page).contains(own, newer).doesNotContain(other, "Người nhận khác");
+    mvc.perform(get("/takeaway/orders/" + other).with(user(customer.email()).roles("CUSTOMER")))
+        .andExpect(status().isForbidden());
+    mvc.perform(get("/bookings")).andExpect(status().is3xxRedirection());
+  }
+
+  @Test
+  void historyHasAnEmptyStateWhenNeitherBookingsNorTakeawayOrdersExist() throws Exception {
+    mvc.perform(get("/bookings").with(user(customer.email()).roles("CUSTOMER")))
+        .andExpect(status().isOk())
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("Bạn chưa có lượt đặt bàn hay đơn đến lấy.")));
+  }
+
+  @Test
+  void employeesHaveOperationsInsteadOfPersonalBookingAndCannotCreateCustomerOrders() throws Exception {
+    String id = create(baseline.plusDays(1).withHour(18));
+    for (Account employee : List.of(staff, admin)) {
+      for (String path : List.of("/", "/menu", "/staff")) {
+        String html = mvc.perform(get(path).with(user(employee.email()).roles(employee.role())))
+            .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        assertThat(html).doesNotContain("href=\"/book\"", "href=\"/bookings\"", "Lịch hẹn của tôi");
+      }
+      for (String path : List.of("/book", "/bookings", "/takeaway"))
+        mvc.perform(get(path).with(user(employee.email()).roles(employee.role()))).andExpect(status().isForbidden());
+      for (String path : List.of("/api/bookings", "/api/takeaway-orders"))
+        mvc.perform(post(path).with(user(employee.email()).roles(employee.role())).with(csrf())
+            .contentType("application/json").content("{}"))
+            .andExpect(status().isForbidden());
+      mvc.perform(get("/bookings/" + id).with(user(employee.email()).roles(employee.role())))
+          .andExpect(status().isOk());
+      assertThatThrownBy(() -> service.create(employee, input(baseline.plusDays(2).withHour(18), 2, List.of(1L))))
+          .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+      assertThatThrownBy(() -> takeaway.create(employee, takeawayInput("Nhân viên", "0901234567", baseline.plusMinutes(30), "CASH", Map.of(1L, 1))))
+          .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+    }
+    mvc.perform(post("/login").with(csrf()).param("email", staff.email()).param("password", "MocDemo123!"))
+        .andExpect(redirectedUrl("/staff"));
+  }
+
+  @Test
+  void promotionIsOffByDefaultAndSnapshotsEligibleFoodDiscountWithoutAddingDepositToTotal() throws Exception {
+    assertThat(repo.promotion().enabled()).isFalse();
+    service.updatePromotion(admin, true, 4, 10);
+    String smaller = service.create(customer, new BookingService.BookingInput(baseline.plusDays(1).withHour(18),
+        baseline.plusDays(1).withHour(20), 3, List.of(1L), Map.of(1L, 2), "", 0));
+    String id = service.create(customer, new BookingService.BookingInput(baseline.plusDays(2).withHour(18),
+        baseline.plusDays(2).withHour(20), 4, List.of(1L), Map.of(1L, 2), "", 10));
+    var booking = repo.booking(id).orElseThrow();
+    assertThat(repo.booking(smaller).orElseThrow().discount()).isZero();
+    assertThat(booking.discount()).isEqualTo(booking.foodTotal() / 10);
+    assertThat(booking.total()).isEqualTo(booking.foodTotal() - booking.discount());
+    assertThat(booking.deposit()).isEqualTo(100000 + BookingPolicy.foodDeposit(booking.total()));
+    service.updatePromotion(admin, false, 3, 20);
+    assertThat(repo.booking(id).orElseThrow().total()).isEqualTo(booking.total());
+    service.editItems(id, customer, Map.of(1L, 3), "");
+    var edited = repo.booking(id).orElseThrow();
+    assertThat(edited.appliedDiscountPercent()).isEqualTo(10);
+    assertThat(edited.foodDeposit()).isEqualTo(BookingPolicy.foodDeposit(edited.total()));
+    mvc.perform(get("/staff").with(user(staff.email()).roles("STAFF")))
+        .andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString("Tổng tiền")))
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("Đã giảm")));
+    mvc.perform(get("/bookings/" + id).with(user(customer.email()).roles("CUSTOMER")))
+        .andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString("Khuyến mãi nhóm (10%)")));
+    assertThat(BookingPolicy.discount(101, 10)).isEqualTo(10);
+  }
+
+  @Test
+  void changedPromotionRequiresRefreshingAndOnlyAdminCanConfigureIt() throws Exception {
+    service.updatePromotion(admin, true, 4, 10);
+    assertThatThrownBy(() -> service.create(customer, input(baseline.plusDays(1).withHour(18), 4, List.of(1L))))
+        .hasMessageContaining("Khuyến mãi vừa thay đổi");
+    assertThat(repo.bookings(customer.id())).isEmpty();
+    assertThatThrownBy(() -> service.updatePromotion(staff, true, 4, 10))
+        .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+    assertThatThrownBy(() -> service.updatePromotion(admin, true, 1, 10)).hasMessageContaining("2 đến 12");
+    assertThatThrownBy(() -> service.updatePromotion(admin, true, 4, 51)).hasMessageContaining("50%");
+    mvc.perform(post("/admin/promotion").with(user(staff.email()).roles("STAFF")).with(csrf())
+        .param("enabled", "true").param("minimumGuests", "3").param("percent", "5"))
+        .andExpect(status().isForbidden());
+    mvc.perform(post("/admin/promotion").with(user(admin.email()).roles("ADMIN")).with(csrf())
+        .param("enabled", "true").param("minimumGuests", "3").param("percent", "5"))
+        .andExpect(redirectedUrl("/admin"));
+    mvc.perform(get("/admin").with(user(admin.email()).roles("ADMIN"))).andExpect(status().isOk());
+  }
+
+  @Test
+  void staffCanViewStockAndWarningsButOnlyAdminSeesEditingControls() throws Exception {
+    assertThat(repo.stockItems().getFirst().quantity()).isNull();
+    service.updateStock(admin, 1, 3, 5, true);
+    assertThat(repo.stockItems().getFirst().low()).isTrue();
+    String html = mvc.perform(get("/menu").with(user(staff.email()).roles("STAFF")))
+        .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+    assertThat(html).contains("Sắp hết", "Số phần tồn", "Ngưỡng: 5 phần", "Nhân viên chỉ xem")
+        .doesNotContain("stock-form", "Cập nhật tồn &amp; phục vụ", "name=\"quantity\"", "name=\"threshold\"",
+            "name=\"available\"", "/admin/menu/", "/staff/menu/", "order-choice", "Chốt đơn");
+    String adminMenu = mvc.perform(get("/menu").with(user(admin.email()).roles("ADMIN")))
+        .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+    assertThat(adminMenu).contains("Sắp hết", "/admin/menu/1/stock", "name=\"quantity\"",
+        "name=\"threshold\"", "name=\"available\"", "Lưu");
+    String customerMenu = mvc.perform(get("/menu").with(user(customer.email()).roles("CUSTOMER")))
+        .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+    assertThat(customerMenu).doesNotContain("Số phần tồn", "stock-form", "/admin/menu/");
+  }
+
+  @Test
+  void staffAndCustomersCannotChangeStockThroughHttpOrService() throws Exception {
+    service.updateStock(admin, 1, 3, 5, true);
+    var before = repo.stockItems().getFirst();
+    for (Account actor : List.of(staff, customer)) {
+      mvc.perform(post("/admin/menu/1/stock").with(user(actor.email()).roles(actor.role())).with(csrf())
+          .param("quantity", "0").param("threshold", "10").param("available", "false"))
+          .andExpect(status().isForbidden());
+      mvc.perform(post("/staff/menu/1/stock").with(user(actor.email()).roles(actor.role())).with(csrf())
+          .param("quantity", "0").param("threshold", "10").param("available", "false"))
+          .andExpect(status().is4xxClientError());
+      assertThatThrownBy(() -> service.updateStock(actor, 1, 0, 10, false))
+          .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+      assertThat(repo.stockItems().getFirst()).isEqualTo(before);
+    }
+  }
+
+  @Test
+  void adminCanUpdateStockThresholdAndAvailabilityAndZeroStockBlocksNewOrders() throws Exception {
+    mvc.perform(post("/admin/menu/1/stock").with(user(admin.email()).roles("ADMIN")).with(csrf())
+        .param("quantity", "0").param("threshold", "2").param("available", "true"))
+        .andExpect(redirectedUrl("/menu"));
+    assertThat(repo.stockItems().getFirst().empty()).isTrue();
+    assertThat(repo.stockItems().getFirst().threshold()).isEqualTo(2);
+    assertThat(repo.dishes().getFirst().available()).isFalse();
+    assertThatThrownBy(() -> takeaway.quote(Map.of(1L, 1))).hasMessageContaining("tạm hết");
+    assertThatThrownBy(() -> create(baseline.plusDays(1).withHour(18))).hasMessageContaining("tạm hết");
+    assertThatThrownBy(() -> service.updateStock(admin, 1, -1, 5, true)).hasMessageContaining("Số phần tồn");
+    assertThatThrownBy(() -> service.updateStock(admin, 1, 8, -1, true)).hasMessageContaining("Ngưỡng cảnh báo");
+    mvc.perform(post("/admin/menu/1/stock").with(user(admin.email()).roles("ADMIN")).with(csrf())
+        .param("quantity", "8").param("threshold", "10"))
+        .andExpect(redirectedUrl("/menu"));
+    assertThat(repo.stockItems().getFirst().quantity()).isEqualTo(8);
+    assertThat(repo.stockItems().getFirst().threshold()).isEqualTo(10);
+    assertThat(repo.stockItems().getFirst().low()).isTrue();
+    assertThat(repo.dishes().getFirst().available()).isFalse();
+    service.updateStock(admin, 1, 8, 5, true);
+    assertThat(repo.dishes().getFirst().available()).isTrue();
+    create(baseline.plusDays(1).withHour(18));
+    assertThat(repo.stockItems().getFirst().quantity()).isEqualTo(8); // Manual inventory, as described in the UI.
   }
 
   @Test
@@ -636,7 +963,7 @@ class BookingIntegrationTest {
     assertThat(booking.foodDeposit()).isEqualTo(beef.price() * 2 / 5);
     assertThat(booking.tableDeposit()).isEqualTo(repo.settings().depositPerTable());
     assertThat(booking.deposit()).isEqualTo(repo.settings().depositPerTable() + beef.price() * 2 / 5);
-    mvc.perform(get("/book").with(user(customer.email())))
+    mvc.perform(get("/book").with(user(customer.email()).roles("CUSTOMER")))
         .andExpect(status().isOk())
         .andExpect(
             content().string(org.hamcrest.Matchers.containsString("/images/menu/bo-luc-lac.jpg")))
@@ -653,7 +980,7 @@ class BookingIntegrationTest {
     assertThat(beforePayment.tableDeposit()).isEqualTo(100000);
     assertThat(beforePayment.foodDeposit()).isEqualTo(price * 3 / 5);
     assertThat(beforePayment.deposit()).isEqualTo(100000 + price * 3 / 5);
-    mvc.perform(get("/bookings/" + id).with(user(customer.email())))
+    mvc.perform(get("/bookings/" + id).with(user(customer.email()).roles("CUSTOMER")))
         .andExpect(status().isOk())
         .andExpect(content().string(org.hamcrest.Matchers.containsString("Tiền món trả trước")))
         .andExpect(content().string(org.hamcrest.Matchers.containsString("Chưa thanh toán")));

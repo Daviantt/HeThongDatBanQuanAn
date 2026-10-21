@@ -40,12 +40,17 @@ public class SecurityConfig {
                         "/images/**",
                         "/error",
                         "/payment/demo/**",
+                        "/takeaway/payment/**",
                         "/payment/vnpay/**")
                     .permitAll()
                     .requestMatchers("/admin/**")
                     .hasRole("ADMIN")
                     .requestMatchers("/staff/**")
                     .hasAnyRole("STAFF", "ADMIN")
+                    .requestMatchers("/book", "/bookings", "/takeaway", "/api/takeaway-orders", "/api/takeaway-orders/quote")
+                    .hasRole("CUSTOMER")
+                    .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/bookings", "/bookings/**", "/takeaway/orders/**")
+                    .hasRole("CUSTOMER")
                     .anyRequest()
                     .authenticated())
         .formLogin(
@@ -53,7 +58,14 @@ public class SecurityConfig {
                 login
                     .loginPage("/login")
                     .usernameParameter("email")
-                    .defaultSuccessUrl("/book", false)
+                    .successHandler((request, response, authentication) -> {
+                      boolean employee = authentication.getAuthorities().stream().anyMatch(a ->
+                          a.getAuthority().equals("ROLE_STAFF") || a.getAuthority().equals("ROLE_ADMIN"));
+                      var handler = new org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler();
+                      handler.setDefaultTargetUrl(employee ? "/staff" : "/book");
+                      handler.setAlwaysUseDefaultTargetUrl(employee);
+                      handler.onAuthenticationSuccess(request, response, authentication);
+                    })
                     .permitAll())
         .logout(logout -> logout.logoutSuccessUrl("/"))
         .exceptionHandling(

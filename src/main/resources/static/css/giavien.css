@@ -1452,6 +1452,7 @@ details summary > span:last-child {
   color: #c4d1bc;
 }
 .table-scroll {
+  height: 500px;
   overflow-x: auto;
 }
 .data-table {
@@ -2018,12 +2019,70 @@ details summary > span:last-child {
 .demo-checkout .button { margin-top: 12px; }
 .demo-checkout [hidden] { display: none !important; }
 
+/* Takeaway: menu choice, compact basket, and the 40/60 checkout split. */
+.menu-dish-button { display: block; width: 100%; padding: 0; text-align: left; border: 0; background: transparent; color: inherit; }
+.menu-dish-button:not(:disabled) .dish-card { transition: transform .18s, box-shadow .18s; }
+.menu-dish-button:not(:disabled):hover .dish-card { transform: translateY(-4px); box-shadow: 0 12px 26px #263e3214; }
+.menu-dish-button:disabled { cursor: default; }
+.takeaway-cart {
+  position: fixed; right: 26px; bottom: 26px; z-index: 5;
+  width: min(330px, calc(100vw - 30px)); max-height: calc(100dvh - 30px);
+  display: flex; flex-direction: column; gap: 12px; padding: 18px;
+  background: var(--green); color: white; border: 1px solid #819a80;
+  border-radius: 16px; box-shadow: 0 14px 40px #263e3245;
+}
+.takeaway-cart[hidden], .order-choice [hidden] { display: none !important; }
+.takeaway-cart-heading, .takeaway-cart-total { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.takeaway-cart .cart-label { font-size: 11px; font-weight: 700; letter-spacing: 1.4px; color: #e4ebdc; }
+#takeaway-cart-count { padding: 3px 10px; border-radius: 20px; background: #ffffff20; font-size: 12px; white-space: nowrap; }
+.takeaway-cart-items { list-style: none; margin: 0; padding: 0; max-height: min(140px, 22dvh); overflow-y: auto; overscroll-behavior: contain; }
+.takeaway-cart-items li { display: flex; justify-content: space-between; gap: 14px; padding: 7px 0; font-size: 12px; line-height: 1.5; }
+.takeaway-cart-items li span { overflow-wrap: anywhere; }
+.takeaway-cart-items strong { flex-shrink: 0; font-size: 12px; font-weight: 500; }
+.takeaway-cart-total { padding-top: 12px; border-top: 1px solid #ffffff30; font-size: 12px; }
+.takeaway-cart-total strong { font-size: 22px; }
+.takeaway-cart-message { margin: 0; color: #e4ebdc; font-size: 11px; line-height: 1.5; }
+.takeaway-cart-message:empty { display: none; }
+.takeaway-cart .button { flex-shrink: 0; justify-content: space-between; width: 100%; min-height: 48px; margin-top: auto; padding: 12px 18px; background: #f5da92; border-color: #f5da92; color: #203c2d; font-size: 15px; font-weight: 700; }
+.takeaway-cart .button:hover { background: #ffe8af; border-color: #ffe8af; transform: translateY(-2px); }
+.takeaway-cart .button:focus-visible { outline: 3px solid white; outline-offset: 3px; }
+.cart-updated { animation: cart-arrive .45s ease-out; }
+.cart-updated .button { animation: checkout-glow 1s ease-out 2; }
+.has-takeaway-cart main.page { padding-bottom: 380px; }
+@keyframes cart-arrive { from { transform: translateY(18px) scale(.97); } to { transform: translateY(0) scale(1); } }
+@keyframes checkout-glow { 0%, 100% { box-shadow: 0 0 0 0 #f5da9200; } 50% { box-shadow: 0 0 0 7px #f5da9238; } }
+.order-choice { width: min(460px, calc(100vw - 34px)); border: 0; border-radius: 16px; padding: 30px; color: var(--ink); box-shadow: 0 16px 60px #0004; }.order-choice::backdrop { background: #263e3275; }.order-choice h2 { font-size: 29px; margin-bottom: 5px; }.modal-close { position: absolute; right: 12px; top: 10px; border: 0; background: none; font-size: 30px; color: var(--muted); }.choice-button { display: block; width: 100%; margin-top: 14px; padding: 17px; border: 1px solid var(--line); border-radius: 10px; background: #fff; text-align: left; color: var(--ink); }.choice-button:hover { border-color: var(--green); background: #f4f7ed; }.choice-button b,.choice-button span { display: block; }.choice-button span { margin-top: 4px; font-size: 12px; color: var(--muted); }
+.order-choice { max-height: calc(100dvh - 32px); overflow-y: auto; }
+.order-choice > .eyebrow { padding-right: 16px; }
+#takeaway-quantity-form { margin-top: 22px; }
+.takeaway-quantity-control { display: flex; align-items: center; width: fit-content; gap: 8px; margin: 12px 0; }
+.takeaway-quantity-control button { width: 44px; height: 44px; border: 1px solid var(--line); border-radius: 10px; background: #f4f7ed; color: var(--green); font-size: 24px; }
+.takeaway-quantity-control input { width: 82px; min-height: 44px; margin: 0; padding: 8px; text-align: center; font-size: 18px; }
+.takeaway-quantity-control button:disabled, #confirm-takeaway:disabled { opacity: .45; cursor: not-allowed; }
+.quantity-subtotal { display: flex; justify-content: space-between; align-items: center; margin: 22px 0; padding-top: 16px; border-top: 1px solid var(--line); }
+.quantity-subtotal strong { color: var(--green); font-size: 24px; }
+.quantity-error { color: #a03024; font-size: 13px; }
+.quantity-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.quantity-actions .button { flex: 1 0 auto; justify-content: center; }
+.history-section { margin-bottom: 42px; scroll-margin-top: 24px; }
+.history-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; }
+.history-heading h2 { display: flex; align-items: center; gap: 12px; margin: 0; font-size: 28px; }
+.history-heading > a { font-size: 13px; }
+.takeaway-history-card { display: flex; flex-direction: column; }
+.history-dishes { list-style: none; padding: 0; margin: 0 0 18px; color: var(--muted); font-size: 13px; }
+.history-dishes li { padding: 3px 0; overflow-wrap: anywhere; }
+.takeaway-history-card > .row:not(:first-child) { flex-wrap: wrap; gap: 8px; margin-top: auto; }
+.badge.AWAITING_PAYMENT { background: #f7eac7; color: #825a17; }
+@media (prefers-reduced-motion: reduce) { .cart-updated, .cart-updated .button { animation: none; } }
+.takeaway-page { min-height: calc(100vh - 100px); display: grid; grid-template-columns: 40% 60%; }.takeaway-items { padding: 55px max(28px, calc((100vw - 1200px) / 2 + 28px)) 70px max(28px, calc((100vw - 1200px) / 2 + 28px)); background: #fff; }.takeaway-items h1 { font-size: clamp(33px, 4vw, 50px); }.back-link { display: inline-block; margin-bottom: 42px; color: var(--muted); font-size: 13px; }.back-link:hover { color: var(--accent); }.takeaway-payment-panel { padding: 76px max(32px, calc((100vw - 1200px) / 2 + 45px)) 70px 58px; background: #eef0e5; }.takeaway-payment-panel h2 { font-size: 34px; }.takeaway-payment-panel label { margin-top: 16px; }.checkout-lines { margin-top: 30px; }.checkout-line { display: grid; grid-template-columns: 74px minmax(0,1fr) auto; gap: 14px; align-items: center; padding: 15px 0; border-bottom: 1px solid var(--line); }.checkout-line img { width: 74px; height: 62px; object-fit: cover; border-radius: 8px; }.checkout-line h3 { margin: 0; font-size: 14px; }.checkout-line span { font-size: 12px; color: var(--muted); }.checkout-line > strong { font-size: 12px; white-space: nowrap; }.cart-quantity { display: flex; gap: 9px; align-items: center; margin-top: 7px; }.cart-quantity button { width: 26px; height: 26px; border: 1px solid var(--line); border-radius: 50%; background: #fff; color: var(--green); font-size: 17px; }.cart-quantity b { min-width: 14px; text-align: center; font-size: 12px; }.takeaway-total { display: flex; justify-content: space-between; align-items: baseline; margin: 25px 0 22px; padding-top: 18px; border-top: 1px solid #cfd5c4; }.takeaway-total strong { font-size: 25px; }.payment-methods { border: 0; padding: 0; margin: 0; }.payment-methods legend { font-size: 13px; font-weight: 600; margin-bottom: 11px; }.payment-choice { display: flex; gap: 11px; align-items: flex-start; padding: 13px; margin: 8px 0 0 !important; border: 1px solid #d3d9cb; background: #f9faf5; border-radius: 9px; cursor: pointer; }.payment-choice input { width: 18px; }.payment-choice b,.payment-choice small { display: block; }.payment-choice small { margin-top: 2px; font-size: 11px; color: var(--muted); }.takeaway-confirmation { max-width: 680px; margin: auto; }.takeaway-confirmation h1 { font-size: 38px; }.takeaway-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 20px 0; border-top: 1px solid var(--line); }.takeaway-detail dt { font-size: 11px; color: var(--muted); }.takeaway-detail dd { margin: 3px 0 0; font-size: 14px; font-weight: 600; }.order-lines { list-style: none; padding: 10px 0; margin: 0 0 22px; border-top: 1px solid var(--line); }.order-lines li { display: flex; justify-content: space-between; gap: 20px; padding: 7px 0; font-size: 13px; }
+@media (max-width: 800px) { .takeaway-page { grid-template-columns: 1fr; }.takeaway-items,.takeaway-payment-panel { padding: 34px 22px 42px; }.back-link { margin-bottom: 28px; }.takeaway-cart { right: 15px; bottom: 15px; width: min(300px, calc(100vw - 30px)); padding: 14px; gap: 10px; }.takeaway-cart-items { max-height: min(100px, 20dvh); }.order-choice { padding: 24px; }.quantity-actions { flex-direction: column-reverse; }.takeaway-items h1 { font-size: 36px; }.takeaway-payment-panel h2 { font-size: 29px; } }
+
 /* Menu photographs and preorder cards */
 .food-photo img { width: 100%; height: 100%; object-fit: cover; transform: none; filter: none; }
 .menu-tools { display: flex; align-items: end; justify-content: space-between; gap: 16px; }
 .menu-search { flex: 1; max-width: 380px; font-size: 12px; }
 .menu-search input { margin-top: 7px; }
-.menu-tools > .helper { font-size: 11px; text-align: right; max-width: 145px; }
+.menu-tools > .helper { font-size: 30px; text-align: right; max-width: 150px; }
 .menu-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 8px; }
 .menu-filters .chip { min-height: 38px; }
 #selected-dish-count { display: inline-block; min-width: 18px; text-align: center; font-weight: 700; }
@@ -2066,3 +2125,13 @@ details summary > span:last-child {
   .preorder-photo { aspect-ratio: 16 / 10; }
   .preorder-item .quantity button { min-width: 44px; min-height: 44px; }
 }
+
+.pagination, .staff-search { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 20px 0; }
+.staff-search input { flex: 1; min-width: 180px; }
+.takeaway-actions { display: grid; gap: 14px; margin: 24px 0; }
+.takeaway-actions form { display: grid; gap: 10px; }
+.stock-form { display: grid; grid-template-columns: repeat(2, minmax(100px, 1fr)); gap: 10px; min-width: 270px; }
+.stock-form label { font-size: .85rem; }
+.stock-form .checkbox-label { grid-column: 1 / -1; }
+.stock-form .button { justify-self: start; }
+.stock-table td { vertical-align: top; }

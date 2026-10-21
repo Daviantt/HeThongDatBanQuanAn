@@ -117,6 +117,7 @@ class SharedModel {
     model.addAttribute("gatewayReady", gateway.configured());
     model.addAttribute("demoPaymentEnabled", demoPayments.enabled());
     model.addAttribute("settings", repo.settings());
+    model.addAttribute("promotion", repo.promotion());
     model.addAttribute("now", service.now());
   }
 }

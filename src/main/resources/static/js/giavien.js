@@ -49,4 +49,6 @@ document.querySelectorAll("[data-countdown]").forEach((container) => {
   };
   update();
   interval = setInterval(update, 1000);
+
 });
+

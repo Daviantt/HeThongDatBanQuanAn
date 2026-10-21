@@ -39,12 +39,18 @@ Khách cũng có thể đăng ký tài khoản mới. Quản lý có thể tạo
 - Thực đơn mẫu có 12 món với ảnh AI riêng: thêm bò lúc lắc, tôm nướng muối ớt, nấm kho tiêu và bánh flan caramel. Chọn món bằng thẻ ảnh, lọc danh mục, tìm kiếm không dấu, xem món đã chọn và tạm tính ngay trên trang đặt bàn.
 - Giữ bàn có thời hạn, chống đặt trùng bằng transaction và khóa trong database.
 - Thanh toán QR demo: quét mã mở trang mô phỏng, đợi 60 giây rồi tự bấm xác nhận thành công; đồng bộ kết quả giữa điện thoại và máy tính. Không cần tài khoản thanh toán, không chuyển tiền thật.
+- Đặt món mang về: khách chọn món ngay từ thực đơn → **Đặt đến lấy** → chọn số lượng (tối đa 20 phần/món) → xác nhận thêm vào giỏ. Giỏ ở góc phải có danh sách món, tổng tiền và nút **Chốt đơn** ở dưới cùng, nhấn sáng khi vừa thêm món (tôn trọng cài đặt giảm chuyển động). Khách nhập người nhận/giờ lấy và thanh toán tiền mặt hoặc QR demo. Đơn mang về lưu riêng, không chiếm bàn.
+- **Lịch hẹn của tôi** hiển thị hai mục **Đặt bàn** và **Đặt đến lấy**, chỉ lấy dữ liệu của tài khoản đang đăng nhập. Đơn đến lấy xếp mới nhất trước, có món/số lượng, giờ nhận, tổng tiền, trạng thái và đường dẫn xem chi tiết; đơn chuyển khoản chưa trả có thể mở lại để tiếp tục thanh toán. Các đơn cũ đã lưu cũng xuất hiện, không cần đặt lại.
 - Có sẵn tích hợp VNPAY Sandbox khi cần: tạo giao dịch, ký URL, nhận IPN và kiểm tra kết quả. Khi cấu hình VNPAY hợp lệ, QR demo tự tắt.
 - Lịch sử đặt bàn, sửa món/ghi chú, hủy và theo dõi hoàn cọc.
 - Khách gửi yêu cầu đổi bàn/giờ; nhân viên chấp nhận với lịch/bàn mới hoặc từ chối kèm lý do.
 - Nhân viên nhận khách, hoàn tất phục vụ, ghi nhận không đến, quán hủy và ghi nhận đã hoàn cọc.
 - Quản lý thực đơn, tạm ngừng bàn, tổ hợp ghép, cấu hình cọc/thời gian và tạo tài khoản nhân viên.
 - Nhật ký thao tác của mỗi lượt đặt.
+- Tài khoản nhân viên/quản lý chỉ dùng thực đơn vận hành, xử lý đơn và quản lý quán; không có đặt bàn/lịch hẹn cá nhân. Sau đăng nhập chuyển tới `/staff`.
+- Trang vận hành có cột **Tổng tiền**: tiền món đặt trước sau khuyến mãi, hiển thị riêng tiền cọc (cọc là khoản trả trước, không cộng thêm vào giá món).
+- Quản lý cấu hình **khuyến mãi theo nhóm** trên `/admin`: bật/tắt, số khách tối thiểu và phần trăm giảm tiền món. Mặc định tắt; mỗi lượt đặt lưu chính sách tại lúc tạo. Cọc món tính bằng 20% tiền món sau giảm, cọc giữ bàn không đổi.
+- Thực đơn nhân viên chỉ cho xem số phần tồn, ngưỡng cảnh báo, món sắp hết/hết và món chưa nhập tồn. Chỉ quản lý được cập nhật số tồn, ngưỡng cảnh báo và tình trạng bán trong trang **Thực đơn**. Tồn cập nhật thủ công, hiện chưa tự trừ theo đơn. Tồn bằng 0 chặn nhận món mới.
 - Dữ liệu H2 mới lưu trong `data/giavien.mv.db`. Khi chạy bằng `GiaVienApplication`, `run.ps1` hoặc JAR, ứng dụng tự nhận lại `data/moc.mv.db` nếu đó là database cũ duy nhất, để giữ lịch đặt và tài khoản. Có thể chỉ định database bằng biến môi trường `DATABASE_URL`.
 
 Tên hiển thị là **GiaViên**; package Java là `vn.edu.giavien`, file khởi động là `GiaVienApplication.java`, giao diện dùng `giavien.css` và `giavien.js`. `run.ps1` và `setup.ps1` giữ tên theo chức năng. Tài khoản và mật khẩu demo cũ vẫn giữ nguyên để người đang dùng không bị mất quyền đăng nhập.
@@ -55,7 +61,7 @@ Tên hiển thị là **GiaViên**; package Java là `vn.edu.giavien`, file kh�
 | ---------------------------- | -------------------------------------------------------------------- |
 | Số bàn                       | `ceil(số khách / 4)`, tối đa 3 bàn                                   |
 | Ghép bàn                     | Tổ hợp khai báo sẵn; mọi bàn phải khả dụng trong toàn bộ khoảng đặt  |
-| Tiền cọc                     | Số bàn × cọc mỗi bàn + 20% tiền món đặt trước; lưu riêng hai khoản và trừ vào hóa đơn tại quán |
+| Tiền cọc                     | Số bàn × cọc mỗi bàn + 20% tiền món đặt trước sau khuyến mãi; lưu riêng hai khoản và trừ vào hóa đơn tại quán |
 | Hủy trước ít nhất 3 tiếng    | Hoàn toàn bộ cọc; đúng mốc 3 tiếng vẫn được hoàn                     |
 | Hủy dưới 3 tiếng / không đến | Không hoàn cọc; không có ngoại lệ 15 phút sau thanh toán             |
 | Quán hủy                     | Hoàn toàn bộ cọc                                                     |
@@ -78,6 +84,8 @@ Tiền cọc bàn được chốt khi tạo lượt đặt. Khi sửa món trư�
 Cọc món ăn lấy 20% tổng giá trị các món đặt trước, làm tròn lên đến 1 đồng sau khi cộng toàn bộ món. Ví dụ cọc bàn 100.000đ và món ăn 200.000đ thì tổng cọc là 140.000đ. Khoản cọc đã thanh toán được trừ vào hóa đơn; phần còn lại thanh toán tại quán.
 
 Dữ liệu tài khoản, bàn, món, lịch đặt và thanh toán được backend Java ghi vào database **H2 dạng file**, không dùng `localStorage` của trình duyệt. Phiên đăng nhập nằm trên server; trình duyệt giữ cookie nhận diện phiên. Xem cấu hình kết nối tại `src/main/resources/application.properties` và cấu trúc bảng tại `src/main/resources/schema.sql`.
+
+Giỏ món mang về chỉ là trạng thái tạm thời trên trình duyệt để khách đi giữa thực đơn và trang thanh toán; đơn đã xác nhận cùng các dòng món vẫn luôn được ghi vào H2.
 
 ## Giới hạn hiện tại
 
@@ -128,6 +136,10 @@ Stack: Java 21, Spring Boot 4.0.5, Spring MVC, Thymeleaf, Spring Security, Sprin
 
 ## Kiểm thử và đóng gói
 
+Giải thích từng bước sửa lỗi XSS, báo giá, vận hành đơn mang về, hết hạn QR, kiểm tra phương thức thanh toán và phân trang: [Học qua 6 lỗi đã sửa](docs/sua-6-loi-review.md).
+
+Cách dùng và giải thích bổ sung khuyến mãi, phân quyền nhân viên, tổng tiền và tồn món: [Tính năng vận hành](docs/tinh-nang-van-hanh.md).
+
 ```powershell
 .\run.ps1 -Test
 .\run.ps1 -Package
@@ -141,7 +153,7 @@ Kiểm thử JavaScript cho chuyển tầng, QR demo và kết quả VNPAY (cầ
 
 ```powershell
 npm.cmd install --prefix .tools/ui-test --no-audit --no-fund jsdom@29.1.1
-node --test src/test/js/booking.test.cjs src/test/js/payment.test.cjs src/test/js/demo-payment.test.cjs src/test/js/menu-picker.test.cjs
+node --test src/test/js/*.test.cjs
 ```
 
 Demo gợi ý: đăng nhập khách → ngày mai, 18:00–20:00, 9 người → B01+B02+B03 → chọn món → cọc 300.000đ → thanh toán demo → gửi yêu cầu đổi giờ → đăng nhập nhân viên xử lý → khách hủy → nhân viên ghi nhận hoàn cọc.
