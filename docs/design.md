@@ -1,8 +1,14 @@
 # Phân tích thiết kế — phiên bản đầu
 
-GiaViên có hai tầng: B01–B10 ở tầng 1 quanh vườn, B11–B20 ở tầng 2 quanh khoảng thông tầng. `DiningTable.floor` xác định tầng; `FloorPlan.canJoin` chỉ cho phép ghép 2–3 bàn liên tiếp trên cùng hàng/cột và cùng tầng. ID vật lý của bàn cũ được giữ nguyên để bảo toàn liên kết đặt bàn; tên hiển thị lấy từ `code`.
+GiaViên có hai tầng: B01–B09 ở tầng 1 quanh vườn, B11–B20 ở tầng 2 quanh khoảng thông tầng. B10 cũ đổi tên thành B09, giữ nguyên vị trí và ID. Bàn cũ ở lối vào ngừng phục vụ, được lưu là OLD-B09 để giữ lịch sử; B08 và B09 không ghép xuyên lối đi. `DiningTable.floor` xác định tầng; `FloorPlan.canJoin` chỉ cho phép ghép 2–3 bàn liên tiếp trên cùng hàng/cột và cùng tầng. ID vật lý của bàn cũ được giữ nguyên để bảo toàn liên kết đặt bàn; tên hiển thị lấy từ `code`.
+
+Tổng cọc = số bàn × cọc mỗi bàn + 20% giá trị món đặt trước. Phần cọc món tính trên tổng giá trị các món rồi làm tròn lên đến 1 đồng. `reservation.deposit` lưu tổng cọc, `food_deposit` lưu phần tiền món trả trước; phần cọc bàn là hiệu của hai số này. Mặc định `food_deposit=0` bảo toàn số tiền của lượt đặt cũ. Sửa món chưa thanh toán cập nhật tổng cọc và thu hồi QR cũ khi số tiền đổi; chặn thay đổi số tiền sau khi mở giao dịch VNPAY. Sửa món sau thanh toán giữ nguyên khoản đã trả để đối trừ hóa đơn tại quán. Chính sách hoàn cọc 3 tiếng áp dụng cho toàn bộ tổng cọc.
+
+Backend dùng Spring JDBC để lưu dữ liệu nghiệp vụ vào H2 dạng file. Trình duyệt không lưu nghiệp vụ trong `localStorage`; cookie phiên đăng nhập tham chiếu tới phiên trên server. URL QR dùng địa chỉ LAN cho điện thoại; các liên kết thao tác trên máy tính giữ cùng host để không chuyển sang phiên đăng nhập khác.
 
 ## Tác nhân và use case
+
+Đặt cọc dùng VNPAY Sandbox. `VnpayPaymentService` lưu từng lần thanh toán trong `payment_attempt`, dùng lại giao dịch đang chờ và cấp mã mới khi lần trước thất bại. `VnpayGateway` ký URL/kiểm tra chữ ký; IPN đã xác minh mới gọi nghiệp vụ xác nhận cọc. Return URL chỉ hiển thị và thăm dò trạng thái, không cập nhật tiền. Khoản thu thêm được theo dõi riêng để nhân viên hoàn và ghi nhận mã đối soát.
 
 | Tác nhân             | Use case                                                                                                           |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------ |
@@ -121,6 +127,14 @@ sequenceDiagram
 ```
 
 ## Các bất biến cần bảo vệ
+
+### Thanh toán QR demo phục vụ trình diễn
+
+`DemoPaymentService` quản lý phiên `demo_payment` riêng, gồm token ngẫu nhiên, mã lượt đặt và thời điểm bắt đầu. Chủ lượt đặt tạo phiên qua POST có CSRF. QR được tạo nội bộ bằng [ZXing](https://github.com/zxing/zxing) và chứa URL trang mô phỏng. Người có mã được mở trang và xác nhận demo mà không cần đăng nhập trên điện thoại; trang chỉ công khai mã lượt đặt, số tiền và trạng thái, không công khai thông tin cá nhân.
+
+GET trang/QR/trạng thái không xác nhận cọc. Backend chỉ cho POST xác nhận sau đủ 60 giây và khi lượt giữ bàn còn hiệu lực. Transaction và khóa lịch bảo vệ trường hợp hai thiết bị xác nhận cùng lúc. Kết quả lưu `payment_provider=DEMO`, có nhật ký và nhãn mô phỏng trên giao diện; không tạo giao dịch VNPAY. Trình duyệt kiểm tra trạng thái mỗi giây và dừng khi hoàn tất/hết hiệu lực. Chế độ này mặc định chỉ bật trong profile demo, tự tắt khi có cấu hình VNPAY hợp lệ.
+
+### Quy tắc chung
 
 1. Mọi thao tác thay đổi lịch đều đi qua transaction và cùng một khóa database. Kết quả tra bàn trên trình duyệt không phải cam kết giữ bàn.
 2. Khoảng dùng bàn tính dạng `[start, end)`; cộng thời gian dọn bàn khi kiểm tra xung đột. Hoàn tất sớm ghi nhận thời điểm trả bàn và vẫn chờ dọn bàn.

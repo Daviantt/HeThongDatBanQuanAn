@@ -28,6 +28,7 @@ import vn.edu.giavien.data.RestaurantRepository;
 import vn.edu.giavien.domain.BookingPolicy;
 import vn.edu.giavien.domain.Models.*;
 import vn.edu.giavien.service.BookingService;
+import vn.edu.giavien.service.TakeawayService;
 
 @SpringBootTest(
     properties = {
@@ -40,6 +41,9 @@ import vn.edu.giavien.service.BookingService;
 @Import(BookingIntegrationTest.TimeConfig.class)
 class BookingIntegrationTest {
   @Autowired BookingService service;
+  @Autowired TakeawayService takeaway;
+  @Autowired vn.edu.giavien.service.VnpayPaymentService payments;
+  @Autowired vn.edu.giavien.service.VnpayGateway gateway;
   @Autowired RestaurantRepository repo;
   @Autowired MutableClock clock;
   @Autowired MockMvc mvc;
@@ -90,7 +94,12 @@ class BookingIntegrationTest {
               repo.lockSchedule();
               for (String table :
                   List.of(
+                      "takeaway_demo_payment",
+                      "takeaway_order_line",
+                      "takeaway_order",
                       "audit_event",
+                      "demo_payment",
+                      "payment_attempt",
                       "change_request",
                       "order_line",
                       "reservation_table",
@@ -118,15 +127,65 @@ class BookingIntegrationTest {
 
   String paid(LocalDateTime start) {
     String id = create(start);
-    service.demoPay(id, customer);
+    simulateVerifiedPayment(id);
     return id;
   }
 
+  void simulateVerifiedPayment(String id) {
+    assertThat(service.gatewayPayment(id, repo.booking(id).orElseThrow().deposit(), "123456", true))
+        .isEqualTo("00");
+  }
+
+  Map<String, String> urlParameters(String url) {
+    var result = new TreeMap<String, String>();
+    for (String part : java.net.URI.create(url).getRawQuery().split("&")) {
+      String[] pair = part.split("=", 2);
+      result.put(
+          java.net.URLDecoder.decode(pair[0], StandardCharsets.UTF_8),
+          java.net.URLDecoder.decode(pair[1], StandardCharsets.UTF_8));
+    }
+    return result;
+  }
+
+  Map<String, String> callbackParameters(String reference, String code, String transaction)
+      throws Exception {
+    var params = new TreeMap<String, String>();
+    params.put("vnp_TmnCode", "TESTCODE");
+    params.put("vnp_TxnRef", reference);
+    var amounts = repo.jdbc().queryForList(
+        "SELECT amount FROM payment_attempt WHERE id=?", Long.class, reference);
+    params.put("vnp_Amount", Long.toString((amounts.isEmpty() ? 100000 : amounts.getFirst()) * 100));
+    params.put("vnp_ResponseCode", code);
+    params.put("vnp_TransactionStatus", code.equals("00") ? "00" : "02");
+    params.put("vnp_TransactionNo", transaction);
+    params.put("vnp_SecureHash", signature(params));
+    return params;
+  }
+
+  String startPayment(String id) {
+    return urlParameters(payments.start(id, customer, "127.0.0.1")).get("vnp_TxnRef");
+  }
+
   @Test
-  void gardenLayoutHasTenNumberedTablesAndVerticalBookingsBlockEveryTable() {
+  void takeawayUsesTheCurrentMenuPriceAndDoesNotCreateAReservation() {
+    String id =
+        takeaway.create(
+            customer,
+            new TakeawayService.Input(
+                "Khách trải nghiệm", "0901234567", baseline.plusMinutes(30), "CASH", Map.of(1L, 2)));
+    TakeawayOrder order = repo.takeaway(id).orElseThrow();
+    assertThat(order.status()).isEqualTo(TakeawayStatus.WAITING_PICKUP);
+    assertThat(order.total())
+        .isEqualTo(repo.dishes().stream().filter(d -> d.id() == 1L).findFirst().orElseThrow().price() * 2);
+    assertThat(order.lines()).singleElement().satisfies(line -> assertThat(line.quantity()).isEqualTo(2));
+    assertThat(repo.bookings(customer.id())).isEmpty();
+  }
+
+  @Test
+  void gardenLayoutKeepsEntranceClearAndVerticalBookingsBlockEveryTable() {
     assertThat(repo.tables().stream().filter(t -> t.floor() == 1).toList())
         .extracting(DiningTable::code)
-        .containsExactly("B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B09", "B10");
+        .containsExactly("B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B09");
     assertThat(repo.tables()).noneMatch(t -> t.mapX() == 1 && (t.mapY() == 1 || t.mapY() == 2));
     var start = baseline.plusHours(4);
     var pair =
@@ -142,7 +201,7 @@ class BookingIntegrationTest {
     var triple = service.resolveTableNumbers("3,5,7");
     String id = service.create(customer, input(start, 9, triple));
     assertThat(repo.booking(id).orElseThrow().tablesLabel()).isEqualTo("B03 + B05 + B07");
-    assertThat(repo.booking(id).orElseThrow().deposit()).isEqualTo(300000);
+    assertThat(repo.booking(id).orElseThrow().tableDeposit()).isEqualTo(300000);
     assertThatThrownBy(() -> service.create(customer, input(start, 2, List.of(5L))))
         .hasMessageContaining("không còn phục vụ");
   }
@@ -168,6 +227,8 @@ class BookingIntegrationTest {
             status -> {
               repo.jdbc().update("DELETE FROM app_migration WHERE name='garden-layout-v1'");
               repo.jdbc().update("DELETE FROM app_migration WHERE name='upper-floor-v1'");
+              repo.jdbc().update("DELETE FROM app_migration WHERE name='entrance-clearance-v1'");
+              repo.jdbc().update("DELETE FROM app_migration WHERE name='ground-numbering-v2'");
               repo.jdbc().update("DELETE FROM table_combination");
               repo.jdbc().update("DELETE FROM dining_table WHERE floor=2");
               repo.jdbc().update("UPDATE dining_table SET code='TMP-' || id WHERE floor=1");
@@ -183,12 +244,12 @@ class BookingIntegrationTest {
               seed.run();
               assertThat(repo.booking(existing).orElseThrow().tableIds()).containsExactly(5L);
               assertThat(repo.booking(existing).orElseThrow().tablesLabel()).isEqualTo("OLD-B05");
-              assertThat(repo.tables()).hasSize(20);
-              assertThat(repo.combinations()).hasSize(32);
+              assertThat(repo.tables()).hasSize(19);
+              assertThat(repo.combinations()).hasSize(29);
               service.saveCombination(admin, "1,4", true);
               seed.run();
               assertThat(repo.combinations()).doesNotContain(List.of(1L, 4L));
-              assertThat(repo.tables()).extracting(DiningTable::code).contains("B05", "B10");
+              assertThat(repo.tables()).extracting(DiningTable::code).contains("B05", "B09");
               status.setRollbackOnly();
             });
   }
@@ -203,7 +264,7 @@ class BookingIntegrationTest {
     var ids = service.resolveTableNumbers("11,14");
     String booking = service.create(customer, input(start, 8, ids));
     assertThat(repo.booking(booking).orElseThrow().tablesLabel()).isEqualTo("B11 + B14");
-    assertThat(repo.booking(booking).orElseThrow().deposit()).isEqualTo(200000);
+    assertThat(repo.booking(booking).orElseThrow().tableDeposit()).isEqualTo(200000);
     var availability = service.availability(start, start.plusHours(2), 8);
     assertThat(availability.unavailable()).containsAll(ids).doesNotContain(1L, 4L);
     assertThat(availability.options()).anyMatch(o -> o.label().equals("B01 + B04"));
@@ -239,7 +300,7 @@ class BookingIntegrationTest {
               service.saveCombination(admin, "11,14", true);
               service.toggleTable(admin, service.resolveTableNumbers("20").getFirst());
               seed.run();
-              assertThat(repo.tables()).hasSize(20);
+              assertThat(repo.tables()).hasSize(19);
               assertThat(repo.booking(existing).orElseThrow().tableIds()).isEqualTo(oldTables);
               assertThat(repo.combinations()).doesNotContain(service.resolveTableNumbers("11,14"));
               assertThat(
@@ -249,6 +310,60 @@ class BookingIntegrationTest {
                           .orElseThrow()
                           .active())
                   .isFalse();
+              status.setRollbackOnly();
+            });
+  }
+
+  @Test
+  void entranceMigrationAndRenumberingPreserveHistoryAndKeepEntranceClear() {
+    new TransactionTemplate(transactions)
+        .executeWithoutResult(
+            status -> {
+              repo.jdbc().update("DELETE FROM app_migration WHERE name='ground-numbering-v2'");
+              repo.jdbc().update("UPDATE dining_table SET code='B10' WHERE code='B09' AND retired=FALSE AND floor=1");
+              repo.jdbc().update("UPDATE dining_table SET code='B09' WHERE code='OLD-B09' AND floor=1");
+              long retiredId =
+                  repo.jdbc()
+                      .queryForObject(
+                          "SELECT id FROM dining_table WHERE code='B09' AND floor=1", Long.class);
+              repo.jdbc()
+                  .update(
+                      "UPDATE dining_table SET active=TRUE,retired=FALSE WHERE id=?", retiredId);
+              repo.jdbc().update("DELETE FROM app_migration WHERE name='entrance-clearance-v1'");
+              service.saveCombination(admin, "8,9", false);
+              service.saveCombination(admin, "9,10", false);
+              service.saveCombination(admin, "8,9,10", false);
+              var start = baseline.plusHours(4);
+              String existing = service.create(customer, input(start, 2, List.of(retiredId)));
+              repo.jdbc().update("UPDATE reservation SET deposit=100000,food_deposit=0 WHERE id=?", existing);
+              String corner = service.create(customer, input(start, 2, service.resolveTableNumbers("10")));
+              var cornerIds = repo.booking(corner).orElseThrow().tableIds();
+              simulateVerifiedPayment(existing);
+              seed.run();
+              seed.run();
+              assertThat(repo.tables()).hasSize(19).noneMatch(t -> t.id() == retiredId);
+              assertThat(repo.tables()).anyMatch(t -> t.code().equals("B09") && t.mapX() == 2 && t.mapY() == 3);
+              assertThat(repo.tables()).noneMatch(t -> t.floor() == 1 && t.mapX() == 1 && t.mapY() == 3);
+              assertThat(repo.booking(corner).orElseThrow().tableIds()).isEqualTo(cornerIds);
+              assertThat(repo.booking(corner).orElseThrow().tablesLabel()).isEqualTo("B09");
+              assertThat(repo.tables())
+                  .anyMatch(t -> t.code().equals("B19") && t.floor() == 2 && t.active());
+              assertThat(repo.combinations()).noneMatch(ids -> ids.contains(retiredId));
+              assertThat(repo.combinations()).contains(service.resolveTableNumbers("18,19,20"));
+              var booking = repo.booking(existing).orElseThrow();
+              assertThat(booking.tablesLabel()).isEqualTo("OLD-B09");
+              assertThat(booking.paymentStatus()).isEqualTo(PaymentStatus.PAID);
+              assertThat(booking.deposit()).isEqualTo(100000);
+              assertThat(
+                      new vn.edu.giavien.web.ViewSupport(repo).hasRetiredTables(booking.tableIds()))
+                  .isTrue();
+              assertThat(service.availability(start, start.plusHours(2), 2).options())
+                  .noneMatch(o -> o.tableIds().contains(retiredId));
+              assertThatThrownBy(
+                      () -> service.create(customer, input(start, 2, List.of(retiredId))))
+                  .hasMessageContaining("không còn phục vụ");
+              assertThatThrownBy(() -> service.saveCombination(admin, "8,9", false))
+                  .hasMessageContaining("liền nhau");
               status.setRollbackOnly();
             });
   }
@@ -281,9 +396,9 @@ class BookingIntegrationTest {
   @Test
   void validThreeTableCombinationSupportsNineGuestsAndSnapshotsDeposit() {
     String id = service.create(customer, input(baseline.plusHours(5), 9, List.of(3L, 1L, 2L)));
-    assertThat(repo.booking(id).orElseThrow().deposit()).isEqualTo(300000);
+    assertThat(repo.booking(id).orElseThrow().tableDeposit()).isEqualTo(300000);
     service.updateSettings(admin, 200000, 15, 15, 15);
-    assertThat(repo.booking(id).orElseThrow().deposit()).isEqualTo(300000);
+    assertThat(repo.booking(id).orElseThrow().tableDeposit()).isEqualTo(300000);
     assertThatThrownBy(
             () -> service.create(customer, input(baseline.plusHours(5), 9, List.of(4L, 5L))))
         .hasMessageContaining("Số bàn");
@@ -373,11 +488,12 @@ class BookingIntegrationTest {
     clock.set(baseline.plusMinutes(16));
     service.expireHolds();
     String replacement = create(baseline.plusHours(3));
-    assertThat(service.gatewayPayment(id, 100000, "12345", true)).isEqualTo("00");
+    long amount = repo.booking(id).orElseThrow().deposit();
+    assertThat(service.gatewayPayment(id, amount, "12345", true)).isEqualTo("00");
     Booking late = repo.booking(id).orElseThrow();
     assertThat(late.status()).isEqualTo(BookingStatus.EXPIRED);
     assertThat(late.paymentStatus()).isEqualTo(PaymentStatus.REFUND_PENDING);
-    assertThat(service.gatewayPayment(id, 100000, "12345", true)).isEqualTo("02");
+    assertThat(service.gatewayPayment(id, amount, "12345", true)).isEqualTo("02");
     assertThat(repo.booking(replacement).orElseThrow().status()).isEqualTo(BookingStatus.PENDING);
   }
 
@@ -485,6 +601,134 @@ class BookingIntegrationTest {
   }
 
   @Test
+  void gardenMenuMigrationAddsFourDishesOnceAndPreservesExistingEdits() {
+    new TransactionTemplate(transactions)
+        .executeWithoutResult(
+            transaction -> {
+              repo.lockSchedule();
+              repo.jdbc().update("DELETE FROM app_migration WHERE name='garden-menu-v1'");
+              repo.jdbc()
+                  .update(
+                      "DELETE FROM menu_item WHERE illustration IN"
+                          + " ('beef','prawns','mushrooms','flan')");
+              repo.jdbc().update("UPDATE menu_item SET price=77000,available=FALSE WHERE id=1");
+              int before = repo.dishes().size();
+              seed.run();
+              seed.run();
+              assertThat(repo.dishes()).hasSize(before + 4);
+              assertThat(repo.dishes())
+                  .extracting(Dish::name)
+                  .contains("Bò lúc lắc", "Tôm nướng muối ớt", "Nấm kho tiêu", "Bánh flan caramel");
+              var original =
+                  repo.dishes().stream().filter(d -> d.id() == 1).findFirst().orElseThrow();
+              assertThat(original.price()).isEqualTo(77000);
+              assertThat(original.available()).isFalse();
+              transaction.setRollbackOnly();
+            });
+  }
+
+  @Test
+  void menuPhotosAndNewDishOrderingIncludeFoodInTotalDeposit() throws Exception {
+    var fmt = new vn.edu.giavien.web.ViewSupport(repo);
+    for (var dish : repo.dishes()) {
+      String path = fmt.dishImage(dish);
+      mvc.perform(get(path))
+          .andExpect(status().isOk())
+          .andExpect(content().contentType("image/jpeg"));
+    }
+    var beef =
+        repo.dishes().stream()
+            .filter(d -> d.illustration().equals("beef"))
+            .findFirst()
+            .orElseThrow();
+    String id =
+        service.create(
+            customer,
+            new BookingService.BookingInput(
+                baseline.plusDays(1).withHour(18),
+                baseline.plusDays(1).withHour(20),
+                2,
+                List.of(1L),
+                Map.of(beef.id(), 2),
+                ""));
+    var booking = repo.booking(id).orElseThrow();
+    assertThat(booking.foodTotal()).isEqualTo(beef.price() * 2);
+    assertThat(booking.foodDeposit()).isEqualTo(beef.price() * 2 / 5);
+    assertThat(booking.tableDeposit()).isEqualTo(repo.settings().depositPerTable());
+    assertThat(booking.deposit()).isEqualTo(repo.settings().depositPerTable() + beef.price() * 2 / 5);
+    mvc.perform(get("/book").with(user(customer.email())))
+        .andExpect(status().isOk())
+        .andExpect(
+            content().string(org.hamcrest.Matchers.containsString("/images/menu/bo-luc-lac.jpg")))
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"dish-search\"")));
+  }
+
+  @Test
+  void itemEditsUpdateUnpaidDepositButKeepPaidAmountAndTableRateSnapshot() throws Exception {
+    String id = create(baseline.plusDays(1).withHour(18));
+    long price = repo.booking(id).orElseThrow().lines().getFirst().unitPrice();
+    service.updateSettings(admin, 200000, 15, 15, 15);
+    service.editItems(id, customer, Map.of(1L, 3), "Ít cay");
+    Booking beforePayment = repo.booking(id).orElseThrow();
+    assertThat(beforePayment.tableDeposit()).isEqualTo(100000);
+    assertThat(beforePayment.foodDeposit()).isEqualTo(price * 3 / 5);
+    assertThat(beforePayment.deposit()).isEqualTo(100000 + price * 3 / 5);
+    mvc.perform(get("/bookings/" + id).with(user(customer.email())))
+        .andExpect(status().isOk())
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("Tiền món trả trước")))
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("Chưa thanh toán")));
+    simulateVerifiedPayment(id);
+    service.editItems(id, customer, Map.of(1L, 1), "Đổi số phần");
+    Booking afterPayment = repo.booking(id).orElseThrow();
+    assertThat(afterPayment.foodTotal()).isEqualTo(price);
+    assertThat(afterPayment.foodDeposit()).isEqualTo(beforePayment.foodDeposit());
+    assertThat(afterPayment.deposit()).isEqualTo(beforePayment.deposit());
+    service.cancel(id, customer, false);
+    assertThat(repo.booking(id).orElseThrow().paymentStatus()).isEqualTo(PaymentStatus.REFUND_PENDING);
+    assertThat(repo.booking(id).orElseThrow().deposit()).isEqualTo(beforePayment.deposit());
+  }
+
+  @Test
+  void twentyPercentFoodDepositRoundsOnceOnCombinedTotalAndVnpayUsesThatAmount() {
+    new TransactionTemplate(transactions)
+        .executeWithoutResult(
+            status -> {
+              repo.jdbc().update("UPDATE menu_item SET price=10001 WHERE id=1");
+              repo.jdbc().update("UPDATE menu_item SET price=10002 WHERE id=2");
+              String id = service.create(customer, new BookingService.BookingInput(
+                  baseline.plusHours(4), baseline.plusHours(6), 2, List.of(1L),
+                  Map.of(1L, 1, 2L, 1), ""));
+              Booking booking = repo.booking(id).orElseThrow();
+              assertThat(booking.foodTotal()).isEqualTo(20003);
+              assertThat(booking.foodDeposit()).isEqualTo(4001);
+              assertThat(booking.deposit()).isEqualTo(104001);
+              service.editItems(id, customer, Map.of(1L, 1), "");
+              assertThat(repo.booking(id).orElseThrow().foodDeposit()).isEqualTo(2001);
+              assertThat(repo.booking(id).orElseThrow().deposit()).isEqualTo(102001);
+              var parameters = urlParameters(payments.start(id, customer, "127.0.0.1"));
+              assertThat(parameters.get("vnp_Amount")).isEqualTo("10200100");
+              assertThat(gateway.verified(parameters)).isTrue();
+              status.setRollbackOnly();
+            });
+  }
+
+  @Test
+  void noPreorderedFoodRequiresOnlyTableDepositAndVnpayAmountsCannotChangeAfterCheckout() throws Exception {
+    String id = service.create(customer, new BookingService.BookingInput(
+        baseline.plusHours(4), baseline.plusHours(6), 2, List.of(1L), Map.of(), ""));
+    assertThat(repo.booking(id).orElseThrow().deposit()).isEqualTo(100000);
+    assertThat(repo.booking(id).orElseThrow().foodDeposit()).isZero();
+    String reference = startPayment(id);
+    assertThatThrownBy(() -> service.editItems(id, customer, Map.of(1L, 1), ""))
+        .hasMessageContaining("VNPAY");
+    assertThat(repo.booking(id).orElseThrow().foodTotal()).isZero();
+    assertThat(payments.ipn(callbackParameters(reference, "24", "0"))).isEqualTo("00");
+    assertThatThrownBy(() -> service.editItems(id, customer, Map.of(1L, 1), ""))
+        .hasMessageContaining("VNPAY");
+    assertThat(repo.booking(id).orElseThrow().deposit()).isEqualTo(100000);
+  }
+
+  @Test
   void realLoginRegistrationAndSignedGatewayCallbackWork() throws Exception {
     mvc.perform(
             post("/login")
@@ -505,8 +749,8 @@ class BookingIntegrationTest {
     String id = create(baseline.plusHours(4));
     var params = new TreeMap<String, String>();
     params.put("vnp_TmnCode", "TESTCODE");
-    params.put("vnp_TxnRef", id);
-    params.put("vnp_Amount", "10000000");
+    params.put("vnp_TxnRef", startPayment(id));
+    params.put("vnp_Amount", Long.toString(repo.booking(id).orElseThrow().deposit() * 100));
     params.put("vnp_ResponseCode", "00");
     params.put("vnp_TransactionStatus", "00");
     params.put("vnp_TransactionNo", "98765");
@@ -517,6 +761,188 @@ class BookingIntegrationTest {
     assertThat(repo.booking(id).orElseThrow().status()).isEqualTo(BookingStatus.CONFIRMED);
     mvc.perform(get("/payment/vnpay/ipn").param("vnp_SecureHash", "fake"))
         .andExpect(jsonPath("$.RspCode").value("97"));
+  }
+
+  @Test
+  void vnpayCheckoutSignsStoredAmountAndReusesPendingAttempt() {
+    String id = create(baseline.plusHours(4));
+    clock.set(baseline.plusMinutes(1));
+    String url = payments.start(id, customer, "127.0.0.1");
+    assertThat(url).startsWith("https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?");
+    var params = urlParameters(url);
+    assertThat(gateway.verified(params)).isTrue();
+    assertThat(params.get("vnp_Amount")).isEqualTo(Long.toString(repo.booking(id).orElseThrow().deposit() * 100));
+    assertThat(params.get("vnp_CreateDate")).isEqualTo("20260921100100");
+    assertThat(params.get("vnp_ExpireDate")).isEqualTo("20260921101500");
+    assertThat(params.get("vnp_TxnRef")).matches("[a-f0-9]{32}");
+    assertThat(startPayment(id)).isEqualTo(params.get("vnp_TxnRef"));
+    assertThat(payments.attempts(id)).hasSize(1);
+    assertThat(
+            new vn.edu.giavien.service.VnpayGateway(
+                    "", "", "http://localhost:8080/payment/vnpay/return")
+                .configured())
+        .isFalse();
+  }
+
+  @Test
+  void browserReturnCannotConfirmButSignedIpnDoesExactlyOnce() throws Exception {
+    String id = create(baseline.plusHours(4));
+    var params = callbackParameters(startPayment(id), "00", "1234");
+    assertThat(payments.browserReturn(params).waiting()).isTrue();
+    assertThat(repo.booking(id).orElseThrow().paymentStatus()).isEqualTo(PaymentStatus.UNPAID);
+    var browser = get("/payment/vnpay/return");
+    params.forEach(browser::param);
+    mvc.perform(browser)
+        .andExpect(status().isOk())
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("Đang chờ xác nhận")));
+    assertThat(payments.ipn(params)).isEqualTo("00");
+    assertThat(payments.ipn(params)).isEqualTo("02");
+    assertThat(repo.booking(id).orElseThrow().paymentStatus()).isEqualTo(PaymentStatus.PAID);
+    assertThat(payments.browserReturn(params).waiting()).isFalse();
+    assertThat(payments.attempts(id).getFirst().status()).isEqualTo("SUCCEEDED");
+  }
+
+  @Test
+  void signedFailurePermitsNewAttemptAndKeepsDepositUnpaid() throws Exception {
+    String id = create(baseline.plusHours(4));
+    String first = startPayment(id);
+    var cancelled = callbackParameters(first, "24", "0");
+    assertThat(payments.browserReturn(cancelled).message()).contains("hủy");
+    assertThat(payments.ipn(cancelled)).isEqualTo("00");
+    assertThat(payments.ipn(cancelled)).isEqualTo("02");
+    assertThat(repo.booking(id).orElseThrow().paymentStatus()).isEqualTo(PaymentStatus.UNPAID);
+    String retry = startPayment(id);
+    assertThat(retry).isNotEqualTo(first);
+    assertThat(payments.statusFor(id, customer).waiting()).isTrue();
+    assertThat(payments.ipn(callbackParameters(retry, "00", "6789"))).isEqualTo("00");
+    assertThat(repo.booking(id).orElseThrow().status()).isEqualTo(BookingStatus.CONFIRMED);
+  }
+
+  @Test
+  void invalidSignatureMerchantAmountUnknownAndMalformedCallbacksAreRejected() throws Exception {
+    String id = create(baseline.plusHours(4));
+    var params = callbackParameters(startPayment(id), "00", "1234");
+    params.put("vnp_Amount", "20000000");
+    assertThat(payments.ipn(params)).isEqualTo("97");
+    params.remove("vnp_SecureHash");
+    params.put("vnp_SecureHash", signature(params));
+    assertThat(payments.ipn(params)).isEqualTo("04");
+    params.put("vnp_Amount", "invalid");
+    params.remove("vnp_SecureHash");
+    params.put("vnp_SecureHash", signature(params));
+    assertThat(payments.ipn(params)).isEqualTo("04");
+    var unknown = callbackParameters("f".repeat(32), "00", "1234");
+    assertThat(payments.ipn(unknown)).isEqualTo("01");
+    var wrongMerchant = callbackParameters(startPayment(id), "00", "1234");
+    wrongMerchant.put("vnp_TmnCode", "OTHER123");
+    wrongMerchant.remove("vnp_SecureHash");
+    wrongMerchant.put("vnp_SecureHash", signature(wrongMerchant));
+    assertThat(payments.ipn(wrongMerchant)).isEqualTo("97");
+    var malformed = callbackParameters(startPayment(id), "00", "1234");
+    malformed.remove("vnp_TransactionStatus");
+    malformed.remove("vnp_SecureHash");
+    malformed.put("vnp_SecureHash", signature(malformed));
+    assertThat(payments.ipn(malformed)).isEqualTo("99");
+    var request = get("/payment/vnpay/ipn");
+    callbackParameters(startPayment(id), "00", "1234").forEach(request::param);
+    mvc.perform(request.param("vnp_Amount", "1")).andExpect(jsonPath("$.RspCode").value("97"));
+    assertThat(repo.booking(id).orElseThrow().paymentStatus()).isEqualTo(PaymentStatus.UNPAID);
+  }
+
+  @Test
+  void lateIpnQueuesRefundAndCannotReclaimAnotherCustomersHold() throws Exception {
+    String id = create(baseline.plusHours(4));
+    var callback = callbackParameters(startPayment(id), "00", "3456");
+    clock.set(baseline.plusMinutes(16));
+    String replacement = create(baseline.plusHours(4));
+    assertThatThrownBy(() -> startPayment(id)).hasMessageContaining("hết hạn");
+    assertThat(payments.ipn(callback)).isEqualTo("00");
+    assertThat(repo.booking(id).orElseThrow().paymentStatus())
+        .isEqualTo(PaymentStatus.REFUND_PENDING);
+    assertThat(repo.booking(replacement).orElseThrow().status()).isEqualTo(BookingStatus.PENDING);
+    assertThat(payments.browserReturn(callback).title()).contains("chờ hoàn");
+  }
+
+  @Test
+  void secondDistinctSuccessfulTransactionIsTrackedForRefund() throws Exception {
+    String id = create(baseline.plusHours(4));
+    String first = startPayment(id);
+    payments.ipn(callbackParameters(first, "24", "0"));
+    String retry = startPayment(id);
+    payments.ipn(callbackParameters(first, "00", "4567"));
+    var extra = callbackParameters(retry, "00", "8910");
+    assertThat(payments.ipn(extra)).isEqualTo("00");
+    assertThat(payments.ipn(extra)).isEqualTo("02");
+    assertThat(payments.attempts(id))
+        .anyMatch(a -> a.id().equals(retry) && a.status().equals("EXTRA_REFUND_PENDING"));
+    mvc.perform(get("/bookings/" + id).with(user(staff.email()).roles("STAFF")))
+        .andExpect(status().isOk())
+        .andExpect(
+            content().string(org.hamcrest.Matchers.containsString("Đã nhận thêm một khoản cọc")));
+    assertThatThrownBy(() -> payments.recordExtraRefund(id, retry, customer, "BANK-EXTRA"))
+        .hasMessageContaining("nhân viên");
+    payments.recordExtraRefund(id, retry, staff, "BANK-EXTRA");
+    assertThat(payments.attempts(id))
+        .anyMatch(a -> a.id().equals(retry) && a.status().equals("REFUNDED"));
+    assertThat(repo.booking(id).orElseThrow().paymentStatus()).isEqualTo(PaymentStatus.PAID);
+  }
+
+  @Test
+  void paymentEndpointsRequireOwnerAndCsrfAndHaveNoDemoBypass() throws Exception {
+    String id = create(baseline.plusHours(4));
+    mvc.perform(post("/bookings/" + id + "/pay").with(user(customer.email()).roles("CUSTOMER")))
+        .andExpect(status().isForbidden());
+    mvc.perform(
+            post("/bookings/" + id + "/pay")
+                .with(user(customer.email()).roles("CUSTOMER"))
+                .with(csrf()))
+        .andExpect(status().is3xxRedirection())
+        .andExpect(
+            header()
+                .string(
+                    "Location", org.hamcrest.Matchers.startsWith("https://sandbox.vnpayment.vn/")));
+    mvc.perform(
+            post("/bookings/" + id + "/demo-pay")
+                .with(user(customer.email()).roles("CUSTOMER"))
+                .with(csrf()))
+        .andExpect(status().isNotFound());
+    mvc.perform(get("/api/bookings/" + id + "/payment-status"))
+        .andExpect(status().isUnauthorized());
+    mvc.perform(
+            get("/api/bookings/" + id + "/payment-status")
+                .with(user(customer.email()).roles("CUSTOMER")))
+        .andExpect(status().isOk())
+        .andExpect(header().string("Cache-Control", "no-store"));
+    service.register("payment-other@example.com", "OtherPass123!", "Khách khác", "0901234567");
+    mvc.perform(
+            get("/api/bookings/" + id + "/payment-status")
+                .with(user("payment-other@example.com").roles("CUSTOMER")))
+        .andExpect(status().isForbidden());
+    assertThatThrownBy(
+            () -> payments.start(id, service.account("payment-other@example.com"), "127.0.0.1"))
+        .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+  }
+
+  @Test
+  void missingGatewayConfigurationDoesNotCreatePaymentAttemptOrChangeDeposit() {
+    var missing = new vn.edu.giavien.service.VnpayGateway("", "", "");
+    assertThat(missing.configured()).isFalse();
+    for (String url :
+        List.of(
+            "", "payment/return", "javascript:alert(1)", "https://user:pass@example.com/return")) {
+      assertThat(
+              new vn.edu.giavien.service.VnpayGateway("TESTCODE", "test-secret", url).configured())
+          .isFalse();
+    }
+    String id = create(baseline.plusHours(4));
+    var paymentService = new vn.edu.giavien.service.VnpayPaymentService(repo, service, missing);
+    assertThatThrownBy(
+            () ->
+                new TransactionTemplate(transactions)
+                    .execute(status -> paymentService.start(id, customer, "127.0.0.1")))
+        .hasMessageContaining("chưa sẵn sàng");
+    assertThat(payments.attempts(id)).isEmpty();
+    assertThat(repo.booking(id).orElseThrow().paymentStatus()).isEqualTo(PaymentStatus.UNPAID);
   }
 
   private String signature(Map<String, String> params) throws Exception {

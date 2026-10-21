@@ -1,0 +1,53 @@
+@startuml
+' UTF-8. UML content matches the accompanying vector drawings.
+left to right direction
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+skinparam usecaseBackgroundColor #F5FAF9
+skinparam usecaseBorderColor #21323A
+skinparam ArrowColor #52646C
+title GiaViên - Vận hành của nhân viên
+actor "Nhân viên" as A_staff
+actor "Quản lý" as A_admin
+rectangle "Hệ thống đặt bàn và đặt món trước GiaViên" {
+  usecase "NV01\nXem / tìm lịch toàn quán\nVà thống kê nhanh" as U_0
+  usecase "KH09\nXem chi tiết / trạng thái\nPhản hồi và nhật ký" as U_1
+  usecase "NV02\nGhi nhận khách đã đến" as U_2
+  usecase "NV03\nHoàn tất phục vụ" as U_3
+  usecase "NV04\nGhi nhận khách không đến" as U_4
+  usecase "NV05\nĐổi bàn / giờ / số khách" as U_5
+  usecase "NV06\nTừ chối yêu cầu đổi" as U_6
+  usecase "NV07\nQuán hủy lượt đặt" as U_7
+  usecase "NV08\nGhi nhận đã hoàn cọc" as U_8
+  usecase "NV09\nGhi nhận hoàn khoản thu thêm" as U_9
+  usecase "NV10\nKiểm tra bàn sẵn sàng" as U_10
+  usecase "KH04\nKiểm tra thời gian\nvà số khách mới" as U_11
+  usecase "KH05\nKiểm tra bàn / tổ hợp\nvà xung đột lịch" as U_12
+  usecase "KH13\nXác định xử lý cọc\nkhi hủy" as U_13
+}
+A_staff -- U_0
+A_staff -- U_1
+A_staff -- U_2
+A_staff -- U_3
+A_staff -- U_4
+A_staff -- U_5
+A_staff -- U_6
+A_staff -- U_7
+A_staff -- U_8
+A_staff -- U_9
+A_admin --|> A_staff
+U_2 ..> U_10 : <<include>>
+U_5 ..> U_11 : <<include>>
+U_5 ..> U_12 : <<include>>
+U_7 ..> U_13 : <<include>>
+note as N0
+Chỉ ghi nhận đã hoàn sau khi nhân viên thực hiện chuyển tiền bên ngoài.
+end note
+note as N1
+Quán hủy PENDING / CONFIRMED; đã nhận cọc thì chờ hoàn toàn bộ.
+end note
+note as N2
+CONFIRMED được xác nhận từ thanh toán, không có nhân viên duyệt cọc thủ công.
+end note
+@enduml

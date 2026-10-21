@@ -1,0 +1,54 @@
+@startuml
+' UTF-8. UML content matches the accompanying vector drawings.
+left to right direction
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+skinparam usecaseBackgroundColor #F5FAF9
+skinparam usecaseBorderColor #21323A
+skinparam ArrowColor #52646C
+title GiaViên - Sơ đồ tổng quan
+actor "Khách truy cập" as A_guest
+actor "Người dùng đã đăng nhập" as A_auth <<abstract>>
+actor "Khách hàng" as A_customer
+actor "Nhân viên" as A_staff
+actor "Quản lý" as A_admin
+actor "VNPAY Sandbox" as A_vnpay
+rectangle "Hệ thống đặt bàn và đặt món trước GiaViên" {
+  usecase "UC01–02\nXem giới thiệu / thực đơn" as U_0
+  usecase "UC03\nĐăng ký khách hàng" as U_1
+  usecase "UC04\nĐăng nhập" as U_2
+  usecase "KH01–07\nĐặt bàn / đặt món trước" as U_3
+  usecase "KH08–13\nTheo dõi, sửa, hủy lượt riêng\nGửi yêu cầu đổi bàn / giờ" as U_4
+  usecase "UC05\nĐăng xuất" as U_5
+  usecase "TT01 / DM01\nThanh toán cọc\nVNPAY hoặc QR demo" as U_6
+  usecase "TT03–06\nTiếp nhận / xử lý IPN" as U_7
+  usecase "NV01–04 / KH09\nXem lịch và vận hành phục vụ" as U_8
+  usecase "NV05–09\nĐổi lịch / quán hủy\nGhi nhận kết quả hoàn tiền" as U_9
+  usecase "QL01–09\nQuản trị món, bàn, tổ hợp\nCấu hình và tạo nhân viên" as U_10
+}
+A_guest -- U_0
+A_guest -- U_1
+A_guest -- U_2
+A_auth -- U_3
+A_auth -- U_4
+A_auth -- U_5
+A_auth -- U_6
+A_vnpay -- U_6
+A_vnpay -- U_7
+A_staff -- U_8
+A_staff -- U_9
+A_admin -- U_10
+A_customer --|> A_auth
+A_staff --|> A_auth
+A_admin --|> A_staff
+note as N0
+VNPAY liên kết TT01; QR demo là chức năng mô phỏng nội bộ DM01.
+end note
+note as N1
+Quyền thao tác lượt cá nhân áp dụng cho chủ lượt đặt, kể cả STAFF / ADMIN.
+end note
+note as N2
+Các tài khoản cũng được truy cập trang công khai.
+end note
+@enduml

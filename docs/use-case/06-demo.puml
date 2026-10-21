@@ -1,0 +1,34 @@
+@startuml
+' UTF-8. UML content matches the accompanying vector drawings.
+left to right direction
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+skinparam usecaseBackgroundColor #F5FAF9
+skinparam usecaseBorderColor #21323A
+skinparam ArrowColor #52646C
+title GiaViên - QR thanh toán mô phỏng
+actor "Chủ lượt đặt đã đăng nhập" as A_owner
+actor "Người giữ mã QR demo" as A_bearer
+rectangle "Hệ thống đặt bàn và đặt món trước GiaViên" {
+  usecase "DM01\nMở phiên / tạo QR demo" as U_0
+  usecase "DM02\nMở / xem trạng thái\nphiên demo" as U_1
+  usecase "DM03\nTự bấm mô phỏng\nthanh toán thành công" as U_2
+  usecase "DM04\nKiểm tra token, 60 giây\nvà hiệu lực lượt đặt" as U_3
+  usecase "DM05\nXác nhận cọc mô phỏng\nCONFIRMED / PAID" as U_4
+}
+A_owner -- U_0
+A_bearer -- U_1
+A_bearer -- U_2
+U_2 ..> U_3 : <<include>>
+U_2 ..> U_4 : <<include>>
+note as N0
+QR và DemoPaymentService nằm trong biên hệ thống; không có actor cổng QR bên ngoài.
+end note
+note as N1
+Sau 60 giây vẫn phải chủ động bấm mô phỏng thành công; không tự trả tiền.
+end note
+note as N2
+Bearer token hợp lệ đủ quyền xem / xác nhận mô phỏng, không cần đăng nhập.
+end note
+@enduml

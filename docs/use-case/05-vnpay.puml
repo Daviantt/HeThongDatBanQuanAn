@@ -1,0 +1,39 @@
+@startuml
+' UTF-8. UML content matches the accompanying vector drawings.
+left to right direction
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+skinparam usecaseBackgroundColor #F5FAF9
+skinparam usecaseBorderColor #21323A
+skinparam ArrowColor #52646C
+title GiaViên - Thanh toán cọc VNPAY Sandbox
+actor "Chủ lượt đặt đã đăng nhập" as A_owner
+actor "Nhân viên / Quản lý (xem trạng thái)" as A_staff
+actor "VNPAY Sandbox" as A_vnpay
+rectangle "Hệ thống đặt bàn và đặt món trước GiaViên" {
+  usecase "TT01\nKhởi tạo thanh toán cọc\nqua VNPAY Sandbox" as U_0
+  usecase "TT02\nXem kết quả / trạng thái\nthanh toán" as U_1
+  usecase "TT03\nTiếp nhận và xử lý IPN" as U_2
+  usecase "TT04\nKiểm tra chữ ký, mã\nvà số tiền giao dịch" as U_3
+  usecase "TT05\nGhi nhận / đối chiếu\nkết quả thanh toán" as U_4
+  usecase "TT06\nGhi nhận khoản thu thêm\nchờ hoàn riêng" as U_5
+}
+A_owner -- U_0
+A_owner -- U_1
+A_staff -- U_1
+A_vnpay -- U_0
+A_vnpay -- U_2
+U_2 ..> U_3 : <<include>>
+U_2 ..> U_4 : <<include>>
+U_5 ..> U_4 : <<extend>>\n[thành công thêm một giao dịch khác cọc chính]
+note as N0
+TT01 và TT03 độc lập; callback là tương tác bất đồng bộ, không quan hệ include thể hiện thứ tự.
+end note
+note as N1
+TT02 trên browser return không thay đổi trạng thái tiền; API trạng thái còn cho phép STAFF / ADMIN xem.
+end note
+note as N2
+Nhân viên ghi nhận hoàn cọc ở NV08 / NV09; hệ thống không gọi API hoàn VNPAY.
+end note
+@enduml

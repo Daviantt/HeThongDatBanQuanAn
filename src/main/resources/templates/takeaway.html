@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{fragments :: head('Thanh toán đơn mang về')}"></head>
+  <body>
+    <header th:replace="~{fragments :: header}"></header>
+    <main class="takeaway-page" id="takeaway-checkout" th:attr="data-name=${customer.fullName},data-phone=${customer.phone}">
+      <section class="takeaway-items">
+        <a class="back-link" href="/menu">← Quay lại thực đơn</a>
+        <p class="eyebrow">ĐẶT ĐẾN LẤY</p><h1>Món bạn đã chọn</h1>
+        <p class="helper">Quán sẽ chuẩn bị để bạn ghé lấy đúng giờ.</p>
+        <div id="checkout-lines" class="checkout-lines"></div>
+        <div id="checkout-empty" class="empty-state" hidden><span class="empty-icon">⌑</span><h3>Giỏ hàng đang trống</h3><p>Chọn món trong thực đơn để tiếp tục đặt đến lấy.</p><a class="button" href="/menu">Xem thực đơn</a></div>
+      </section>
+      <section class="takeaway-payment-panel">
+        <p class="eyebrow">THÔNG TIN NHẬN MÓN</p><h2>Hoàn tất đơn hàng</h2>
+        <form id="takeaway-form">
+          <label>Họ và tên<input id="takeaway-name" required maxlength="100" /></label>
+          <label>Số điện thoại<input id="takeaway-phone" required maxlength="20" inputmode="tel" /></label>
+          <label>Giờ lấy món<input id="takeaway-time" type="datetime-local" required /></label>
+          <div class="takeaway-total"><span>Tổng tiền</span><strong id="takeaway-total">0 ₫</strong></div>
+          <fieldset class="payment-methods"><legend>Phương thức thanh toán</legend>
+            <label class="payment-choice"><input type="radio" name="method" value="CASH" checked /><span><b>Tiền mặt</b><small>Thanh toán khi đến lấy món</small></span></label>
+            <label class="payment-choice"><input type="radio" name="method" value="TRANSFER" th:disabled="${!demoPaymentEnabled}" /><span><b>Chuyển khoản</b><small th:text="${demoPaymentEnabled ? 'Quét QR demo và xác nhận thanh toán' : 'QR demo hiện chưa được bật'}">Quét QR demo và xác nhận thanh toán</small></span></label>
+          </fieldset>
+          <p id="takeaway-error" class="notice error" role="alert" hidden></p><button id="takeaway-submit" type="submit" class="button full">Xác nhận đặt món <span>→</span></button>
+        </form>
+      </section>
+    </main><script src="/js/takeaway.js" defer></script>
+  </body>
+</html>

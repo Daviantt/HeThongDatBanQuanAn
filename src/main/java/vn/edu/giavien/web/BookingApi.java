@@ -11,11 +11,11 @@ import vn.edu.giavien.service.*;
 @RestController
 public class BookingApi {
   private final BookingService service;
-  private final VnpayGateway gateway;
+  private final VnpayPaymentService payments;
 
-  public BookingApi(BookingService service, VnpayGateway gateway) {
+  public BookingApi(BookingService service, VnpayPaymentService payments) {
     this.service = service;
-    this.gateway = gateway;
+    this.payments = payments;
   }
 
   @GetMapping("/api/availability")
@@ -34,22 +34,21 @@ public class BookingApi {
     return Map.of("id", id, "url", "/bookings/" + id);
   }
 
+  @GetMapping("/api/bookings/{id}/payment-status")
+  public org.springframework.http.ResponseEntity<VnpayPaymentService.Result> paymentStatus(
+      @PathVariable String id, Principal principal) {
+    return org.springframework.http.ResponseEntity.ok()
+        .cacheControl(org.springframework.http.CacheControl.noStore())
+        .body(payments.statusFor(id, service.account(principal.getName())));
+  }
+
   @GetMapping("/payment/vnpay/ipn")
-  public Map<String, String> ipn(@RequestParam Map<String, String> parameters) {
-    if (!gateway.verified(parameters))
-      return Map.of("RspCode", "97", "Message", "Invalid signature");
+  public Map<String, String> ipn(
+      @RequestParam org.springframework.util.MultiValueMap<String, String> parameters) {
+    if (parameters.values().stream().anyMatch(values -> values.size() != 1))
+      return Map.of("RspCode", "97", "Message", "Invalid parameters");
     try {
-      long raw = Long.parseLong(parameters.getOrDefault("vnp_Amount", "-1"));
-      if (raw < 0 || raw % 100 != 0) return Map.of("RspCode", "04", "Message", "Invalid amount");
-      String reference = parameters.getOrDefault("vnp_TransactionNo", "");
-      boolean success =
-          "00".equals(parameters.get("vnp_ResponseCode"))
-              && "00".equals(parameters.get("vnp_TransactionStatus"));
-      if (success && !reference.matches("[0-9]{1,30}"))
-        return Map.of("RspCode", "99", "Message", "Invalid transaction");
-      String code =
-          service.gatewayPayment(
-              parameters.getOrDefault("vnp_TxnRef", ""), raw / 100, reference, success);
+      String code = payments.ipn(parameters.toSingleValueMap());
       return Map.of(
           "RspCode",
           code,
@@ -58,10 +57,13 @@ public class BookingApi {
             case "00" -> "Confirm Success";
             case "01" -> "Order not found";
             case "02" -> "Order already confirmed";
-            default -> "Invalid amount";
+            case "04" -> "Invalid amount";
+            case "97" -> "Invalid signature";
+            default -> "Invalid data";
           });
-    } catch (IllegalArgumentException e) {
-      return Map.of("RspCode", "99", "Message", "Invalid data");
+    } catch (RuntimeException e) {
+      org.slf4j.LoggerFactory.getLogger(BookingApi.class).error("Could not record VNPAY IPN", e);
+      return Map.of("RspCode", "99", "Message", "Unable to update payment");
     }
   }
 

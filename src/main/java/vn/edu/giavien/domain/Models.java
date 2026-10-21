@@ -35,6 +35,37 @@ public final class Models {
     }
   }
 
+  public enum TakeawayStatus {
+    AWAITING_PAYMENT("Chờ chuyển khoản"),
+    WAITING_PICKUP("Chờ khách đến lấy"),
+    COMPLETED("Đã giao món"),
+    CANCELLED("Đã hủy");
+    public final String label;
+
+    TakeawayStatus(String label) {
+      this.label = label;
+    }
+  }
+
+  /** A food order collected at the restaurant; it deliberately has no dining-table allocation. */
+  public record TakeawayOrder(
+      String id,
+      long userId,
+      String customerName,
+      String customerPhone,
+      LocalDateTime pickupAt,
+      long total,
+      String paymentMethod,
+      TakeawayStatus status,
+      LocalDateTime createdAt,
+      LocalDateTime paidAt,
+      String paymentReference,
+      List<OrderLine> lines) {
+    public String code() {
+      return "TL-" + id.substring(0, 8).toUpperCase();
+    }
+  }
+
   public enum BookingStatus {
     PENDING("Chờ đặt cọc"),
     CONFIRMED("Đã xác nhận"),
@@ -84,6 +115,7 @@ public final class Models {
       BookingStatus status,
       PaymentStatus paymentStatus,
       long deposit,
+      long foodDeposit,
       LocalDateTime createdAt,
       LocalDateTime holdUntil,
       LocalDateTime paidAt,
@@ -101,6 +133,10 @@ public final class Models {
 
     public long foodTotal() {
       return lines.stream().mapToLong(OrderLine::subtotal).sum();
+    }
+
+    public long tableDeposit() {
+      return deposit - foodDeposit;
     }
   }
 

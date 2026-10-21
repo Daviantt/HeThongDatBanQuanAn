@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import vn.edu.giavien.data.RestaurantRepository;
 import vn.edu.giavien.service.BookingService;
+import vn.edu.giavien.service.DemoPaymentService;
 import vn.edu.giavien.service.VnpayGateway;
 
 @Component("fmt")
@@ -38,6 +39,11 @@ public class ViewSupport {
             .toList());
   }
 
+  public boolean hasRetiredTables(java.util.List<Long> ids) {
+    var currentIds = repo.tables().stream().map(t -> t.id()).toList();
+    return ids.stream().anyMatch(id -> !currentIds.contains(id));
+  }
+
   public String tableLabels(java.util.List<Long> ids) {
     var tables = repo.tables();
     return String.join(
@@ -49,6 +55,26 @@ public class ViewSupport {
 
   public String money(long value) {
     return NumberFormat.getIntegerInstance(Locale.forLanguageTag("vi-VN")).format(value) + " ₫";
+  }
+
+  public String dishImage(vn.edu.giavien.domain.Models.Dish dish) {
+    String file =
+        switch (dish.illustration()) {
+          case "rolls" -> "goi-cuon";
+          case "salad" -> "goi-ngo-sen";
+          case "fish" -> "ca-kho-to";
+          case "chicken" -> "ga-nuong-la-chanh";
+          case "soup" -> "canh-chua-ca";
+          case "rice" -> "com-nieu";
+          case "dessert" -> "che-hat-sen";
+          case "tea" -> "tra-sen";
+          case "beef" -> "bo-luc-lac";
+          case "prawns" -> "tom-nuong-muoi-ot";
+          case "mushrooms" -> "nam-kho-tieu";
+          case "flan" -> "banh-flan";
+          default -> null;
+        };
+    return file == null ? "/images/dish.svg" : "/images/menu/" + file + ".jpg";
   }
 
   public String date(LocalDateTime value) {
@@ -65,16 +91,19 @@ class SharedModel {
   private final RestaurantRepository repo;
   private final BookingService service;
   private final VnpayGateway gateway;
+  private final DemoPaymentService demoPayments;
   private final boolean demo;
 
   SharedModel(
       RestaurantRepository repo,
       BookingService service,
       VnpayGateway gateway,
+      DemoPaymentService demoPayments,
       @Value("${app.demo}") boolean demo) {
     this.repo = repo;
     this.service = service;
     this.gateway = gateway;
+    this.demoPayments = demoPayments;
     this.demo = demo;
   }
 
@@ -86,6 +115,7 @@ class SharedModel {
     model.addAttribute("isAdmin", account != null && account.role().equals("ADMIN"));
     model.addAttribute("demo", demo);
     model.addAttribute("gatewayReady", gateway.configured());
+    model.addAttribute("demoPaymentEnabled", demoPayments.enabled());
     model.addAttribute("settings", repo.settings());
     model.addAttribute("now", service.now());
   }
