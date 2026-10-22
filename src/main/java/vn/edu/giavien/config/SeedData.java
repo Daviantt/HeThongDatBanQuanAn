@@ -94,10 +94,44 @@ public class SeedData implements CommandLineRunner {
     }
     addGardenMenu();
     if (demo) {
-      account("khach@moc.local", "Khách trải nghiệm", "0901234567", "CUSTOMER");
-      account("nhanvien@moc.local", "Nhân viên GiaViên", "0901234568", "STAFF");
-      account("admin@moc.local", "Quản lý GiaViên", "0901234569", "ADMIN");
+      migrateDemoAccounts();
+      account("khach@giavien.local", "Khách trải nghiệm GiaViên", "0901234567", "CUSTOMER");
+      account("nhanvien@giavien.local", "Nhân viên GiaViên", "0901234568", "STAFF");
+      account("quanly@giavien.local", "Quản lý GiaViên", "0901234569", "ADMIN");
     }
+  }
+
+  private void migrateDemoAccounts() {
+    if (repo.jdbc()
+            .queryForObject(
+                "SELECT COUNT(*) FROM app_migration WHERE name='giavien-demo-accounts-v1'",
+                Integer.class)
+        > 0) return;
+    migrateDemoAccount("khach@moc.local", "khach@giavien.local", "CUSTOMER");
+    migrateDemoAccount("nhanvien@moc.local", "nhanvien@giavien.local", "STAFF");
+    migrateDemoAccount("admin@moc.local", "quanly@giavien.local", "ADMIN");
+    repo.jdbc().update("INSERT INTO app_migration(name) VALUES('giavien-demo-accounts-v1')");
+  }
+
+  private void migrateDemoAccount(String oldEmail, String email, String role) {
+    // Keep existing accounts and their credentials when the new address is already in use.
+    if (repo.account(email).isPresent()) return;
+    repo.account(oldEmail)
+        .filter(account -> account.role().equals(role))
+        .ifPresent(
+            account -> {
+              String password =
+                  passwords.matches("MocDemo123!", account.passwordHash())
+                      ? passwords.encode("GiaVienDemo123!")
+                      : account.passwordHash();
+              // Preserve IDs, booking/order ownership, and customized profile information.
+              repo.jdbc()
+                  .update(
+                      "UPDATE app_user SET email=?,password_hash=? WHERE id=?",
+                      email,
+                      password,
+                      account.id());
+            });
   }
 
   private void migrateGardenLayout() {
@@ -265,6 +299,6 @@ public class SeedData implements CommandLineRunner {
 
   private void account(String email, String name, String phone, String role) {
     if (repo.account(email).isEmpty())
-      repo.insertAccount(email, passwords.encode("MocDemo123!"), name, phone, role);
+      repo.insertAccount(email, passwords.encode("GiaVienDemo123!"), name, phone, role);
   }
 }

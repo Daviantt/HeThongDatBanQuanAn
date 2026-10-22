@@ -118,9 +118,9 @@ class BookingIntegrationTest {
                           + " WHERE id=1");
               repo.jdbc().update("UPDATE menu_item SET available=TRUE");
             });
-    customer = service.account("khach@moc.local");
-    staff = service.account("nhanvien@moc.local");
-    admin = service.account("admin@moc.local");
+    customer = service.account("khach@giavien.local");
+    staff = service.account("nhanvien@giavien.local");
+    admin = service.account("quanly@giavien.local");
   }
 
   BookingService.BookingInput input(LocalDateTime start, int guests, List<Long> tables) {
@@ -377,7 +377,7 @@ class BookingIntegrationTest {
       assertThatThrownBy(() -> takeaway.create(employee, takeawayInput("Nhân viên", "0901234567", baseline.plusMinutes(30), "CASH", Map.of(1L, 1))))
           .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
     }
-    mvc.perform(post("/login").with(csrf()).param("email", staff.email()).param("password", "MocDemo123!"))
+    mvc.perform(post("/login").with(csrf()).param("email", staff.email()).param("password", "GiaVienDemo123!"))
         .andExpect(redirectedUrl("/staff"));
   }
 
@@ -830,10 +830,10 @@ class BookingIntegrationTest {
     assertThatThrownBy(
             () ->
                 service.createStaff(
-                    customer, "newstaff@moc.local", "StaffPass123!", "Nhân viên", "0901234567"))
+                    customer, "newstaff@giavien.local", "StaffPass123!", "Nhân viên", "0901234567"))
         .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
-    service.createStaff(admin, "newstaff@moc.local", "StaffPass123!", "Nhân viên", "0901234567");
-    assertThat(repo.account("newstaff@moc.local").orElseThrow().role()).isEqualTo("STAFF");
+    service.createStaff(admin, "newstaff@giavien.local", "StaffPass123!", "Nhân viên", "0901234567");
+    assertThat(repo.account("newstaff@giavien.local").orElseThrow().role()).isEqualTo("STAFF");
     assertThatThrownBy(
             () ->
                 service.createStaff(
@@ -1043,7 +1043,7 @@ class BookingIntegrationTest {
             post("/login")
                 .with(csrf())
                 .param("email", customer.email())
-                .param("password", "MocDemo123!"))
+                .param("password", "GiaVienDemo123!"))
         .andExpect(status().is3xxRedirection())
         .andExpect(redirectedUrl("/book"));
     mvc.perform(

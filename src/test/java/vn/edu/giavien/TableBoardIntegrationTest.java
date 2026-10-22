@@ -39,8 +39,8 @@ class TableBoardIntegrationTest {
   @BeforeEach
   void setup() {
     clock.set(baseline);
-    customer = repo.account("khach@moc.local").orElseThrow();
-    staff = repo.account("nhanvien@moc.local").orElseThrow();
+    customer = repo.account("khach@giavien.local").orElseThrow();
+    staff = repo.account("nhanvien@giavien.local").orElseThrow();
   }
 
   String create(LocalDateTime start, List<Long> tables) {
@@ -149,7 +149,7 @@ class TableBoardIntegrationTest {
       mvc.perform(get(path)).andExpect(status().is3xxRedirection());
       mvc.perform(get(path).with(user(customer.email()).roles("CUSTOMER"))).andExpect(status().isForbidden());
       mvc.perform(get(path).with(user(staff.email()).roles("STAFF"))).andExpect(status().isOk());
-      mvc.perform(get(path).with(user("admin@moc.local").roles("ADMIN"))).andExpect(status().isOk());
+      mvc.perform(get(path).with(user("quanly@giavien.local").roles("ADMIN"))).andExpect(status().isOk());
     }
     mvc.perform(post("/staff/tables/bookings/" + id + "/action")
         .with(user(staff.email()).roles("STAFF")).param("action", "complete").param("date", "2026-09-21"))

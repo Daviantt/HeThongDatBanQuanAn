@@ -39,7 +39,7 @@ class StatisticsIntegrationTest {
 
   private String booking(LocalDateTime completed, String status, long price, int quantity, int percent) {
     String id = UUID.randomUUID().toString();
-    long user = repo.account("khach@moc.local").orElseThrow().id();
+    long user = repo.account("khach@giavien.local").orElseThrow().id();
     repo.jdbc().update("""
         INSERT INTO reservation(id,user_id,start_at,end_at,guests,notes,status,payment_status,
           deposit,created_at,hold_until,released_at,promotion_minimum_guests,promotion_percent)
@@ -52,7 +52,7 @@ class StatisticsIntegrationTest {
 
   private String takeaway(LocalDateTime completed, String status, int quantity) {
     String id = UUID.randomUUID().toString();
-    long user = repo.account("khach@moc.local").orElseThrow().id();
+    long user = repo.account("khach@giavien.local").orElseThrow().id();
     repo.jdbc().update("""
         INSERT INTO takeaway_order(id,user_id,customer_name,customer_phone,pickup_at,total,
           payment_method,status,created_at,completed_at)
@@ -122,7 +122,7 @@ class StatisticsIntegrationTest {
     });
     assertThat(statistics.report(START, START, Grouping.DAY).bestsellers()).isZero();
     assertThat(statistics.report(START.plusMonths(1), END, Grouping.YEAR).bestsellers()).isZero();
-    mvc.perform(get("/admin/statistics").with(user("admin@moc.local").roles("ADMIN"))
+    mvc.perform(get("/admin/statistics").with(user("quanly@giavien.local").roles("ADMIN"))
         .param("startDate", START.toString()).param("endDate", END.toString()))
         .andExpect(status().isOk())
         .andExpect(content().string(org.hamcrest.Matchers.containsString("★ Bán chạy")))
@@ -131,7 +131,7 @@ class StatisticsIntegrationTest {
 
   @Test
   void dishCreatedThroughAdminFormAppearsImmediatelyWithZeroSales() throws Exception {
-    mvc.perform(post("/admin/dishes").with(user("admin@moc.local").roles("ADMIN")).with(csrf())
+    mvc.perform(post("/admin/dishes").with(user("quanly@giavien.local").roles("ADMIN")).with(csrf())
         .param("id", "0").param("name", "Món mới cho thống kê").param("description", "")
         .param("category", "Món chính").param("price", "50000").param("available", "true"))
         .andExpect(status().is3xxRedirection());
@@ -144,7 +144,7 @@ class StatisticsIntegrationTest {
           assertThat(row.orders()).isZero();
           assertThat(row.bestseller()).isFalse();
         });
-    mvc.perform(get("/admin/statistics").with(user("admin@moc.local").roles("ADMIN"))
+    mvc.perform(get("/admin/statistics").with(user("quanly@giavien.local").roles("ADMIN"))
         .param("startDate", START.toString()).param("endDate", END.toString()))
         .andExpect(status().isOk()).andExpect(view().name("admin-statistics"))
         .andExpect(content().string(org.hamcrest.Matchers.containsString("Món mới cho thống kê")));
@@ -154,14 +154,14 @@ class StatisticsIntegrationTest {
   void rendersPopulatedReportForAllGroupingsAndRestrictsAccessToManagers() throws Exception {
     takeaway(START.atTime(12, 0), "COMPLETED", 2);
     for (var grouping : Grouping.values())
-      mvc.perform(get("/admin/statistics").with(user("admin@moc.local").roles("ADMIN"))
+      mvc.perform(get("/admin/statistics").with(user("quanly@giavien.local").roles("ADMIN"))
           .param("startDate", START.toString()).param("endDate", END.toString())
           .param("groupBy", grouping.name()))
           .andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString("2.000 ₫")));
     mvc.perform(get("/admin/statistics")).andExpect(status().is3xxRedirection());
     for (String role : List.of("CUSTOMER", "STAFF"))
       mvc.perform(get("/admin/statistics").with(user("test").roles(role))).andExpect(status().isForbidden());
-    mvc.perform(get("/admin/statistics").with(user("admin@moc.local").roles("ADMIN")))
+    mvc.perform(get("/admin/statistics").with(user("quanly@giavien.local").roles("ADMIN")))
         .andExpect(status().isOk())
         .andExpect(model().attribute("startDate", LocalDate.now(clock).withDayOfMonth(1).toString()))
         .andExpect(model().attribute("endDate", LocalDate.now(clock).toString()));
@@ -175,7 +175,7 @@ class StatisticsIntegrationTest {
         new String[]{"", "2026-01-01", "MONTH"},
         new String[]{"2026-01-01", "2026-01-02", "INVALID"},
         new String[]{"1800-01-01", "2026-01-02", "YEAR"}))
-      mvc.perform(get("/admin/statistics").with(user("admin@moc.local").roles("ADMIN"))
+      mvc.perform(get("/admin/statistics").with(user("quanly@giavien.local").roles("ADMIN"))
           .param("startDate", params[0]).param("endDate", params[1]).param("groupBy", params[2]))
           .andExpect(status().isBadRequest()).andExpect(model().attributeExists("filterError"))
           .andExpect(model().attributeDoesNotExist("report")).andExpect(view().name("admin-statistics"));
@@ -192,7 +192,7 @@ class StatisticsIntegrationTest {
     String ready = takeaway(START.atTime(12, 0), "READY", 1);
     repo.jdbc().update("UPDATE takeaway_order SET completed_at=NULL WHERE id=?", ready);
     var before = bookings.now();
-    takeaway.staffAction(ready, repo.account("nhanvien@moc.local").orElseThrow(), "complete", "");
+    takeaway.staffAction(ready, repo.account("nhanvien@giavien.local").orElseThrow(), "complete", "");
     var completed = repo.jdbc().queryForObject("SELECT completed_at FROM takeaway_order WHERE id=?",
         LocalDateTime.class, ready);
     // H2 TIMESTAMP rounds nanoseconds to microseconds.

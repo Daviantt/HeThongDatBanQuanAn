@@ -71,7 +71,7 @@ class DemoPaymentIntegrationTest {
             "order_line",
             "reservation_table",
             "reservation")) repo.jdbc().update("DELETE FROM " + table);
-    customer = bookings.account("khach@moc.local");
+    customer = bookings.account("khach@giavien.local");
     bookingId =
         bookings.create(
             customer,
@@ -130,7 +130,7 @@ class DemoPaymentIntegrationTest {
     assertThat(order.paidAt()).isEqualTo(baseline.plusMinutes(1));
     assertThat(order.paymentReference()).isEqualTo("DEMO-TL-" + token);
     assertThat(stock(1)).isEqualTo(4);
-    var staff = bookings.account("nhanvien@moc.local");
+    var staff = bookings.account("nhanvien@giavien.local");
     for (String action : List.of("prepare", "ready", "complete"))
       takeaway.staffAction(id, staff, action, "");
     takeaway.confirmDemoPayment(token);
@@ -144,7 +144,7 @@ class DemoPaymentIntegrationTest {
   @Test
   void takeawayCashDeductsOnCreationWithoutDeductingAgainWhenCollected() {
     repo.jdbc().update("UPDATE menu_item SET stock_quantity=2 WHERE id=1");
-    var staff = bookings.account("nhanvien@moc.local");
+    var staff = bookings.account("nhanvien@giavien.local");
     String id = takeaway.create(customer,
         takeawayInput("Khách hàng", "0901234567", baseline.plusMinutes(30), "CASH", Map.of(1L, 2, 2L, 1)));
     assertThat(stock(1)).isZero();
@@ -308,7 +308,7 @@ class DemoPaymentIntegrationTest {
 
   @Test
   void unpaidTransferCannotBePreparedAndPaidCancellationRequiresRefundRecord() throws Exception {
-    var staff = bookings.account("nhanvien@moc.local");
+    var staff = bookings.account("nhanvien@giavien.local");
     String id = takeaway.create(customer, takeawayInput("Khách hàng", "0901234567", baseline.plusMinutes(30), "TRANSFER", Map.of(1L, 1)));
     assertThatThrownBy(() -> takeaway.staffAction(id, staff, "prepare", "")).hasMessageContaining("chưa sẵn sàng");
     String token = takeaway.startDemoPayment(id, customer);
@@ -454,7 +454,7 @@ class DemoPaymentIntegrationTest {
   @Test
   void localCheckoutAndUnpaidBookingKeepTheAuthenticatedSession() throws Exception {
     var login = mvc.perform(post("/login").with(csrf())
-            .param("email", customer.email()).param("password", "MocDemo123!"))
+            .param("email", customer.email()).param("password", "GiaVienDemo123!"))
         .andExpect(status().is3xxRedirection()).andReturn();
     var session = (MockHttpSession) login.getRequest().getSession(false);
     String path = mvc.perform(post("/bookings/" + bookingId + "/demo-payment")
@@ -480,7 +480,7 @@ class DemoPaymentIntegrationTest {
         .andExpect(redirectedUrl("/login")).andReturn();
     var session = (MockHttpSession) guest.getRequest().getSession(false);
     var login = mvc.perform(post("/login").session(session).with(csrf())
-            .param("email", customer.email()).param("password", "MocDemo123!"))
+            .param("email", customer.email()).param("password", "GiaVienDemo123!"))
         .andExpect(status().is3xxRedirection()).andReturn();
     assertThat(login.getResponse().getRedirectedUrl()).contains("/bookings/" + bookingId);
     mvc.perform(get("/bookings/" + bookingId).session((MockHttpSession) login.getRequest().getSession(false)))
@@ -517,7 +517,7 @@ class DemoPaymentIntegrationTest {
                 .with(user("someone@example.test"))
                 .with(csrf()))
         .andExpect(status().isForbidden());
-    assertThatThrownBy(() -> payments.start(bookingId, bookings.account("admin@moc.local")))
+    assertThatThrownBy(() -> payments.start(bookingId, bookings.account("quanly@giavien.local")))
         .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
     String token = payments.start(bookingId, customer);
     clock.set(baseline.plusMinutes(1));

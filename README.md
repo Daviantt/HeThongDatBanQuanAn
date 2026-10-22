@@ -18,15 +18,17 @@ Trên máy Windows khác: chạy `./setup.ps1` một lần để tải JDK và M
 
 ## Tài khoản trải nghiệm
 
-Mật khẩu chung: **`MocDemo123!`**.
+Mật khẩu mẫu chung: **`GiaVienDemo123!`**. Các tài khoản này chỉ dùng để trải nghiệm đồ án trong profile `demo`.
 
-| Vai trò    | Email                |
-| ---------- | -------------------- |
-| Khách hàng | `khach@moc.local`    |
-| Nhân viên  | `nhanvien@moc.local` |
-| Quản lý    | `admin@moc.local`    |
+| Vai trò    | Email                    | Chức năng trải nghiệm                         |
+| ---------- | ------------------------ | --------------------------------------------- |
+| Khách hàng | `khach@giavien.local`     | Đặt bàn, đặt món mang về, xem lịch sử           |
+| Nhân viên  | `nhanvien@giavien.local`  | Xử lý đặt bàn, nhận khách, ghi nhận hoàn cọc    |
+| Quản lý    | `quanly@giavien.local`    | Quản lý thực đơn, bàn, cấu hình và nhân viên   |
 
 Khách cũng có thể đăng ký tài khoản mới. Quản lý có thể tạo thêm tài khoản nhân viên. Mật khẩu được băm bằng BCrypt; đăng ký công khai luôn tạo vai trò khách hàng.
+
+Khi khởi động lại với profile `demo`, hệ thống chuyển tài khoản mẫu cũ từ `khach@moc.local`, `nhanvien@moc.local`, `admin@moc.local` sang các email trên, giữ nguyên ID, thông tin cá nhân và lịch sử đặt bàn/đơn mang về. Chỉ mật khẩu mẫu cũ `MocDemo123!` được đổi thành `GiaVienDemo123!`; mật khẩu đã tự đổi được giữ nguyên. Việc chuyển đổi chỉ chạy một lần và chỉ áp dụng khi tài khoản cũ đúng vai trò, email mới chưa được dùng; tài khoản đã tồn tại không bị ghi đè hoặc đổi quyền.
 
 ## Chức năng đã có
 
@@ -55,7 +57,7 @@ Khách cũng có thể đăng ký tài khoản mới. Quản lý có thể tạo
 - Thực đơn nhân viên chỉ cho xem số phần tồn, ngưỡng cảnh báo, món sắp hết/hết và món chưa nhập tồn. Chỉ quản lý được cập nhật số tồn, ngưỡng cảnh báo và tình trạng bán trong trang **Thực đơn**. Tồn cập nhật thủ công, hiện chưa tự trừ theo đơn. Tồn bằng 0 chặn nhận món mới.
 - Dữ liệu H2 mới lưu trong `data/giavien.mv.db`. Khi chạy bằng `GiaVienApplication`, `run.ps1` hoặc JAR, ứng dụng tự nhận lại `data/moc.mv.db` nếu đó là database cũ duy nhất, để giữ lịch đặt và tài khoản. Có thể chỉ định database bằng biến môi trường `DATABASE_URL`.
 
-Tên hiển thị là **GiaViên**; package Java là `vn.edu.giavien`, file khởi động là `GiaVienApplication.java`, giao diện dùng `giavien.css` và `giavien.js`. `run.ps1` và `setup.ps1` giữ tên theo chức năng. Tài khoản và mật khẩu demo cũ vẫn giữ nguyên để người đang dùng không bị mất quyền đăng nhập.
+Tên hiển thị là **GiaViên**; package Java là `vn.edu.giavien`, file khởi động là `GiaVienApplication.java`, giao diện dùng `giavien.css` và `giavien.js`. `run.ps1` và `setup.ps1` giữ tên theo chức năng. Tài khoản demo dùng email GiaViên theo bảng hướng dẫn ở trên.
 
 ## Quy tắc đã thống nhất
 
