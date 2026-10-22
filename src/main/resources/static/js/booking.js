@@ -97,7 +97,7 @@
       const [date, start] = state.search.startAt.split("T");
       const [y, m, d] = date.split("-");
       $("summary-time").textContent =
-        `${d}/${m}/${y} · ${start}–${state.search.endAt.split("T")[1]}`;
+        `${d}/${m}/${y} · ${start}`;
     } else $("summary-time").textContent = "—";
     $("late-warning").hidden =
       !state.search ||
@@ -218,7 +218,6 @@
     const requestId = ++state.request;
     const search = {
       startAt: $("visit-date").value + "T" + $("start-time").value,
-      endAt: $("visit-date").value + "T" + $("end-time").value,
       guests: Number($("guests").value),
     };
     const button = event.submitter;
@@ -252,7 +251,7 @@
       button.textContent = "Tìm bàn trống ↗";
     }
   });
-  ["visit-date", "start-time", "end-time", "guests"].forEach((id) =>
+  ["visit-date", "start-time", "guests"].forEach((id) =>
     $(id).addEventListener("change", () => {
       ++state.request;
       state.selected = null;

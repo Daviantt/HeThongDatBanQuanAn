@@ -715,11 +715,13 @@ class BookingIntegrationTest {
   }
 
   @Test
-  void overlapIncludesCleanupAndExpiresHolds() {
-    String id = create(baseline.plusHours(2)); // 12:00–14:00
+  void unresolvedBookingHoldsTheWholeServiceDateAndExpiresWithoutPayment() {
+    String id = create(baseline.plusHours(2));
     assertThatThrownBy(() -> create(baseline.plusHours(4).plusMinutes(14)))
         .hasMessageContaining("Bàn vừa");
-    assertThat(create(baseline.plusHours(4).plusMinutes(15))).isNotBlank();
+    assertThatThrownBy(() -> create(baseline.plusHours(4).plusMinutes(15)))
+        .hasMessageContaining("Bàn vừa");
+    assertThat(create(baseline.plusDays(1).plusHours(2))).isNotBlank();
     clock.set(baseline.plusMinutes(15));
     service.expireHolds();
     assertThat(repo.booking(id).orElseThrow().status()).isEqualTo(BookingStatus.EXPIRED);

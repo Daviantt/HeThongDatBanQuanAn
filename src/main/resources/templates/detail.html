@@ -34,8 +34,8 @@
                 <dd th:text="${@fmt.date(booking.startAt)}"></dd>
               </div>
               <div>
-                <dt>Giờ kết thúc</dt>
-                <dd th:text="${@fmt.date(booking.endAt)}"></dd>
+                <dt>Kết thúc phục vụ</dt>
+                <dd th:text="${booking.releasedAt != null ? @fmt.date(booking.releasedAt) : 'Nhân viên xác nhận khi khách dùng xong'}"></dd>
               </div>
               <div>
                 <dt>Khách đặt</dt>
@@ -263,20 +263,13 @@
                 method="post"
                 class="form-stack"
               >
-                <div class="two-cols">
+                <div>
                   <label
                     >Giờ đến mới<input
                       type="datetime-local"
                       name="startAt"
                       th:value="${@fmt.inputDate(booking.startAt)}"
-                      required /></label
-                  ><label
-                    >Giờ kết thúc mới<input
-                      type="datetime-local"
-                      name="endAt"
-                      th:value="${@fmt.inputDate(booking.endAt)}"
-                      required
-                  /></label>
+                      required /></label>
                 </div>
                 <div class="two-cols">
                   <label

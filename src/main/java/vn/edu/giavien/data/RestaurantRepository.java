@@ -251,20 +251,41 @@ public class RestaurantRepository {
             userId);
   }
 
+  public List<Booking> tableBoardBookings(LocalDateTime dayStart, LocalDateTime dayEnd,
+      LocalDateTime now, int cleanup) {
+    return loadBookings(BOOKING_SELECT + """
+        WHERE b.status IN ('CONFIRMED','SEATED')
+          OR (b.status='PENDING' AND b.hold_until>?)
+          OR (b.status='COMPLETED' AND b.released_at>? AND b.released_at<?)
+        ORDER BY b.start_at,b.id
+        """, now, dayStart.minusMinutes(cleanup), dayEnd);
+  }
+
   public Set<Long> busyTableIds(LocalDateTime start, LocalDateTime end, LocalDateTime now, int cleanup, String exclude) {
     String sql = "SELECT DISTINCT rt.table_id FROM reservation b JOIN reservation_table rt ON rt.reservation_id=b.id"
-        + " WHERE (b.status IN ('CONFIRMED','SEATED','COMPLETED') OR (b.status='PENDING' AND b.hold_until>?))"
-        + " AND b.start_at<? AND (CASE WHEN b.status='COMPLETED' THEN b.released_at"
-        + " WHEN b.status='SEATED' AND b.end_at<? THEN ? ELSE b.end_at END)>?";
-    List<Object> args = new ArrayList<>(List.of(now, end.plusMinutes(cleanup), now, now, start.minusMinutes(cleanup)));
+        + " WHERE (b.status='SEATED'"
+        + " OR ((b.status='CONFIRMED' OR (b.status='PENDING' AND b.hold_until>?)) AND b.start_at>=? AND b.start_at<?)"
+        + " OR (b.status='COMPLETED' AND b.released_at>?))";
+    // No estimated duration: one unresolved reservation per table per service date.
+    // A seated party continues occupying its tables across midnight until staff finishes it.
+    List<Object> args = new ArrayList<>(List.of(now, start.toLocalDate().atStartOfDay(),
+        start.toLocalDate().plusDays(1).atStartOfDay(), start.minusMinutes(cleanup)));
     if (exclude != null) { sql += " AND b.id<>?"; args.add(exclude); }
     return new HashSet<>(jdbc.queryForList(sql, Long.class, args.toArray()));
   }
 
+  public Set<Long> occupiedTableIds(LocalDateTime now, int cleanup, String exclude) {
+    return new HashSet<>(jdbc.queryForList("""
+        SELECT DISTINCT rt.table_id FROM reservation b
+        JOIN reservation_table rt ON rt.reservation_id=b.id
+        WHERE b.id<>? AND (b.status='SEATED' OR (b.status='COMPLETED' AND b.released_at>?))
+        """, Long.class, exclude, now.minusMinutes(cleanup)));
+  }
+
   public boolean tableHasLiveBooking(long tableId, LocalDateTime now) {
     return jdbc.queryForObject("SELECT COUNT(*) FROM reservation b JOIN reservation_table rt ON rt.reservation_id=b.id"
-        + " WHERE rt.table_id=? AND (b.status='SEATED' OR (b.end_at>? AND (b.status='CONFIRMED' OR (b.status='PENDING' AND b.hold_until>?))))",
-        Integer.class, tableId, now, now) > 0;
+        + " WHERE rt.table_id=? AND (b.status IN ('SEATED','CONFIRMED') OR (b.status='PENDING' AND b.hold_until>?))",
+        Integer.class, tableId, now) > 0;
   }
 
   public record Page<T>(List<T> items, int number, int size, long total) {

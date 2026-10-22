@@ -32,7 +32,7 @@ Khách cũng có thể đăng ký tài khoản mới. Quản lý có thể tạo
 
 - Giao diện tiếng Việt, responsive, trang chủ và thực đơn có bộ lọc.
 - Đăng ký/đăng nhập/đăng xuất; ba vai trò khách, nhân viên, quản lý.
-- Chọn ngày, giờ đến, giờ kết thúc, 1–12 người.
+- Chọn ngày, giờ đến và 1–12 người; khách không cần nhập giờ kết thúc. Nhân viên xác nhận khách dùng xong để bắt đầu tính thời gian dọn bàn.
 - Sơ đồ 2 tầng, tổng cộng 19 bàn, mỗi bàn 4 chỗ. Tầng 1 gồm B01–B09 quanh vườn (9 bàn); vị trí giữa hàng dưới được dành cho lối đi từ cửa vào. B10 cũ được đổi tên thành B09, giữ nguyên vị trí và ID; bàn cũ tại lối vào được lưu là OLD-B09 để giữ lịch sử. Tầng 2 gồm B11–B20 quanh khoảng thông tầng và ban công (10 bàn). Chuyển tầng bằng nút trên sơ đồ; đổi tầng sẽ bỏ lựa chọn bàn trước đó.
 - Ghép 2–3 bàn liền nhau cùng tầng theo hàng ngang hoặc dọc, ví dụ B01 + B04 hoặc B11 + B14. Không ghép xuyên vườn, thông tầng hoặc giữa hai tầng.
 - Chọn món trước, số lượng, ghi chú; giá món và tiền cọc được lưu tại thời điểm đặt.
@@ -45,7 +45,9 @@ Khách cũng có thể đăng ký tài khoản mới. Quản lý có thể tạo
 - Lịch sử đặt bàn, sửa món/ghi chú, hủy và theo dõi hoàn cọc.
 - Khách gửi yêu cầu đổi bàn/giờ; nhân viên chấp nhận với lịch/bàn mới hoặc từ chối kèm lý do.
 - Nhân viên nhận khách, hoàn tất phục vụ, ghi nhận không đến, quán hủy và ghi nhận đã hoàn cọc.
+- Tab **Bàn ăn** (`/staff/tables`) hiển thị trạng thái 19 bàn, tự cập nhật mỗi 5 giây khi khách đặt/cọc/hủy. Nhân viên bấm biểu tượng bàn → **Đã sử dụng xong** để ghi nhận giờ kết thúc thực tế; bàn chuyển sang đang dọn rồi mới sẵn sàng. [Hướng dẫn quản lý bàn](docs/quan-ly-ban-an.md).
 - Quản lý thực đơn, tạm ngừng bàn, tổ hợp ghép, cấu hình cọc/thời gian và tạo tài khoản nhân viên.
+- Quản lý xem **Thống kê** tại `/admin/statistics`: doanh thu tiền món của đơn hoàn tất tại quán và mang về theo ngày/tháng/năm, lọc từ ngày–đến ngày, số phần và số đơn của từng món. Món có trên 700 đơn trong một tháng được đánh dấu bán chạy; món mới tự xuất hiện với số liệu 0. [Quy tắc và hướng dẫn thống kê](docs/thong-ke-doanh-thu.md).
 - Nhật ký thao tác của mỗi lượt đặt.
 - Tài khoản nhân viên/quản lý chỉ dùng thực đơn vận hành, xử lý đơn và quản lý quán; không có đặt bàn/lịch hẹn cá nhân. Sau đăng nhập chuyển tới `/staff`.
 - Trang vận hành có cột **Tổng tiền**: tiền món đặt trước sau khuyến mãi, hiển thị riêng tiền cọc (cọc là khoản trả trước, không cộng thêm vào giá món).
@@ -60,7 +62,7 @@ Tên hiển thị là **GiaViên**; package Java là `vn.edu.giavien`, file kh�
 | Quy tắc                      | Hành vi                                                              |
 | ---------------------------- | -------------------------------------------------------------------- |
 | Số bàn                       | `ceil(số khách / 4)`, tối đa 3 bàn                                   |
-| Ghép bàn                     | Tổ hợp khai báo sẵn; mọi bàn phải khả dụng trong toàn bộ khoảng đặt  |
+| Ghép bàn                     | Tổ hợp khai báo sẵn; mọi bàn phải khả dụng, không có lượt chưa giải quyết cùng ngày hoặc đang phục vụ/dọn |
 | Tiền cọc                     | Số bàn × cọc mỗi bàn + 20% tiền món đặt trước sau khuyến mãi; lưu riêng hai khoản và trừ vào hóa đơn tại quán |
 | Hủy trước ít nhất 3 tiếng    | Hoàn toàn bộ cọc; đúng mốc 3 tiếng vẫn được hoàn                     |
 | Hủy dưới 3 tiếng / không đến | Không hoàn cọc; không có ngoại lệ 15 phút sau thanh toán             |
@@ -74,8 +76,9 @@ Tên hiển thị là **GiaViên**; package Java là `vn.edu.giavien`, file kh�
 Các giá trị sau là lựa chọn triển khai ban đầu, **không phải yêu cầu đã chốt với nhóm**:
 
 - Cọc **100.000đ/bàn**; giữ chờ cọc **15 phút**; dọn bàn **15 phút**; chờ khách muộn **15 phút**. Quản lý sửa được trên `/admin`.
-- Quán mở 10:00–22:00; đặt trước tối đa 60 ngày, dùng bàn ít nhất 30 phút và kết thúc trong cùng ngày.
+- Quán mở 10:00–22:00; nhận giờ đến từ 10:00 đến trước 22:00, đặt trước tối đa 60 ngày. Không đặt thời lượng dùng bàn tối thiểu hoặc giờ kết thúc dự kiến.
 - Nhận khách từ 15 phút trước giờ hẹn, chỉ khi bàn không xung đột lượt khác.
+- Mỗi bàn chỉ nhận một lượt chưa giải quyết cho cùng ngày đặt. Nhân viên hoàn tất phục vụ và hết thời gian dọn bàn thì có thể nhận lượt tiếp; khách đang ngồi không bị tự kết thúc, kể cả qua ngày mới.
 - Múi giờ nghiệp vụ: `Asia/Ho_Chi_Minh` (UTC+7).
 - Tổ hợp mặc định gồm 2–3 bàn liên tiếp theo hàng ngang hoặc dọc trên cùng tầng, không băng qua vườn hay khoảng thông tầng. B08 và B09 không ghép qua lối đi; bàn OLD-B09 ở lối vào đã ngừng phục vụ.
 
@@ -115,6 +118,8 @@ Xem [hướng dẫn cấu hình và thử thanh toán](docs/vnpay-sandbox.md). �
 Profile `demo` tạo tài khoản mẫu và bật QR mô phỏng khi chưa có cấu hình VNPAY. Chuyển profile không xóa các tài khoản mẫu đã lưu. Thanh toán Sandbox không thu tiền thật; hoàn cọc vẫn do nhân viên thực hiện và ghi nhận mã đối soát.
 
 ## Kiến trúc để học và viết báo cáo
+
+[Bộ sơ đồ use case theo mã nguồn hiện tại](docs/use-case/README.md) gồm 9 trang tổng quan/chi tiết, ảnh PNG, SVG, nguồn PlantUML và bảng đối chiếu từng chức năng với code. [Xem PDF](output/pdf/giavien-use-case.pdf).
 
 ```text
 src/main/java/vn/edu/giavien/

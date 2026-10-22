@@ -68,6 +68,7 @@ public class BookingService {
 
   public record BookingInput(
       LocalDateTime startAt,
+      // Accepted only for older clients. Never used to reserve or release a table.
       LocalDateTime endAt,
       int guests,
       List<Long> tableIds,
@@ -89,27 +90,21 @@ public class BookingService {
       Settings settings) {}
 
   public void validateTime(LocalDateTime start, LocalDateTime end, int guests) {
-    require(start != null && end != null, "Vui lòng chọn giờ đến và giờ kết thúc.");
+    // The legacy end argument is ignored. Only staff records the actual finish time.
+    require(start != null, "Vui lòng chọn giờ đến.");
     require(guests >= 1 && guests <= 12, "Mỗi lượt đặt dành cho 1–12 khách.");
     require(start.isAfter(now()), "Giờ đến phải nằm trong tương lai.");
-    require(
-        start.toLocalDate().equals(end.toLocalDate()), "Giờ đến và giờ kết thúc phải cùng ngày.");
-    require(end.isAfter(start), "Giờ kết thúc phải sau giờ đến.");
     require(
         !start.toLocalDate().isAfter(now().toLocalDate().plusDays(60)),
         "Bạn có thể đặt trước tối đa 60 ngày.");
     Settings settings = repo.settings();
     require(
         !start.toLocalTime().isBefore(LocalTime.of(settings.openHour(), 0))
-            && !end.toLocalTime().isAfter(LocalTime.of(settings.closeHour(), 0)),
+            && start.toLocalTime().isBefore(LocalTime.of(settings.closeHour(), 0)),
         "Giờ phục vụ: %02d:00–%02d:00.".formatted(settings.openHour(), settings.closeHour()));
     require(
-        Duration.between(start, end).toMinutes() >= 30, "Thời gian dùng bàn tối thiểu 30 phút.");
-    require(
         start.getSecond() == 0
-            && end.getSecond() == 0
-            && start.getNano() == 0
-            && end.getNano() == 0,
+            && start.getNano() == 0,
         "Vui lòng chọn thời gian chính xác đến phút.");
   }
 
@@ -237,7 +232,7 @@ public class BookingService {
         id,
         actor.id(),
         input.startAt(),
-        input.endAt(),
+        null,
         input.guests(),
         notes,
         ids.size() * settings.depositPerTable() + foodDeposit,
@@ -361,9 +356,8 @@ public class BookingService {
             + " cọc.");
     repo.jdbc()
         .update(
-            "UPDATE reservation SET start_at=?,end_at=?,guests=? WHERE id=?",
+            "UPDATE reservation SET start_at=?,end_at=NULL,guests=? WHERE id=?",
             start,
-            end,
             guests,
             id);
     repo.replaceTables(id, ids);
@@ -401,11 +395,11 @@ public class BookingService {
       case "checkin" -> {
         require(b.status() == BookingStatus.CONFIRMED, "Chỉ nhận khách cho lượt đặt đã xác nhận.");
         require(
-            !now().isBefore(b.startAt().minusMinutes(15)) && now().isBefore(b.endAt()),
-            "Nhận khách từ 15 phút trước giờ hẹn đến trước giờ kết thúc.");
+            !now().isBefore(b.startAt().minusMinutes(15)),
+            "Nhận khách từ 15 phút trước giờ hẹn.");
         require(
-            Collections.disjoint(b.tableIds(), busyTables(now(), b.endAt(), id)),
-            "Bàn chưa sẵn sàng để nhận khách sớm.");
+            Collections.disjoint(b.tableIds(), repo.occupiedTableIds(now(), repo.settings().cleanupMinutes(), id)),
+            "Bàn đang phục vụ hoặc đang dọn, chưa sẵn sàng nhận khách.");
         repo.jdbc().update("UPDATE reservation SET status='SEATED' WHERE id=?", id);
       }
       case "complete" -> {

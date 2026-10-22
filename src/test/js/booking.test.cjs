@@ -72,6 +72,8 @@ test('floor switching filters the map, clears selection and submits the visible 
     $('create-booking').click();
     await settle();
     assert.deepEqual(sent.tableIds, [13,16]);
+    assert.equal(Object.hasOwn(sent, 'endAt'), false);
+    assert.equal($('end-time'), null);
     assert.match($('booking-error').textContent, /Bàn vừa/);
     options = options.slice(0,1);
     await search();

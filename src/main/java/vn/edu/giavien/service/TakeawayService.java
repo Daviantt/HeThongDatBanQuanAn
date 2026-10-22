@@ -98,6 +98,7 @@ public class TakeawayService {
     repo.insertTakeaway(new TakeawayOrder(id, actor.id(), name, phone, input.pickupAt(), quote.total(), method,
         method.equals("CASH") ? TakeawayStatus.WAITING_PICKUP : TakeawayStatus.AWAITING_PAYMENT,
         now, null, null, null, quote.lines()));
+    if (method.equals("CASH")) deductStock(quote.lines());
     return id;
   }
 
@@ -157,6 +158,20 @@ public class TakeawayService {
         bookings.now(), "DEMO-TL-" + token, state.orderId(), bookings.now());
     if (changed == 0 && repo.takeaway(state.orderId()).orElseThrow().status() != TakeawayStatus.WAITING_PICKUP)
       throw new IllegalArgumentException("Đơn không còn chờ thanh toán chuyển khoản.");
+    if (changed == 1) deductStock(repo.takeawayLines(state.orderId()));
+  }
+
+  private void deductStock(List<OrderLine> lines) {
+    // Lock dishes in a consistent order across orders. A shortage rolls back both
+    // order creation/payment and every stock change in the surrounding transaction.
+    for (OrderLine line : lines.stream().sorted(Comparator.comparingLong(OrderLine::menuItemId)).toList()) {
+      int changed = repo.jdbc().update(
+          "UPDATE menu_item SET stock_quantity=stock_quantity-? WHERE id=?"
+              + " AND (stock_quantity IS NULL OR stock_quantity>=?)",
+          line.quantity(), line.menuItemId(), line.quantity());
+      BookingService.require(changed == 1,
+          "Món " + line.itemName() + " không đủ số phần tồn để xác nhận đơn. Vui lòng liên hệ nhà hàng.");
+    }
   }
 
   @Scheduled(fixedDelay = 30000, initialDelay = 30000)
@@ -189,10 +204,12 @@ public class TakeawayService {
       }
       case "complete" -> {
         BookingService.require(order.status() == TakeawayStatus.READY, "Món phải sẵn sàng trước khi giao.");
-        if (order.paymentMethod().equals("CASH"))
+        if (order.paymentMethod().equals("CASH") && order.paidAt() == null) {
           repo.jdbc().update("UPDATE takeaway_order SET paid_at=?,payment_reference=? WHERE id=?",
               bookings.now(), "CASH-" + id, id);
+        }
         next = TakeawayStatus.COMPLETED;
+        repo.jdbc().update("UPDATE takeaway_order SET completed_at=? WHERE id=?", bookings.now(), id);
       }
       case "cancel" -> {
         BookingService.require(Set.of(TakeawayStatus.AWAITING_PAYMENT, TakeawayStatus.WAITING_PICKUP,
