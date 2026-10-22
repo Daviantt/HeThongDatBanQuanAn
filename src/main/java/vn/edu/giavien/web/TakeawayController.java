@@ -56,6 +56,14 @@ public class TakeawayController {
     return "redirect:/takeaway/payment/" + orders.startDemoPayment(id, bookings.account(principal.getName()));
   }
 
+  @PostMapping("/staff/takeaway-orders/{id}/action")
+  public String action(@PathVariable String id, @RequestParam String action,
+      @RequestParam(defaultValue = "") String reference, Principal principal, RedirectAttributes flash) {
+    orders.staffAction(id, bookings.account(principal.getName()), action, reference);
+    flash.addFlashAttribute("success", "Đã cập nhật đơn mang về.");
+    return "redirect:/takeaway/orders/" + id;
+  }
+
   @GetMapping("/takeaway/payment/{token}")
   public String payment(@PathVariable String token, Model model, HttpServletRequest request) {
     var state = orders.paymentStatus(token);

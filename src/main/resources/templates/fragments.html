@@ -9,6 +9,8 @@
     <meta name="_csrf_parameter" th:content="${_csrf.parameterName}" />
     <title th:text="${title} + ' · GiaViên'">GiaViên</title>
     <link rel="stylesheet" href="/css/giavien.css" />
+    <link th:if="${statisticsPage == true}" rel="stylesheet" href="/css/statistics.css" />
+    <link th:if="${isStaff}" rel="stylesheet" href="/css/table-board.css" />
     <script src="/js/giavien.js" defer></script>
   </head>
   <body>
@@ -18,10 +20,12 @@
         ><span>GiaViên<span class="brand-sub">BẾP NHÀ · VƯỜN XANH</span></span></a
       >
       <nav aria-label="Điều hướng chính">
-        <a href="/menu">Thực đơn</a><a href="/book">Đặt bàn</a
-        ><a th:if="${currentUser != null}" href="/bookings">Lịch hẹn của tôi</a
+        <a href="/menu">Thực đơn</a><a th:if="${!isStaff}" href="/book">Đặt bàn</a
+        ><a th:if="${currentUser != null and !isStaff}" href="/bookings">Lịch hẹn của tôi</a
         ><a th:if="${isStaff}" href="/staff">Vận hành</a
-        ><a th:if="${isAdmin}" href="/admin">Quản lý</a>
+        ><a th:if="${isStaff}" href="/staff/tables">Bàn ăn</a
+        ><a th:if="${isAdmin}" href="/admin">Quản lý</a
+        ><a th:if="${isAdmin}" href="/admin/statistics">Thống kê</a>
       </nav>
       <div class="header-account">
         <a
@@ -45,6 +49,11 @@
         th:text="${success}"
       ></div>
     </div>
+    <nav th:fragment="pagination(result, previous, next)" class="pagination" aria-label="Chuyển trang" th:if="${result.pages() > 1}">
+      <a th:if="${result.hasPrevious()}" th:href="${previous}" class="button outline">← Trang trước</a>
+      <span th:text="|Trang ${result.number + 1} / ${result.pages()} · ${result.total} kết quả|"></span>
+      <a th:if="${result.hasNext()}" th:href="${next}" class="button outline">Trang sau →</a>
+    </nav>
     <footer th:fragment="footer" class="site-footer">
       <a class="footer-brand" href="/">GiaViên.</a>
       <p>Một chiếc bàn. Một bữa ngon. Một câu chuyện mới.</p>

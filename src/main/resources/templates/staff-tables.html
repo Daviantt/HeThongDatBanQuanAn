@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{fragments :: head('Quản lý bàn ăn')}"></head>
+  <body>
+    <header th:replace="~{fragments :: header}"></header>
+    <main class="shell page">
+      <nav class="staff-tabs" aria-label="Vận hành quán">
+        <a class="button outline" href="/staff">Đơn đặt bàn &amp; mang về</a>
+        <a class="button" href="/staff/tables" aria-current="page">Quản lý bàn ăn</a>
+      </nav>
+      <div class="page-heading">
+        <p class="eyebrow">GIAVIÊN · VẬN HÀNH BÀN ĂN</p>
+        <h1>Bàn ăn trong quán.</h1>
+        <p>Nhận khách, kết thúc phục vụ và theo dõi thời gian dọn từng bàn.</p>
+      </div>
+      <div th:replace="~{fragments :: flash}"></div>
+      <section class="panel">
+        <form action="/staff/tables" method="get" class="board-date-form">
+          <label>Ngày đặt bàn<input type="date" name="date" th:value="${board.date}" required /></label>
+          <button type="submit" class="button">Xem bàn</button>
+          <a href="/staff/tables" class="underlined">Hôm nay</a>
+        </form>
+        <p class="helper">Lượt đặt mới và thanh toán được cập nhật mỗi 5 giây. Lịch những ngày tiếp theo hiện dưới từng bàn.
+          Với bàn ghép, nhận khách hoặc kết thúc phục vụ sẽ cập nhật tất cả bàn của cùng lượt đặt.</p>
+        <p class="helper">Bàn đang phục vụ luôn được đánh dấu bận cho đến khi nhân viên xác nhận đã sử dụng xong.
+          Khi mở chi tiết bàn, tự làm mới tạm dừng để không làm gián đoạn thao tác.</p>
+        <p id="table-board-sync" role="status" aria-live="polite">Đang theo dõi thay đổi trạng thái bàn.</p>
+        <button type="button" class="button outline small" id="refresh-table-board">Cập nhật ngay</button>
+      </section>
+      <div id="table-board-content" th:fragment="board"
+           th:attr="data-refresh-url=@{/staff/tables/fragment(date=${board.date})},data-updated-at=${board.updatedAt}">
+        <div class="board-counts">
+          <span th:text="|Trống: ${board.count('FREE')}|"></span>
+          <span th:text="|Giữ chờ cọc: ${board.count('HELD')}|"></span>
+          <span th:text="|Chờ khách: ${board.count('RESERVED')}|"></span>
+          <span th:text="|Đang phục vụ: ${board.count('SEATED')}|"></span>
+          <span th:text="|Đang dọn: ${board.count('CLEANING')}|"></span>
+          <span th:text="|Tạm ngừng: ${board.count('INACTIVE')}|"></span>
+        </div>
+        <p class="helper" th:text="|Cập nhật lúc ${@fmt.date(board.updatedAt)} · Đang xem ngày ${#temporals.format(board.date, 'dd/MM/yyyy')}|"></p>
+        <section th:each="floor : ${ {1, 2} }" class="board-floor">
+          <h2 th:text="|Tầng ${floor}|"></h2>
+          <div class="table-board-grid">
+            <article th:each="card : ${board.tables}" th:if="${card.table.floor == floor}"
+                     class="panel table-board-card" th:classappend="${card.state}"
+                     th:attr="data-table-id=${card.table.id},data-state=${card.state}">
+              <div class="row">
+                <h3 th:text="${card.table.code}"></h3>
+                <span class="badge" th:text="${card.label}"></span>
+              </div>
+              <button type="button" class="table-symbol" th:attr="data-open-table=|table-dialog-${card.table.id}|,aria-label=|Quản lý bàn ${card.table.code}|">
+                <svg viewBox="0 0 120 100" width="120" height="100" aria-hidden="true">
+                  <rect x="12" y="32" width="12" height="36" rx="5" />
+                  <rect x="96" y="32" width="12" height="36" rx="5" />
+                  <rect x="42" y="5" width="36" height="12" rx="5" />
+                  <rect x="42" y="83" width="36" height="12" rx="5" />
+                  <rect x="30" y="23" width="60" height="54" rx="10" />
+                </svg>
+                <span>Bấm vào bàn để quản lý</span>
+              </button>
+              <p class="helper" th:text="|${card.table.zone} · 4 chỗ|"></p>
+              <p th:if="${card.cleaningUntil != null}" class="board-cleaning">
+                Dọn bàn đến <strong th:text="${@fmt.date(card.cleaningUntil)}"></strong>.
+                Bàn chỉ sẵn sàng sau thời điểm này.
+              </p>
+              <p class="helper" th:if="${card.bookings.isEmpty() and card.state == 'FREE'}">Chưa có lượt giữ bàn cho ngày đang xem.</p>
+              <p th:each="booking : ${card.bookings}" class="board-brief">
+                <strong th:text="${booking.customerName}"></strong>
+                <small th:text="|${@fmt.date(booking.startAt)} · ${booking.status.label}|"></small>
+              </p>
+              <dialog class="table-dialog" th:id="|table-dialog-${card.table.id}|"
+                      th:attr="aria-label=|Quản lý bàn ${card.table.code}|">
+                <div class="row">
+                  <h2 th:text="|Bàn ${card.table.code}|"></h2>
+                  <button type="button" class="text-button" data-close-table aria-label="Đóng chi tiết bàn">Đóng ×</button>
+                </div>
+                <p th:text="${card.label}"></p>
+                <p th:if="${card.cleaningUntil != null}" th:text="|Dọn bàn đến ${@fmt.date(card.cleaningUntil)}.|"></p>
+                <p th:if="${card.bookings.isEmpty()}">Không có lượt đang giữ hoặc phục vụ trong ngày đang xem.</p>
+              <section class="board-booking" th:each="booking : ${card.bookings}">
+                <a class="underlined" th:href="@{/bookings/{id}(id=${booking.id})}" th:text="${booking.code()}"></a>
+                <strong class="board-customer" th:text="${booking.customerName}"></strong>
+                <span th:text="|${booking.guests} khách · ${booking.tablesLabel()}|"></span>
+                <span th:text="|Giờ đến: ${@fmt.date(booking.startAt)}|"></span>
+                <span class="badge" th:text="${booking.status.label}"></span>
+                <small th:if="${booking.status.name() == 'PENDING'}" th:text="|Giữ chờ cọc đến ${@fmt.date(booking.holdUntil)}|"></small>
+                <small th:if="${booking.status.name() == 'CONFIRMED' and booking.startAt.isBefore(now)}">Đã qua giờ hẹn. Nhân viên kiểm tra nhận khách hoặc ghi nhận không đến.</small>
+                <form th:if="${booking.status.name() == 'CONFIRMED'}"
+                      th:action="@{/staff/tables/bookings/{id}/action(id=${booking.id})}" method="post">
+                  <input type="hidden" name="date" th:value="${board.date}" />
+                  <button class="button small" name="action" value="checkin" type="submit"
+                          th:disabled="${now.isBefore(booking.startAt.minusMinutes(15)) or card.state == 'CLEANING' or card.state == 'SEATED'}">Nhận khách</button>
+                </form>
+                <form th:if="${booking.status.name() == 'SEATED'}"
+                      th:action="@{/staff/tables/bookings/{id}/action(id=${booking.id})}" method="post"
+                      data-board-confirm="Xác nhận khách đã rời bàn? Thời gian dọn bàn bắt đầu ngay khi xác nhận, áp dụng cho tất cả bàn của lượt đặt.">
+                  <input type="hidden" name="date" th:value="${board.date}" />
+                  <button class="button small" name="action" value="complete" type="submit">Đã sử dụng xong</button>
+                  <p class="helper">Ghi giờ kết thúc hiện tại và bắt đầu tính thời gian dọn bàn.</p>
+                </form>
+                <form th:if="${booking.status.name() == 'CONFIRMED' and !now.isBefore(booking.startAt.plusMinutes(settings.graceMinutes))}"
+                      th:action="@{/staff/tables/bookings/{id}/action(id=${booking.id})}" method="post"
+                      data-board-confirm="Xác nhận khách không đến? Tiền cọc được ghi nhận không hoàn theo chính sách.">
+                  <input type="hidden" name="date" th:value="${board.date}" />
+                  <button class="text-button" name="action" value="noshow" type="submit">Khách không đến</button>
+                </form>
+                <form th:if="${booking.status.name() == 'PENDING' or booking.status.name() == 'CONFIRMED'}"
+                      th:action="@{/staff/tables/bookings/{id}/action(id=${booking.id})}" method="post"
+                      data-board-confirm="Quán hủy lượt đặt này? Cọc đã nhận sẽ chuyển sang chờ hoàn.">
+                  <input type="hidden" name="date" th:value="${board.date}" />
+                  <button class="text-button" name="action" value="cancel" type="submit">Quán hủy lượt đặt</button>
+                </form>
+              </section>
+              </dialog>
+              <details th:if="${!card.upcoming.isEmpty()}" class="board-upcoming">
+                <summary th:text="|${card.upcoming.size()} lượt đặt ngày tiếp theo|"></summary>
+                <p th:each="booking : ${card.upcoming}">
+                  <a class="underlined" th:href="@{/staff/tables(date=${booking.startAt.toLocalDate()})}" th:text="${@fmt.date(booking.startAt)}"></a>
+                  <small th:text="|${booking.customerName} · ${booking.status.label}|"></small>
+                </p>
+              </details>
+            </article>
+          </div>
+        </section>
+      </div>
+    </main>
+    <footer th:replace="~{fragments :: footer}"></footer>
+    <script src="/js/table-board.js" defer></script>
+  </body>
+</html>

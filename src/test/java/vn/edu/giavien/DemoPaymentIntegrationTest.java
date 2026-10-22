@@ -49,9 +49,16 @@ class DemoPaymentIntegrationTest {
   Account customer;
   String bookingId;
 
+  TakeawayService.Input takeawayInput(String name, String phone, LocalDateTime pickup, String method, Map<Long, Integer> items) {
+    Map<Long, Long> prices = new java.util.HashMap<>();
+    takeaway.quote(items).lines().forEach(line -> prices.put(line.menuItemId(), line.unitPrice()));
+    return new TakeawayService.Input(name, phone, pickup, method, items, prices);
+  }
   @BeforeEach
   void setup() {
     clock.set(baseline);
+    repo.jdbc().update("UPDATE group_promotion SET enabled=FALSE,minimum_guests=4,discount_percent=10 WHERE id=1");
+    repo.jdbc().update("UPDATE menu_item SET stock_quantity=NULL,low_stock_threshold=5,available=TRUE");
     for (String table :
         List.of(
             "takeaway_demo_payment",
@@ -78,13 +85,43 @@ class DemoPaymentIntegrationTest {
   }
 
   @Test
+  void historyKeepsTableBookingsAndAllowsResumingUnpaidTakeawayOrders() throws Exception {
+    String id = takeaway.create(customer,
+        takeawayInput("Khách trải nghiệm", "0901234567", baseline.plusMinutes(30), "TRANSFER", Map.of(1L, 2)));
+    String page = mvc.perform(get("/bookings").with(user(customer.email()).roles("CUSTOMER")))
+        .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+    assertThat(page).contains("/bookings/" + bookingId, "/takeaway/orders/" + id,
+        "Chờ chuyển khoản", "Tiếp tục thanh toán", "Chưa thanh toán");
+    mvc.perform(get("/takeaway/orders/" + id).with(user(customer.email()).roles("CUSTOMER")))
+        .andExpect(status().isOk())
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("/takeaway/orders/" + id + "/demo-payment")));
+    String paymentPath = mvc.perform(post("/takeaway/orders/" + id + "/demo-payment")
+            .with(user(customer.email()).roles("CUSTOMER")).with(csrf()))
+        .andExpect(status().is3xxRedirection()).andReturn().getResponse().getRedirectedUrl();
+    mvc.perform(get(paymentPath)).andExpect(status().isOk());
+    clock.set(baseline.plusMinutes(1));
+    mvc.perform(post(paymentPath + "/confirm").with(csrf()))
+        .andExpect(redirectedUrl(paymentPath));
+    String paidPage = mvc.perform(get("/bookings").with(user(customer.email()).roles("CUSTOMER")))
+        .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+    assertThat(paidPage).contains("/bookings/" + bookingId, "/takeaway/orders/" + id,
+        "Chờ khách đến lấy", "Đã thanh toán demo").doesNotContain("Tiếp tục thanh toán");
+    assertThat(repo.takeawayOrders(customer.id())).singleElement()
+        .satisfies(order -> assertThat(order.paidAt()).isEqualTo(baseline.plusMinutes(1)));
+  }
+
+  @Test
   void takeawayTransferRecordsTheDemoReferenceExactlyOnce() {
+    repo.jdbc().update("UPDATE menu_item SET stock_quantity=5 WHERE id=1");
     String id =
         takeaway.create(
             customer,
-            new TakeawayService.Input(
+            takeawayInput(
                 "Khách trải nghiệm", "0901234567", baseline.plusMinutes(30), "TRANSFER", Map.of(1L, 1)));
     String token = takeaway.startDemoPayment(id, customer);
+    assertThat(stock(1)).isEqualTo(5);
+    assertThatThrownBy(() -> takeaway.confirmDemoPayment(token)).hasMessageContaining("Đợi đủ");
+    assertThat(stock(1)).isEqualTo(5);
     clock.set(baseline.plusMinutes(1));
     takeaway.confirmDemoPayment(token);
     takeaway.confirmDemoPayment(token);
@@ -92,6 +129,219 @@ class DemoPaymentIntegrationTest {
     assertThat(order.status()).isEqualTo(TakeawayStatus.WAITING_PICKUP);
     assertThat(order.paidAt()).isEqualTo(baseline.plusMinutes(1));
     assertThat(order.paymentReference()).isEqualTo("DEMO-TL-" + token);
+    assertThat(stock(1)).isEqualTo(4);
+    var staff = bookings.account("nhanvien@moc.local");
+    for (String action : List.of("prepare", "ready", "complete"))
+      takeaway.staffAction(id, staff, action, "");
+    takeaway.confirmDemoPayment(token);
+    assertThat(stock(1)).isEqualTo(4);
+  }
+
+  private Integer stock(long dishId) {
+    return repo.jdbc().queryForObject("SELECT stock_quantity FROM menu_item WHERE id=?", Integer.class, dishId);
+  }
+
+  @Test
+  void takeawayCashDeductsOnCreationWithoutDeductingAgainWhenCollected() {
+    repo.jdbc().update("UPDATE menu_item SET stock_quantity=2 WHERE id=1");
+    var staff = bookings.account("nhanvien@moc.local");
+    String id = takeaway.create(customer,
+        takeawayInput("Khách hàng", "0901234567", baseline.plusMinutes(30), "CASH", Map.of(1L, 2, 2L, 1)));
+    assertThat(stock(1)).isZero();
+    assertThat(stock(2)).isNull();
+    var created = repo.takeaway(id).orElseThrow();
+    assertThat(created.status()).isEqualTo(TakeawayStatus.WAITING_PICKUP);
+    assertThat(created.paidAt()).isNull();
+    assertThat(created.paymentReference()).isNull();
+    assertThatThrownBy(() -> takeaway.quote(Map.of(1L, 1))).hasMessageContaining("tạm hết");
+    takeaway.staffAction(id, staff, "prepare", "");
+    takeaway.staffAction(id, staff, "ready", "");
+    assertThat(stock(1)).isZero();
+    takeaway.staffAction(id, staff, "complete", "");
+    assertThat(stock(1)).isZero();
+    assertThat(stock(2)).isNull();
+    assertThat(repo.takeaway(id).orElseThrow().paidAt()).isEqualTo(baseline);
+    assertThatThrownBy(() -> takeaway.staffAction(id, staff, "complete", "")).hasMessageContaining("sẵn sàng");
+    assertThat(stock(1)).isZero();
+    assertThatThrownBy(() -> takeaway.quote(Map.of(1L, 1))).hasMessageContaining("tạm hết");
+  }
+
+  @Test
+  void takeawayShortageRollsBackAllStockAndPaymentChanges() {
+    repo.jdbc().update("UPDATE menu_item SET stock_quantity=5 WHERE id IN (1,2)");
+    String id = takeaway.create(customer,
+        takeawayInput("Khách hàng", "0901234567", baseline.plusMinutes(30), "TRANSFER", Map.of(1L, 2, 2L, 2)));
+    String token = takeaway.startDemoPayment(id, customer);
+    clock.set(baseline.plusMinutes(1));
+    repo.jdbc().update("UPDATE menu_item SET stock_quantity=1 WHERE id=2");
+    assertThatThrownBy(() -> takeaway.confirmDemoPayment(token)).hasMessageContaining("không đủ");
+    assertThat(stock(1)).isEqualTo(5);
+    assertThat(stock(2)).isEqualTo(1);
+    var unpaid = repo.takeaway(id).orElseThrow();
+    assertThat(unpaid.status()).isEqualTo(TakeawayStatus.AWAITING_PAYMENT);
+    assertThat(unpaid.paidAt()).isNull();
+    assertThat(unpaid.paymentReference()).isNull();
+    repo.jdbc().update("UPDATE menu_item SET stock_quantity=2 WHERE id=2");
+    takeaway.confirmDemoPayment(token);
+    assertThat(stock(1)).isEqualTo(3);
+    assertThat(stock(2)).isZero();
+  }
+
+  @Test
+  void takeawayCashShortageRollsBackOrderCreationAndAllStockChanges() {
+    repo.jdbc().update("UPDATE menu_item SET stock_quantity=5 WHERE id IN (1,2)");
+    var input = takeawayInput("Khách hàng", "0901234567", baseline.plusMinutes(30), "CASH", Map.of(1L, 2, 2L, 2));
+    repo.jdbc().update("UPDATE menu_item SET stock_quantity=1 WHERE id=2");
+    assertThatThrownBy(() -> takeaway.create(customer, input)).hasMessageContaining("không đủ");
+    assertThat(stock(1)).isEqualTo(5);
+    assertThat(stock(2)).isEqualTo(1);
+    assertThat(repo.takeawayOrders(customer.id())).isEmpty();
+    assertThat(repo.jdbc().queryForObject("SELECT COUNT(*) FROM takeaway_order_line", Integer.class)).isZero();
+  }
+
+  @Test
+  void simultaneousCashOrdersCannotSpendTheSameStock() throws Exception {
+    repo.jdbc().update("UPDATE menu_item SET stock_quantity=3 WHERE id=1");
+    var input = takeawayInput("Khách hàng", "0901234567", baseline.plusMinutes(30), "CASH", Map.of(1L, 2));
+    try (var pool = Executors.newFixedThreadPool(2)) {
+      var start = new CountDownLatch(1);
+      Callable<Boolean> create = () -> {
+        start.await();
+        try {
+          takeaway.create(customer, input);
+          return true;
+        } catch (IllegalArgumentException error) {
+          assertThat(error).hasMessageContaining("không đủ");
+          return false;
+        }
+      };
+      var first = pool.submit(create);
+      var second = pool.submit(create);
+      start.countDown();
+      assertThat(List.of(first.get(10, TimeUnit.SECONDS), second.get(10, TimeUnit.SECONDS)))
+          .containsExactlyInAnyOrder(true, false);
+    }
+    assertThat(stock(1)).isEqualTo(1);
+    assertThat(repo.takeawayOrders(customer.id())).singleElement()
+        .satisfies(order -> assertThat(order.paidAt()).isNull());
+  }
+
+  @Test
+  void simultaneousTakeawayConfirmationsDeductOnlyOnce() throws Exception {
+    repo.jdbc().update("UPDATE menu_item SET stock_quantity=5 WHERE id=1");
+    String id = takeaway.create(customer,
+        takeawayInput("Khách hàng", "0901234567", baseline.plusMinutes(30), "TRANSFER", Map.of(1L, 2)));
+    String token = takeaway.startDemoPayment(id, customer);
+    clock.set(baseline.plusMinutes(1));
+    try (var pool = Executors.newFixedThreadPool(2)) {
+      var start = new CountDownLatch(1);
+      Callable<Void> confirm = () -> { start.await(); takeaway.confirmDemoPayment(token); return null; };
+      var first = pool.submit(confirm);
+      var second = pool.submit(confirm);
+      start.countDown();
+      first.get(10, TimeUnit.SECONDS);
+      second.get(10, TimeUnit.SECONDS);
+    }
+    assertThat(stock(1)).isEqualTo(3);
+    assertThat(takeaway.paymentStatus(token).status()).isEqualTo("PAID");
+  }
+
+  @Test
+  void simultaneousTakeawayOrdersCannotSpendTheSameStock() throws Exception {
+    repo.jdbc().update("UPDATE menu_item SET stock_quantity=3 WHERE id=1");
+    var input = takeawayInput("Khách hàng", "0901234567", baseline.plusMinutes(30), "TRANSFER", Map.of(1L, 2));
+    String firstId = takeaway.create(customer, input);
+    String secondId = takeaway.create(customer, input);
+    String firstToken = takeaway.startDemoPayment(firstId, customer);
+    String secondToken = takeaway.startDemoPayment(secondId, customer);
+    clock.set(baseline.plusMinutes(1));
+    try (var pool = Executors.newFixedThreadPool(2)) {
+      var start = new CountDownLatch(1);
+      var results = new java.util.ArrayList<Future<Boolean>>();
+      for (String token : List.of(firstToken, secondToken)) {
+        results.add(pool.submit(() -> {
+          start.await();
+          try {
+            takeaway.confirmDemoPayment(token);
+            return true;
+          } catch (IllegalArgumentException error) {
+            assertThat(error).hasMessageContaining("không đủ");
+            return false;
+          }
+        }));
+      }
+      start.countDown();
+      assertThat(List.of(results.get(0).get(10, TimeUnit.SECONDS), results.get(1).get(10, TimeUnit.SECONDS)))
+          .containsExactlyInAnyOrder(true, false);
+    }
+    assertThat(stock(1)).isEqualTo(1);
+    assertThat(repo.takeawayOrders(customer.id()).stream().filter(order -> order.paidAt() != null).count())
+        .isEqualTo(1);
+  }
+
+  @Test
+  void takeawayPaymentExpiresExactlyAtPickupButPaidOrdersArePreserved() throws Exception {
+    repo.jdbc().update("UPDATE menu_item SET stock_quantity=5 WHERE id=1");
+    var input = takeawayInput("Khách hàng", "0901234567", baseline.plusMinutes(30), "TRANSFER", Map.of(1L, 1));
+    String paid = takeaway.create(customer, input);
+    String unpaid = takeaway.create(customer, input);
+    String paidToken = takeaway.startDemoPayment(paid, customer);
+    String unpaidToken = takeaway.startDemoPayment(unpaid, customer);
+    clock.set(baseline.plusMinutes(30).minusSeconds(1));
+    assertThat(takeaway.paymentStatus(unpaidToken).status()).isEqualTo("READY");
+    takeaway.confirmDemoPayment(paidToken);
+    clock.set(baseline.plusMinutes(30));
+    assertThat(takeaway.paymentStatus(unpaidToken).status()).isEqualTo("CLOSED");
+    assertThatThrownBy(() -> takeaway.confirmDemoPayment(unpaidToken)).hasMessageContaining("không còn");
+    assertThatThrownBy(() -> takeaway.startDemoPayment(unpaid, customer)).hasMessageContaining("không chờ");
+    clock.set(baseline.plusDays(1));
+    takeaway.expireUnpaid();
+    assertThat(repo.takeaway(unpaid).orElseThrow().status()).isEqualTo(TakeawayStatus.EXPIRED);
+    assertThat(repo.takeaway(unpaid).orElseThrow().paidAt()).isNull();
+    assertThat(repo.takeaway(paid).orElseThrow().status()).isEqualTo(TakeawayStatus.WAITING_PICKUP);
+    assertThat(takeaway.paymentStatus(paidToken).status()).isEqualTo("PAID");
+    assertThat(stock(1)).isEqualTo(4);
+    mvc.perform(get("/takeaway/orders/" + unpaid).with(user(customer.email()).roles("CUSTOMER")))
+        .andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.not(
+            org.hamcrest.Matchers.containsString("Mở QR chuyển khoản demo"))));
+  }
+
+  @Test
+  void unpaidTransferCannotBePreparedAndPaidCancellationRequiresRefundRecord() throws Exception {
+    var staff = bookings.account("nhanvien@moc.local");
+    String id = takeaway.create(customer, takeawayInput("Khách hàng", "0901234567", baseline.plusMinutes(30), "TRANSFER", Map.of(1L, 1)));
+    assertThatThrownBy(() -> takeaway.staffAction(id, staff, "prepare", "")).hasMessageContaining("chưa sẵn sàng");
+    String token = takeaway.startDemoPayment(id, customer);
+    clock.set(baseline.plusMinutes(1));
+    takeaway.confirmDemoPayment(token);
+    takeaway.staffAction(id, staff, "prepare", "");
+    assertThat(takeaway.paymentStatus(token).status()).isEqualTo("PAID");
+    takeaway.staffAction(id, staff, "cancel", "");
+    assertThat(repo.takeaway(id).orElseThrow().status()).isEqualTo(TakeawayStatus.REFUND_PENDING);
+    assertThat(takeaway.paymentStatus(token).status()).isEqualTo("CLOSED");
+    assertThatThrownBy(() -> takeaway.staffAction(id, staff, "refund", "")).hasMessageContaining("Mã xác nhận");
+    mvc.perform(get("/takeaway/orders/" + id).with(user(staff.email()).roles("STAFF")))
+        .andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString("Ghi nhận đã hoàn demo")));
+    takeaway.staffAction(id, staff, "refund", "DEMO-REFUND-001");
+    assertThat(repo.takeaway(id).orElseThrow().status()).isEqualTo(TakeawayStatus.CANCELLED);
+    assertThat(repo.takeaway(id).orElseThrow().refundReference()).isEqualTo("DEMO-REFUND-001");
+    assertThatThrownBy(() -> takeaway.confirmDemoPayment(token)).hasMessageContaining("không còn");
+    assertThatThrownBy(() -> takeaway.staffAction(id, staff, "refund", "DIFFERENT")).hasMessageContaining("không chờ");
+  }
+
+  @Test
+  void simultaneousTakeawayPaymentStartsShareOneToken() throws Exception {
+    String id = takeaway.create(customer, takeawayInput("Khách hàng", "0901234567", baseline.plusMinutes(30), "TRANSFER", Map.of(1L, 1)));
+    var pool = Executors.newFixedThreadPool(2);
+    var start = new CountDownLatch(1);
+    try {
+      Callable<String> task = () -> { start.await(); return takeaway.startDemoPayment(id, customer); };
+      var first = pool.submit(task);
+      var second = pool.submit(task);
+      start.countDown();
+      assertThat(first.get(10, TimeUnit.SECONDS)).isEqualTo(second.get(10, TimeUnit.SECONDS));
+      assertThat(repo.jdbc().queryForObject("SELECT COUNT(*) FROM takeaway_demo_payment WHERE order_id=?", Integer.class, id)).isEqualTo(1);
+    } finally { pool.shutdownNow(); }
   }
 
   @Test
@@ -99,12 +349,12 @@ class DemoPaymentIntegrationTest {
     String id =
         takeaway.create(
             customer,
-            new TakeawayService.Input(
+            takeawayInput(
                 "Khách trải nghiệm", "0901234567", baseline.plusMinutes(30), "TRANSFER", Map.of(1L, 1)));
     var start =
         mvc.perform(
                 post("/takeaway/orders/" + id + "/demo-payment")
-                    .with(user(customer.email()))
+                    .with(user(customer.email()).roles("CUSTOMER"))
                     .with(csrf()))
             .andExpect(status().is3xxRedirection())
             .andReturn();
@@ -153,7 +403,7 @@ class DemoPaymentIntegrationTest {
     assertThat(booking.paymentStatus()).isEqualTo(PaymentStatus.PAID);
     assertThat(payments.isDemoPayment(bookingId)).isTrue();
     assertThat(payments.status(token).status()).isEqualTo("PAID");
-    mvc.perform(get("/bookings/" + bookingId).with(user(customer.email())))
+    mvc.perform(get("/bookings/" + bookingId).with(user(customer.email()).roles("CUSTOMER")))
         .andExpect(status().isOk())
         .andExpect(content().string(org.hamcrest.Matchers.containsString("mô phỏng demo")));
   }
@@ -163,7 +413,7 @@ class DemoPaymentIntegrationTest {
     var start =
         mvc.perform(
                 post("/bookings/" + bookingId + "/demo-payment")
-                    .with(user(customer.email()))
+                    .with(user(customer.email()).roles("CUSTOMER"))
                     .with(csrf()))
             .andExpect(status().is3xxRedirection())
             .andReturn();
@@ -260,7 +510,7 @@ class DemoPaymentIntegrationTest {
   void ownerCsrfTokenAndModeAreRequired() throws Exception {
     mvc.perform(post("/bookings/" + bookingId + "/demo-payment").with(csrf()))
         .andExpect(status().is3xxRedirection());
-    mvc.perform(post("/bookings/" + bookingId + "/demo-payment").with(user(customer.email())))
+    mvc.perform(post("/bookings/" + bookingId + "/demo-payment").with(user(customer.email()).roles("CUSTOMER")))
         .andExpect(status().isForbidden());
     mvc.perform(
             post("/bookings/" + bookingId + "/demo-payment")

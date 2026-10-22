@@ -21,9 +21,8 @@ public class BookingApi {
   @GetMapping("/api/availability")
   public BookingService.Availability availability(
       @RequestParam LocalDateTime startAt,
-      @RequestParam LocalDateTime endAt,
       @RequestParam int guests) {
-    return service.availability(startAt, endAt, guests);
+    return service.availability(startAt, null, guests);
   }
 
   @PostMapping("/api/bookings")

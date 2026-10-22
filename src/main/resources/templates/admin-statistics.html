@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{fragments :: head('Thống kê doanh thu')}"></head>
+  <body>
+    <header th:replace="~{fragments :: header}"></header>
+    <main class="shell page statistics-page">
+      <div class="page-heading">
+        <p class="eyebrow">GIAVIÊN · BÁO CÁO KINH DOANH</p>
+        <h1>Doanh thu &amp; món bán chạy.</h1>
+        <p>Theo dõi đơn đã hoàn tất tại quán và mang về trong khoảng thời gian bạn chọn.</p>
+      </div>
+      <section class="panel" aria-labelledby="filter-heading">
+        <h2 id="filter-heading">Khoảng thời gian</h2>
+        <form action="/admin/statistics" method="get" class="statistics-filters">
+          <label>Ngày bắt đầu
+            <input type="date" name="startDate" th:value="${startDate}" min="1900-01-01" max="9999-12-31" required />
+          </label>
+          <label>Ngày kết thúc
+            <input type="date" name="endDate" th:value="${endDate}" min="1900-01-01" max="9999-12-31" required />
+          </label>
+          <label>Thống kê theo
+            <select name="groupBy">
+              <option th:each="group : ${groupings}" th:value="${group.name()}"
+                      th:selected="${group.name() == groupBy}" th:text="${group.label()}"></option>
+            </select>
+          </label>
+          <button class="button" type="submit">Xem thống kê</button>
+        </form>
+        <nav class="statistics-shortcuts" aria-label="Chọn nhanh thời gian">
+          <span>Chọn nhanh:</span>
+          <a class="chip" th:href="@{/admin/statistics(startDate=${today},endDate=${today},groupBy='DAY')}">Hôm nay</a>
+          <a class="chip" th:href="@{/admin/statistics(startDate=${monthStart},endDate=${today},groupBy='DAY')}">Tháng này</a>
+          <a class="chip" th:href="@{/admin/statistics(startDate=${yearStart},endDate=${today},groupBy='MONTH')}">Năm nay</a>
+        </nav>
+        <p th:if="${filterError}" class="notice warning" role="alert" th:text="${filterError}"></p>
+        <p class="helper">Bao gồm toàn bộ ngày bắt đầu và ngày kết thúc, theo giờ Việt Nam. Đơn được ghi nhận vào ngày hoàn tất.</p>
+      </section>
+
+      <th:block th:if="${report != null}">
+        <div class="stats-grid statistics-summary" aria-label="Tổng quan doanh thu">
+          <article><span>Tổng doanh thu tiền món</span><strong th:text="${@fmt.money(report.total())}"></strong></article>
+          <article><span>Phục vụ tại quán</span><strong th:text="${@fmt.money(report.dineIn)}"></strong></article>
+          <article><span>Đơn mang về</span><strong th:text="${@fmt.money(report.takeaway)}"></strong></article>
+          <article><span>Đơn đã hoàn tất</span><strong th:text="${report.orders}"></strong></article>
+        </div>
+        <section class="panel statistics-section" aria-labelledby="revenue-heading">
+          <div class="history-heading">
+            <h2 id="revenue-heading" th:text="|Doanh thu theo ${#strings.toLowerCase(periodLabel)}|"></h2>
+            <span class="badge" th:text="|${report.orders} đơn hoàn tất|"></span>
+          </div>
+          <p class="helper">Tiền món sau khuyến mãi, theo giá đã lưu khi đặt. Không cộng thêm tiền cọc; không tính đơn hủy, chưa hoàn tất hoặc đang chờ hoàn tiền.</p>
+          <div th:if="${report.periods.isEmpty()}" class="statistics-empty" role="status">
+            <h3>Chưa có đơn hoàn tất trong khoảng này.</h3>
+            <p>Hãy chọn khoảng thời gian khác. Các món trong thực đơn vẫn được liệt kê bên dưới.</p>
+          </div>
+          <div class="table-scroll" th:unless="${report.periods.isEmpty()}">
+            <table class="data-table statistics-table">
+              <caption class="statistics-caption">Tổng hợp các kỳ có đơn hoàn tất trong khoảng đã chọn</caption>
+              <thead><tr>
+                <th scope="col" th:text="${periodLabel}"></th>
+                <th scope="col" class="numeric">Số đơn</th>
+                <th scope="col" class="numeric">Tại quán</th>
+                <th scope="col" class="numeric">Mang về</th>
+                <th scope="col" class="numeric">Tổng doanh thu</th>
+              </tr></thead>
+              <tbody><tr th:each="row : ${report.periods}">
+                <th scope="row" th:text="${row.period}"></th>
+                <td class="numeric" th:text="${row.orders}"></td>
+                <td class="numeric" th:text="${@fmt.money(row.dineIn)}"></td>
+                <td class="numeric" th:text="${@fmt.money(row.takeaway)}"></td>
+                <td class="numeric"><strong th:text="${@fmt.money(row.total())}"></strong></td>
+              </tr></tbody>
+              <tfoot><tr>
+                <th scope="row">Tổng cộng</th>
+                <td class="numeric" th:text="${report.orders}"></td>
+                <td class="numeric" th:text="${@fmt.money(report.dineIn)}"></td>
+                <td class="numeric" th:text="${@fmt.money(report.takeaway)}"></td>
+                <td class="numeric" th:text="${@fmt.money(report.total())}"></td>
+              </tr></tfoot>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel statistics-section" aria-labelledby="dishes-heading">
+          <div class="history-heading">
+            <h2 id="dishes-heading">Thống kê món ăn</h2>
+            <span th:text="|${report.quantity} phần · ${report.bestsellers()} món bán chạy|"></span>
+          </div>
+          <p class="helper" id="bestseller-rule"><strong>Bán chạy: trên 700 đơn trong cùng một tháng.</strong>
+            Mỗi đơn chứa món được tính một lần, dù đặt nhiều phần. Chỉ xét đơn hoàn tất trong khoảng lọc;
+            nếu chọn một phần của tháng, chỉ tính phần thời gian đó. Không cộng dồn các tháng hoặc các năm để xét bán chạy.</p>
+          <p class="helper">Món mới tự xuất hiện khi mở hoặc tải lại trang, với số lượng và số đơn bằng 0 nếu chưa bán.
+            Danh sách bao gồm cả món tạm ngừng bán và được xếp theo số phần giảm dần.</p>
+          <div class="table-scroll">
+            <table class="data-table statistics-table" aria-describedby="bestseller-rule">
+              <thead><tr>
+                <th scope="col">Món ăn</th>
+                <th scope="col">Danh mục</th>
+                <th scope="col" class="numeric">Số phần đã bán</th>
+                <th scope="col" class="numeric">Số đơn có món</th>
+                <th scope="col">Đánh dấu bán chạy</th>
+              </tr></thead>
+              <tbody>
+                <tr th:each="row : ${report.dishes}" th:classappend="${row.bestseller() ? 'bestseller-row' : ''}">
+                  <th scope="row"><strong th:text="${row.dish.name}"></strong><small th:unless="${row.dish.available}">Tạm ngừng nhận món</small></th>
+                  <td th:text="${row.dish.category}"></td>
+                  <td class="numeric" th:text="${row.quantity}"></td>
+                  <td class="numeric" th:text="${row.orders}"></td>
+                  <td>
+                    <th:block th:if="${row.bestseller()}">
+                      <span class="badge bestseller-badge">★ Bán chạy</span>
+                      <small th:text="${row.bestMonthsLabel()}"></small>
+                    </th:block>
+                    <span th:unless="${row.bestseller()}" class="helper">Chưa đạt ngưỡng</span>
+                  </td>
+                </tr>
+                <tr th:if="${report.dishes.isEmpty()}"><td colspan="5">Chưa có món ăn. <a class="underlined" href="/admin">Thêm món trong trang quản lý</a>.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </th:block>
+      <p class="helper statistics-note">Báo cáo dựa trên tiền món được lưu trong hệ thống, chưa bao gồm món gọi thêm hoặc khoản thu ngoài hệ thống.
+        Với đơn cũ chưa lưu thời điểm hoàn tất, dùng giờ kết thúc đặt bàn hoặc giờ hẹn lấy món.</p>
+      <a class="underlined" href="/admin">← Quay lại quản lý quán</a>
+    </main>
+    <footer th:replace="~{fragments :: footer}"></footer>
+  </body>
+</html>

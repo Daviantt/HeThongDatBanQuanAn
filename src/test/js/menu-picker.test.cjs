@@ -36,6 +36,36 @@ function setup() {
   window.eval(fs.readFileSync(path.join(root,'src/main/resources/static/js/booking.js'),'utf8'));
   return {dom,window,doc,$,sent:()=>sent};
 }
+
+test('group promotion previews discounted food and deposit and sends the reviewed percentage', async () => {
+  const v = setup();
+  const { $, doc, window } = v;
+  try {
+    Object.assign($('booking-promotion').dataset, { enabled: 'true', minimumGuests: '4', percent: '10' });
+    $('guests').innerHTML = '<option value="4">4</option>';
+    $('visit-date').value = '2026-10-01';
+    const search = new window.Event('submit', { cancelable: true });
+    Object.defineProperty(search, 'submitter', { value: doc.querySelector('#availability-form button') });
+    $('availability-form').dispatchEvent(search);
+    await settle();
+    doc.querySelector('.table-seat').click();
+    doc.querySelector('.preorder-item [data-quantity="1"]').click();
+    assert.equal($('summary-food').textContent, '189.000 ₫');
+    assert.equal($('summary-discount').textContent, '18.900 ₫');
+    assert.equal($('summary-food-net').textContent, '170.100 ₫');
+    assert.equal($('summary-deposit').textContent, '134.020 ₫');
+    $('accept-policy').checked = true;
+    $('accept-policy').dispatchEvent(new window.Event('change'));
+    $('create-booking').click();
+    await settle();
+    assert.equal(v.sent().expectedDiscountPercent, 10);
+    $('guests').innerHTML = '<option value="3">3</option>';
+    $('guests').dispatchEvent(new window.Event('change'));
+    $('availability-form').dispatchEvent(search);
+    await settle();
+    assert.equal($('summary-discount').textContent, '0 ₫');
+  } finally { window.close(); }
+});
 test('accent-insensitive search and category filters preserve selected quantities and submission',async()=>{
   const v=setup();
   const {doc,$,window}=v;

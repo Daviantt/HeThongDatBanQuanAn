@@ -14,6 +14,11 @@
   };
   const normalizeText = (text) => text.toLocaleLowerCase("vi").normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
+  const discountPercent = () => {
+    const promotion = $("booking-promotion")?.dataset;
+    return promotion?.enabled === "true" && state.search?.guests >= Number(promotion.minimumGuests)
+      ? Number(promotion.percent) : 0;
+  };
   function filterMenu() {
     const query = normalizeText($("dish-search")?.value.trim() || "");
     let visible = 0;
@@ -76,10 +81,13 @@
     });
     if ($("selected-dish-count")) $("selected-dish-count").textContent = dishCount;
     if ($("selected-food-summary")) $("selected-food-summary").hidden = dishCount === 0;
-    if ($("selected-food-note")) $("selected-food-note").textContent = `${dishCount} món · ${portions} phần · Cọc 20% tiền món`;
+    if ($("selected-food-note")) $("selected-food-note").textContent = `${dishCount} món · ${portions} phần · Cọc 20% tiền món sau giảm`;
     filterMenu();
     $("summary-food").textContent = money(total);
-    const foodDeposit = Math.ceil(total / 5);
+    const discount = Math.floor(total * discountPercent() / 100);
+    if ($("summary-discount")) $("summary-discount").textContent = money(discount);
+    if ($("summary-food-net")) $("summary-food-net").textContent = money(total - discount);
+    const foodDeposit = Math.ceil((total - discount) / 5);
     $("summary-food-deposit").textContent = money(foodDeposit);
     $("summary-deposit").textContent = option ? money(option.deposit + foodDeposit) : "—";
     $("summary-guests").textContent = state.search
@@ -89,7 +97,7 @@
       const [date, start] = state.search.startAt.split("T");
       const [y, m, d] = date.split("-");
       $("summary-time").textContent =
-        `${d}/${m}/${y} · ${start}–${state.search.endAt.split("T")[1]}`;
+        `${d}/${m}/${y} · ${start}`;
     } else $("summary-time").textContent = "—";
     $("late-warning").hidden =
       !state.search ||
@@ -210,7 +218,6 @@
     const requestId = ++state.request;
     const search = {
       startAt: $("visit-date").value + "T" + $("start-time").value,
-      endAt: $("visit-date").value + "T" + $("end-time").value,
       guests: Number($("guests").value),
     };
     const button = event.submitter;
@@ -244,7 +251,7 @@
       button.textContent = "Tìm bàn trống ↗";
     }
   });
-  ["visit-date", "start-time", "end-time", "guests"].forEach((id) =>
+  ["visit-date", "start-time", "guests"].forEach((id) =>
     $(id).addEventListener("change", () => {
       ++state.request;
       state.selected = null;
@@ -330,6 +337,7 @@
           tableIds: state.selected.tableIds,
           items,
           notes: $("booking-notes").value,
+          expectedDiscountPercent: discountPercent(),
         }),
       });
       if (response.status === 403)

@@ -4,6 +4,10 @@
   <body>
     <header th:replace="~{fragments :: header}"></header>
     <main class="shell page">
+      <nav class="staff-tabs" aria-label="Vận hành quán">
+        <a class="button" href="/staff" aria-current="page">Đơn đặt bàn &amp; mang về</a>
+        <a class="button outline" href="/staff/tables">Quản lý bàn ăn</a>
+      </nav>
       <div class="page-heading">
         <p class="eyebrow">GIAVIÊN · KHÔNG GIAN NHÂN VIÊN</p>
         <h1>Một ngày ở quán.</h1>
@@ -26,13 +30,10 @@
       <section class="panel">
         <div class="section-heading">
           <h2>Danh sách đặt bàn</h2>
-          <label class="search-label"
-            ><input
-              id="booking-search"
-              type="search"
-              placeholder="Tìm mã đặt bàn, tên hoặc SĐT…"
-              aria-label="Tìm lượt đặt"
-          /></label>
+          <form action="/staff" method="get" class="staff-search">
+            <input name="search" type="search" th:value="${search}" maxlength="100" placeholder="Tìm mã đặt bàn, tên hoặc SĐT…" aria-label="Tìm lượt đặt trên mọi trang"/>
+            <button class="button outline" type="submit">Tìm kiếm</button>
+          </form>
         </div>
         <div class="table-scroll">
           <table class="data-table">
@@ -43,6 +44,7 @@
                 <th>Bàn / Khách</th>
                 <th>Trạng thái</th>
                 <th>Tiền cọc</th>
+                <th>Tổng tiền</th>
                 <th></th>
               </tr>
             </thead>
@@ -72,6 +74,11 @@
                   ><small th:text="${b.paymentStatus.label}"></small>
                 </td>
                 <td>
+                  <strong th:text="${@fmt.money(b.total())}"></strong>
+                  <small th:if="${b.discount() > 0}" th:text="|Đã giảm ${@fmt.money(b.discount())} (${b.appliedDiscountPercent()}%)|"></small>
+                  <small th:if="${b.lines.isEmpty()}">Chưa đặt món trước</small>
+                </td>
+                <td>
                   <a class="text-link" th:href="@{/bookings/{id}(id=${b.id})}"
                     >Xử lý ↗</a
                   >
@@ -83,6 +90,27 @@
         <p class="empty-state" th:if="${bookings.isEmpty()}">
           Chưa có lượt đặt. Các cuộc hẹn mới sẽ xuất hiện ở đây.
         </p>
+        <p class="helper">Tổng tiền là tiền món đặt trước sau khuyến mãi. Tiền cọc được trừ khi thanh toán; chưa bao gồm món gọi thêm tại quán.</p>
+      </section>
+      <nav th:replace="~{fragments :: pagination(${bookingPage}, @{/staff(page=${bookingPage.number - 1},takeawayPage=${ordersPage.number},search=${search})}, @{/staff(page=${bookingPage.number + 1},takeawayPage=${ordersPage.number},search=${search})})}"></nav>
+      <section id="takeaway-orders" class="panel history-section">
+        <h2>Đơn mang về <span class="badge" th:text="${ordersPage.total}"></span></h2>
+        <p class="helper">Đơn chuyển khoản chỉ được chuẩn bị sau khi thanh toán. Chọn đơn để chuẩn bị, giao món hoặc hủy.</p>
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead><tr><th>Đơn / Giờ lấy</th><th>Người nhận</th><th>Món</th><th>Trạng thái</th><th>Thanh toán</th><th></th></tr></thead>
+            <tbody><tr th:each="order : ${takeawayOrders}">
+              <td><strong th:text="${order.code()}"></strong><small th:text="${@fmt.date(order.pickupAt)}"></small></td>
+              <td><strong th:text="${order.customerName}"></strong><small th:text="${order.customerPhone}"></small></td>
+              <td><ul class="history-dishes"><li th:each="line : ${order.lines}" th:text="|${line.quantity} × ${line.itemName}|"></li></ul></td>
+              <td><span class="badge" th:text="${order.status.label}"></span></td>
+              <td><strong th:text="${@fmt.money(order.total)}"></strong><small th:text="${order.refundReference != null ? 'Đã hoàn demo' : (order.paymentMethod == 'CASH' ? (order.paidAt == null ? 'Chưa thu tiền mặt' : 'Đã thu tiền mặt') : (order.paidAt == null ? 'Chưa chuyển khoản' : 'Đã thanh toán demo'))}"></small></td>
+              <td><a class="text-link" th:href="@{/takeaway/orders/{id}(id=${order.id})}">Xử lý ↗</a></td>
+            </tr></tbody>
+          </table>
+        </div>
+        <p class="empty-state" th:if="${takeawayOrders.isEmpty()}">Chưa có đơn mang về.</p>
+        <nav th:replace="~{fragments :: pagination(${ordersPage}, @{/staff(page=${bookingPage.number},takeawayPage=${ordersPage.number - 1},search=${search})}, @{/staff(page=${bookingPage.number},takeawayPage=${ordersPage.number + 1},search=${search})})}"></nav>
       </section>
     </main>
     <footer th:replace="~{fragments :: footer}"></footer>

@@ -51,12 +51,4 @@ document.querySelectorAll("[data-countdown]").forEach((container) => {
   interval = setInterval(update, 1000);
 
 });
-document.addEventListener('DOMContentLoaded', function () {
-    const dishElements = document.querySelectorAll('.dish-grid');
-    dishElements.forEach(function (dish) {
-        dish.style.cursor = 'pointer';
-        dish.addEventListener('click', function () {
-            window.location.href = '/book';
-        });
-    });
-});
+

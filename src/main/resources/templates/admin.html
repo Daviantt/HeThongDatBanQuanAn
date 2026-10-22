@@ -8,6 +8,7 @@
         <p class="eyebrow">GIAVIÊN · KHÔNG GIAN QUẢN LÝ</p>
         <h1>Chăm chút từng điều nhỏ.</h1>
         <p>Cấu hình đặt bàn, tổ hợp bàn và thực đơn của quán.</p>
+        <a class="button outline" href="/admin/statistics">Xem thống kê doanh thu ↗</a>
       </div>
       <div th:replace="~{fragments :: flash}"></div>
       <div th:if="${demoPaymentEnabled}" class="notice warning">
@@ -20,6 +21,16 @@
         <p th:unless="${gatewayReady}">Chưa đủ cấu hình kết nối. Nhập thông tin được VNPAY cấp vào file config/payment.properties trên máy chủ, rồi khởi động lại ứng dụng.</p>
       </div>
       <div class="admin-grid">
+        <section class="panel">
+          <h2>Khuyến mãi theo nhóm</h2>
+          <form th:action="@{/admin/promotion}" method="post" class="form-stack">
+            <label class="checkbox-label"><input type="checkbox" name="enabled" value="true" th:checked="${promotion.enabled}"/>Bật khuyến mãi</label>
+            <label>Áp dụng từ số khách<input name="minimumGuests" type="number" min="2" max="12" th:value="${promotion.minimumGuests}" required/></label>
+            <label>Giảm tiền món (%)<input name="percent" type="number" min="1" max="50" th:value="${promotion.discountPercent}" required/></label>
+            <p class="helper">Áp dụng cho món đặt trước của lượt đặt bàn đạt số khách tối thiểu. Không áp dụng cho đơn mang về. Tiền cọc món bằng 20% tiền món sau giảm; cọc giữ bàn không đổi. Lượt đặt cũ giữ chính sách đã chốt.</p>
+            <button class="button" type="submit">Lưu khuyến mãi</button>
+          </form>
+        </section>
         <section class="panel">
           <h2>Cấu hình đặt bàn</h2>
           <form th:action="@{/admin/settings}" method="post" class="form-stack">

@@ -9,6 +9,26 @@
         <h1>Chọn góc ngồi của bạn.</h1>
         <p>Bạn chọn người đi cùng. GiaViên chuẩn bị phần còn lại.</p>
       </div>
+      <section id="booking-promotion" class="booking-promotion" th:hidden="${!promotion.enabled}"
+          th:attr="data-enabled=${promotion.enabled},data-minimum-guests=${promotion.minimumGuests},data-percent=${promotion.discountPercent}"
+          aria-label="Khuyến mãi theo nhóm">
+        <div class="promotion-content">
+          <p class="promotion-eyebrow">ƯU ĐÃI ĐANG ÁP DỤNG</p>
+          <h2>Đi cùng nhau, thưởng thức nhiều hơn.</h2>
+          <p class="promotion-detail">Nhóm từ <strong th:text="${promotion.minimumGuests}">4</strong> khách được giảm <strong th:text="|${promotion.discountPercent}%|">10%</strong> tiền món đặt trước.</p>
+          <a class="promotion-action" href="#availability-form">Chọn bàn để nhận ưu đãi <span aria-hidden="true">↗</span></a>
+        </div>
+        <div class="promotion-visual" aria-hidden="true">
+          <img src="/images/menu/bo-luc-lac.jpg" alt="" width="800" height="600" loading="lazy" />
+          <div class="promotion-sticker"><span>GIẢM</span><strong th:text="|${promotion.discountPercent}%|">10%</strong><span>TIỀN MÓN</span></div>
+        </div>
+      </section>
+      <a class="order-path-card takeaway booking-takeaway-card" href="/menu">
+        <span class="order-path-index">MANG VỀ</span>
+        <strong>Đặt đến lấy</strong>
+        <span class="order-path-description">Chọn món, thêm vào giỏ và hẹn đến lấy tại quán.</span>
+        <span class="order-path-link">Xem món để đặt <span aria-hidden="true">↗</span></span>
+      </a>
       <div class="booking-layout">
         <div class="booking-main">
           <section class="panel">
@@ -16,7 +36,7 @@
               <span>01</span>
               <div>
                 <h2>Mình hẹn nhau khi nào?</h2>
-                <p>Chọn thời gian dùng bàn và số người tham dự.</p>
+                <p>Chọn ngày, giờ đến và số người tham dự.</p>
               </div>
             </div>
             <form id="availability-form" class="search-form">
@@ -33,12 +53,6 @@
                   id="start-time"
                   type="time"
                   value="18:00"
-                  required /></label
-              ><label
-                >Giờ kết thúc<input
-                  id="end-time"
-                  type="time"
-                  value="20:00"
                   required /></label
               ><label
                 >Số khách<select id="guests">
@@ -119,7 +133,7 @@
                 <label class="menu-search">Tìm món
                   <input id="dish-search" type="search" placeholder="Tên món hoặc nguyên liệu…" autocomplete="off" />
                 </label>
-                <p class="helper">Ảnh AI minh họa · Giá theo phần</p>
+
               </div>
               <div class="menu-filters" role="group" aria-label="Lọc món đặt trước">
                 <button class="chip active" type="button" data-menu-filter="all" aria-pressed="true">Tất cả</button>
@@ -205,6 +219,8 @@
               <dt>Món đặt trước</dt>
               <dd id="summary-food">0 ₫</dd>
             </div>
+            <div><dt>Khuyến mãi</dt><dd id="summary-discount">0 ₫</dd></div>
+            <div><dt>Tổng tiền món sau giảm</dt><dd id="summary-food-net">0 ₫</dd></div>
           </dl>
           <div class="selected-food-summary" id="selected-food-summary" hidden>
             <h3>Món bạn đã chọn</h3>
@@ -215,13 +231,13 @@
             <span>Cọc giữ bàn</span><strong id="summary-table-deposit">—</strong>
           </div>
           <div class="deposit-line">
-            <span>Cọc món ăn (20%)</span><strong id="summary-food-deposit">0 ₫</strong>
+            <span>Cọc món sau giảm (20%)</span><strong id="summary-food-deposit">0 ₫</strong>
           </div>
           <div class="deposit-line">
             <span>Tổng cọc cần thanh toán</span><strong id="summary-deposit" aria-live="polite">—</strong>
           </div>
           <p class="helper">
-            Tổng cọc = số bàn × cọc mỗi bàn + 20% tiền món đặt trước.
+            Tổng cọc = số bàn × cọc mỗi bàn + 20% tiền món sau khuyến mãi.
             Khoản đã thanh toán được trừ vào hóa đơn; số tiền còn lại thanh toán tại quán.
           </p>
           <div class="policy-note">

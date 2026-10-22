@@ -47,8 +47,14 @@ public class BookingService {
   }
 
   private void owner(Booking booking, Account actor) {
+    requireCustomer(actor);
     if (booking.userId() != actor.id())
       throw new AccessDeniedException("Chỉ chủ lượt đặt được thực hiện thao tác này.");
+  }
+
+  public void requireCustomer(Account actor) {
+    if (!"CUSTOMER".equals(actor.role()))
+      throw new AccessDeniedException("Chức năng đặt món và đặt bàn chỉ dành cho khách hàng.");
   }
 
   private void requireStaff(Account actor) {
@@ -62,11 +68,18 @@ public class BookingService {
 
   public record BookingInput(
       LocalDateTime startAt,
+      // Accepted only for older clients. Never used to reserve or release a table.
       LocalDateTime endAt,
       int guests,
       List<Long> tableIds,
       Map<Long, Integer> items,
-      String notes) {}
+      String notes,
+      Integer expectedDiscountPercent) {
+    public BookingInput(LocalDateTime startAt, LocalDateTime endAt, int guests,
+        List<Long> tableIds, Map<Long, Integer> items, String notes) {
+      this(startAt, endAt, guests, tableIds, items, notes, 0);
+    }
+  }
 
   public record TableOption(List<Long> tableIds, String label, int capacity, long deposit) {}
 
@@ -77,27 +90,21 @@ public class BookingService {
       Settings settings) {}
 
   public void validateTime(LocalDateTime start, LocalDateTime end, int guests) {
-    require(start != null && end != null, "Vui lòng chọn giờ đến và giờ kết thúc.");
+    // The legacy end argument is ignored. Only staff records the actual finish time.
+    require(start != null, "Vui lòng chọn giờ đến.");
     require(guests >= 1 && guests <= 12, "Mỗi lượt đặt dành cho 1–12 khách.");
     require(start.isAfter(now()), "Giờ đến phải nằm trong tương lai.");
-    require(
-        start.toLocalDate().equals(end.toLocalDate()), "Giờ đến và giờ kết thúc phải cùng ngày.");
-    require(end.isAfter(start), "Giờ kết thúc phải sau giờ đến.");
     require(
         !start.toLocalDate().isAfter(now().toLocalDate().plusDays(60)),
         "Bạn có thể đặt trước tối đa 60 ngày.");
     Settings settings = repo.settings();
     require(
         !start.toLocalTime().isBefore(LocalTime.of(settings.openHour(), 0))
-            && !end.toLocalTime().isAfter(LocalTime.of(settings.closeHour(), 0)),
+            && start.toLocalTime().isBefore(LocalTime.of(settings.closeHour(), 0)),
         "Giờ phục vụ: %02d:00–%02d:00.".formatted(settings.openHour(), settings.closeHour()));
     require(
-        Duration.between(start, end).toMinutes() >= 30, "Thời gian dùng bàn tối thiểu 30 phút.");
-    require(
         start.getSecond() == 0
-            && end.getSecond() == 0
-            && start.getNano() == 0
-            && end.getNano() == 0,
+            && start.getNano() == 0,
         "Vui lòng chọn thời gian chính xác đến phút.");
   }
 
@@ -141,18 +148,7 @@ public class BookingService {
   }
 
   private Set<Long> busyTables(LocalDateTime start, LocalDateTime end, String exclude) {
-    Set<Long> busy = new HashSet<>();
-    for (Booking other : repo.activeBookings(now())) {
-      if (other.id().equals(exclude)) continue;
-      LocalDateTime occupiedUntil =
-          other.status() == BookingStatus.COMPLETED ? other.releasedAt() : other.endAt();
-      if (other.status() == BookingStatus.SEATED && occupiedUntil.isBefore(now()))
-        occupiedUntil = now();
-      if (BookingPolicy.overlaps(
-          start, end, other.startAt(), occupiedUntil, repo.settings().cleanupMinutes()))
-        busy.addAll(other.tableIds());
-    }
-    return busy;
+    return repo.busyTableIds(start, end, now(), repo.settings().cleanupMinutes(), exclude);
   }
 
   private List<Long> validateTables(
@@ -213,6 +209,7 @@ public class BookingService {
   }
 
   public String create(Account actor, BookingInput input) {
+    requireCustomer(actor);
     require(input != null, "Dữ liệu đặt bàn không hợp lệ.");
     repo.lockSchedule();
     repo.expire(now());
@@ -221,7 +218,12 @@ public class BookingService {
         validateTables(input.tableIds(), input.guests(), input.startAt(), input.endAt(), null);
     String notes = checkedText(input.notes(), 0, 500, "Ghi chú");
     List<OrderLine> lines = makeLines(input.items(), List.of());
-    long foodDeposit = BookingPolicy.foodDeposit(lines.stream().mapToLong(OrderLine::subtotal).sum());
+    GroupPromotion promotion = repo.promotion();
+    int percent = promotion.percentFor(input.guests());
+    require(Objects.equals(input.expectedDiscountPercent() == null ? 0 : input.expectedDiscountPercent(), percent),
+        "Khuyến mãi vừa thay đổi. Vui lòng tải lại trang để kiểm tra tổng tiền trước khi đặt.");
+    long foodTotal = lines.stream().mapToLong(OrderLine::subtotal).sum();
+    long foodDeposit = BookingPolicy.foodDeposit(foodTotal - BookingPolicy.discount(foodTotal, percent));
     String id = UUID.randomUUID().toString();
     Settings settings = repo.settings();
     LocalDateTime holdUntil = now().plusMinutes(settings.holdMinutes());
@@ -230,7 +232,7 @@ public class BookingService {
         id,
         actor.id(),
         input.startAt(),
-        input.endAt(),
+        null,
         input.guests(),
         notes,
         ids.size() * settings.depositPerTable() + foodDeposit,
@@ -239,6 +241,8 @@ public class BookingService {
         holdUntil,
         ids);
     repo.replaceLines(id, lines);
+    repo.jdbc().update("UPDATE reservation SET promotion_minimum_guests=?,promotion_percent=? WHERE id=?",
+        promotion.enabled() ? promotion.minimumGuests() : 0, promotion.enabled() ? promotion.discountPercent() : 0, id);
     repo.audit(id, actor.email(), "Tạo lượt đặt; giữ bàn chờ cọc", now());
     return id;
   }
@@ -253,7 +257,8 @@ public class BookingService {
         "Chỉ được sửa món và ghi chú trước giờ đến ít nhất 2 tiếng.");
     List<OrderLine> lines = makeLines(items, b.lines());
     if (b.paymentStatus() == PaymentStatus.UNPAID) {
-      long foodDeposit = BookingPolicy.foodDeposit(lines.stream().mapToLong(OrderLine::subtotal).sum());
+      long foodTotal = lines.stream().mapToLong(OrderLine::subtotal).sum();
+      long foodDeposit = BookingPolicy.foodDeposit(foodTotal - BookingPolicy.discount(foodTotal, b.appliedDiscountPercent()));
       long totalDeposit = b.tableDeposit() + foodDeposit;
       if (totalDeposit != b.deposit()) {
         require(
@@ -351,9 +356,8 @@ public class BookingService {
             + " cọc.");
     repo.jdbc()
         .update(
-            "UPDATE reservation SET start_at=?,end_at=?,guests=? WHERE id=?",
+            "UPDATE reservation SET start_at=?,end_at=NULL,guests=? WHERE id=?",
             start,
-            end,
             guests,
             id);
     repo.replaceTables(id, ids);
@@ -391,11 +395,11 @@ public class BookingService {
       case "checkin" -> {
         require(b.status() == BookingStatus.CONFIRMED, "Chỉ nhận khách cho lượt đặt đã xác nhận.");
         require(
-            !now().isBefore(b.startAt().minusMinutes(15)) && now().isBefore(b.endAt()),
-            "Nhận khách từ 15 phút trước giờ hẹn đến trước giờ kết thúc.");
+            !now().isBefore(b.startAt().minusMinutes(15)),
+            "Nhận khách từ 15 phút trước giờ hẹn.");
         require(
-            Collections.disjoint(b.tableIds(), busyTables(now(), b.endAt(), id)),
-            "Bàn chưa sẵn sàng để nhận khách sớm.");
+            Collections.disjoint(b.tableIds(), repo.occupiedTableIds(now(), repo.settings().cleanupMinutes(), id)),
+            "Bàn đang phục vụ hoặc đang dọn, chưa sẵn sàng nhận khách.");
         repo.jdbc().update("UPDATE reservation SET status='SEATED' WHERE id=?", id);
       }
       case "complete" -> {
@@ -523,6 +527,24 @@ public class BookingService {
             grace);
   }
 
+  public void updatePromotion(Account actor, boolean enabled, int minimumGuests, int percent) {
+    requireAdmin(actor);
+    require(minimumGuests >= 2 && minimumGuests <= 12, "Số khách tối thiểu từ 2 đến 12.");
+    require(percent >= 1 && percent <= 50, "Mức giảm từ 1% đến 50% tiền món.");
+    repo.lockSchedule();
+    repo.jdbc().update("UPDATE group_promotion SET enabled=?,minimum_guests=?,discount_percent=? WHERE id=1",
+        enabled, minimumGuests, percent);
+  }
+
+  public void updateStock(Account actor, long dishId, int quantity, int threshold, boolean available) {
+    requireAdmin(actor);
+    require(quantity >= 0 && quantity <= 100000, "Số phần tồn từ 0 đến 100.000.");
+    require(threshold >= 0 && threshold <= 10000, "Ngưỡng cảnh báo từ 0 đến 10.000 phần.");
+    repo.lockSchedule();
+    require(repo.jdbc().update("UPDATE menu_item SET stock_quantity=?,low_stock_threshold=?,available=? WHERE id=?",
+        quantity, threshold, available, dishId) == 1, "Món không tồn tại.");
+  }
+
   public void createStaff(Account actor, String email, String password, String name, String phone) {
     requireAdmin(actor);
     register(email, password, name, phone);
@@ -578,8 +600,7 @@ public class BookingService {
     requireAdmin(actor);
     repo.lockSchedule();
     require(
-        repo.activeBookings(now()).stream()
-            .noneMatch(b -> b.tableIds().contains(id) && b.endAt().isAfter(now())),
+        !repo.tableHasLiveBooking(id, now()),
         "Bàn còn lượt đặt đang hiệu lực; hãy xử lý các lượt đặt trước.");
     require(
         repo.jdbc()

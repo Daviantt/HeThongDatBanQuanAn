@@ -21,6 +21,12 @@ public final class Models {
       boolean available,
       String illustration) {}
 
+  public record StockItem(Dish dish, Integer quantity, int threshold) {
+    public boolean low() { return quantity != null && quantity > 0 && quantity <= threshold; }
+    public boolean empty() { return quantity != null && quantity == 0; }
+    public String label() { return quantity == null ? "Chưa nhập tồn" : empty() ? "Hết món" : low() ? "Sắp hết" : "Đủ món"; }
+  }
+
   public record Settings(
       long depositPerTable,
       int holdMinutes,
@@ -35,9 +41,19 @@ public final class Models {
     }
   }
 
+  public record GroupPromotion(boolean enabled, int minimumGuests, int discountPercent) {
+    public int percentFor(int guests) {
+      return enabled && guests >= minimumGuests ? discountPercent : 0;
+    }
+  }
+
   public enum TakeawayStatus {
     AWAITING_PAYMENT("Chờ chuyển khoản"),
     WAITING_PICKUP("Chờ khách đến lấy"),
+    PREPARING("Đang chuẩn bị"),
+    READY("Sẵn sàng giao món"),
+    EXPIRED("Hết hạn thanh toán"),
+    REFUND_PENDING("Chờ hoàn tiền"),
     COMPLETED("Đã giao món"),
     CANCELLED("Đã hủy");
     public final String label;
@@ -47,7 +63,7 @@ public final class Models {
     }
   }
 
-  /** A food order collected at the restaurant; it deliberately has no dining-table allocation. */
+
   public record TakeawayOrder(
       String id,
       long userId,
@@ -60,6 +76,7 @@ public final class Models {
       LocalDateTime createdAt,
       LocalDateTime paidAt,
       String paymentReference,
+      String refundReference,
       List<OrderLine> lines) {
     public String code() {
       return "TL-" + id.substring(0, 8).toUpperCase();
@@ -116,6 +133,8 @@ public final class Models {
       PaymentStatus paymentStatus,
       long deposit,
       long foodDeposit,
+      int promotionMinimumGuests,
+      int promotionPercent,
       LocalDateTime createdAt,
       LocalDateTime holdUntil,
       LocalDateTime paidAt,
@@ -133,6 +152,18 @@ public final class Models {
 
     public long foodTotal() {
       return lines.stream().mapToLong(OrderLine::subtotal).sum();
+    }
+
+    public int appliedDiscountPercent() {
+      return guests >= promotionMinimumGuests ? promotionPercent : 0;
+    }
+
+    public long discount() {
+      return BookingPolicy.discount(foodTotal(), appliedDiscountPercent());
+    }
+
+    public long total() {
+      return foodTotal() - discount();
     }
 
     public long tableDeposit() {

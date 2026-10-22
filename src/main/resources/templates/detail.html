@@ -34,8 +34,8 @@
                 <dd th:text="${@fmt.date(booking.startAt)}"></dd>
               </div>
               <div>
-                <dt>Giờ kết thúc</dt>
-                <dd th:text="${@fmt.date(booking.endAt)}"></dd>
+                <dt>Kết thúc phục vụ</dt>
+                <dd th:text="${booking.releasedAt != null ? @fmt.date(booking.releasedAt) : 'Nhân viên xác nhận khi khách dùng xong'}"></dd>
               </div>
               <div>
                 <dt>Khách đặt</dt>
@@ -74,6 +74,10 @@
               <span>Tạm tính món ăn</span
               ><strong th:text="${@fmt.money(booking.foodTotal())}"></strong>
             </div>
+            <div class="deposit-line" th:if="${booking.discount() > 0}">
+              <span th:text="|Khuyến mãi nhóm (${booking.appliedDiscountPercent()}%)|"></span><strong th:text="|−${@fmt.money(booking.discount())}|"></strong>
+            </div>
+            <div class="deposit-line"><span>Tổng tiền món sau giảm</span><strong th:text="${@fmt.money(booking.total())}"></strong></div>
             <p class="helper">
               Bếp chỉ chuẩn bị món sau khi nhân viên xác nhận bạn đã đến.
               Phần tiền món trong cọc được trừ vào hóa đơn sau khi bạn thanh toán.
@@ -259,20 +263,13 @@
                 method="post"
                 class="form-stack"
               >
-                <div class="two-cols">
+                <div>
                   <label
                     >Giờ đến mới<input
                       type="datetime-local"
                       name="startAt"
                       th:value="${@fmt.inputDate(booking.startAt)}"
-                      required /></label
-                  ><label
-                    >Giờ kết thúc mới<input
-                      type="datetime-local"
-                      name="endAt"
-                      th:value="${@fmt.inputDate(booking.endAt)}"
-                      required
-                  /></label>
+                      required /></label>
                 </div>
                 <div class="two-cols">
                   <label
