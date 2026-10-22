@@ -1,0 +1,36 @@
+.statistics-filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  align-items: end;
+  gap: 16px;
+}
+.statistics-filters label { display: grid; gap: 6px; }
+.statistics-filters input, .statistics-filters select { width: 100%; min-width: 0; }
+.statistics-shortcuts { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 18px; }
+.statistics-shortcuts > span { font-size: 13px; color: var(--muted); }
+.statistics-summary { margin-top: 24px; }
+.statistics-summary strong { font-size: clamp(21px, 2.2vw, 30px); overflow-wrap: anywhere; }
+.statistics-section { margin-bottom: 24px; }
+.statistics-page .table-scroll { height: auto; max-height: 560px; overflow: auto; }
+.statistics-table { min-width: 690px; }
+.statistics-table .numeric { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.statistics-table tbody th { text-align: left; font-size: inherit; color: inherit; background: inherit; font-weight: 400; padding: 18px 12px; }
+.statistics-table small { display: block; color: var(--muted); font-weight: 400; }
+.statistics-table tfoot { background: var(--cream); font-weight: 700; }
+.statistics-table tfoot th { text-align: left; }
+.statistics-caption { text-align: left; color: var(--muted); font-size: 13px; padding-bottom: 12px; }
+.bestseller-row { background: #fbf5e8; }
+.bestseller-badge { background: #f3e1b4; color: #785014; }
+.statistics-empty { padding: 28px; margin-top: 16px; background: var(--paper); border-radius: var(--radius); text-align: center; }
+.statistics-empty p { margin-bottom: 0; color: var(--muted); }
+.statistics-note { max-width: 940px; }
+@media (max-width: 900px) {
+  .statistics-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .statistics-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 520px) {
+  .statistics-filters { grid-template-columns: 1fr; }
+  .statistics-filters .button { justify-content: center; }
+  .statistics-summary { grid-template-columns: 1fr; }
+  .statistics-page .panel { padding: 20px; }
+}

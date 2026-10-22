@@ -1,0 +1,37 @@
+.staff-tabs, .board-date-form { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin-bottom: 24px; }
+.board-date-form label { display: grid; gap: 6px; }
+.board-counts { display: flex; flex-wrap: wrap; gap: 10px; }
+.board-counts span { padding: 8px 14px; background: #fff; border: 1px solid var(--line); border-radius: 24px; font-size: 13px; }
+.table-board-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; align-items: start; }
+.table-board-card { border-top: 5px solid #7a9d83; margin: 0; padding: 20px; }
+.table-board-card h3 { font-size: 28px; margin: 0; }
+.table-board-card .row { flex-wrap: wrap; gap: 8px; }
+.table-board-card.HELD { border-top-color: #c49340; }
+.table-board-card.RESERVED { border-top-color: #578ba4; }
+.table-board-card.SEATED { border-top-color: #ba673f; }
+.table-board-card.CLEANING { border-top-color: #8c6caa; }
+.table-board-card.INACTIVE { border-top-color: #888; }
+.table-symbol { width: 100%; display: grid; justify-items: center; gap: 4px; padding: 10px; border: 0; border-radius: 12px; background: var(--paper); color: var(--green); cursor: pointer; }
+.table-symbol:hover { background: var(--cream); }
+.table-symbol svg { fill: #a0b8a5; stroke: var(--green); stroke-width: 2; }
+.table-symbol span { font-size: 12px; }
+.SEATED .table-symbol svg { fill: #e6ba9f; }
+.HELD .table-symbol svg { fill: #ead59c; }
+.RESERVED .table-symbol svg { fill: #b8d5e3; }
+.CLEANING .table-symbol svg { fill: #d7c2e6; }
+.INACTIVE .table-symbol svg { fill: #ccc; }
+.table-dialog { width: min(540px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); overflow: auto; padding: 26px; border: 1px solid var(--line); border-radius: 16px; color: var(--ink); }
+.table-dialog::backdrop { background: #132c2099; }
+.board-brief strong, .board-brief small { display: block; }
+.board-floor { margin-top: 26px; }
+.board-booking { display: grid; gap: 7px; padding-top: 16px; margin-top: 16px; border-top: 1px solid var(--line); font-size: 13px; }
+.board-booking .badge { justify-self: start; }
+.board-booking form { margin: 0; }
+.board-customer { overflow-wrap: anywhere; }
+.board-cleaning { background: #f2edf7; padding: 12px; border-radius: 8px; }
+.board-upcoming { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 12px; }
+.board-upcoming small { display: block; color: var(--muted); }
+#table-board-sync { font-size: 13px; }
+#table-board-sync.sync-error { color: #a03024; }
+@media (max-width: 1000px) { .table-board-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .table-board-grid { grid-template-columns: 1fr; } }

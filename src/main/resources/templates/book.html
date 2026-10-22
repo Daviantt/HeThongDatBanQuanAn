@@ -9,9 +9,26 @@
         <h1>Chọn góc ngồi của bạn.</h1>
         <p>Bạn chọn người đi cùng. GiaViên chuẩn bị phần còn lại.</p>
       </div>
-      <p id="booking-promotion" class="notice success" th:hidden="${!promotion.enabled}"
+      <section id="booking-promotion" class="booking-promotion" th:hidden="${!promotion.enabled}"
           th:attr="data-enabled=${promotion.enabled},data-minimum-guests=${promotion.minimumGuests},data-percent=${promotion.discountPercent}"
-          th:text="|Ưu đãi nhóm từ ${promotion.minimumGuests} khách: giảm ${promotion.discountPercent}% tiền món đặt trước.|"></p>
+          aria-label="Khuyến mãi theo nhóm">
+        <div class="promotion-content">
+          <p class="promotion-eyebrow">ƯU ĐÃI ĐANG ÁP DỤNG</p>
+          <h2>Đi cùng nhau, thưởng thức nhiều hơn.</h2>
+          <p class="promotion-detail">Nhóm từ <strong th:text="${promotion.minimumGuests}">4</strong> khách được giảm <strong th:text="|${promotion.discountPercent}%|">10%</strong> tiền món đặt trước.</p>
+          <a class="promotion-action" href="#availability-form">Chọn bàn để nhận ưu đãi <span aria-hidden="true">↗</span></a>
+        </div>
+        <div class="promotion-visual" aria-hidden="true">
+          <img src="/images/menu/bo-luc-lac.jpg" alt="" width="800" height="600" loading="lazy" />
+          <div class="promotion-sticker"><span>GIẢM</span><strong th:text="|${promotion.discountPercent}%|">10%</strong><span>TIỀN MÓN</span></div>
+        </div>
+      </section>
+      <a class="order-path-card takeaway booking-takeaway-card" href="/menu">
+        <span class="order-path-index">MANG VỀ</span>
+        <strong>Đặt đến lấy</strong>
+        <span class="order-path-description">Chọn món, thêm vào giỏ và hẹn đến lấy tại quán.</span>
+        <span class="order-path-link">Xem món để đặt <span aria-hidden="true">↗</span></span>
+      </a>
       <div class="booking-layout">
         <div class="booking-main">
           <section class="panel">
@@ -19,7 +36,7 @@
               <span>01</span>
               <div>
                 <h2>Mình hẹn nhau khi nào?</h2>
-                <p>Chọn thời gian dùng bàn và số người tham dự.</p>
+                <p>Chọn ngày, giờ đến và số người tham dự.</p>
               </div>
             </div>
             <form id="availability-form" class="search-form">
@@ -36,12 +53,6 @@
                   id="start-time"
                   type="time"
                   value="18:00"
-                  required /></label
-              ><label
-                >Giờ kết thúc<input
-                  id="end-time"
-                  type="time"
-                  value="20:00"
                   required /></label
               ><label
                 >Số khách<select id="guests">
@@ -122,7 +133,7 @@
                 <label class="menu-search">Tìm món
                   <input id="dish-search" type="search" placeholder="Tên món hoặc nguyên liệu…" autocomplete="off" />
                 </label>
-                <p class="helper">Ảnh AI minh họa · Giá theo phần</p>
+
               </div>
               <div class="menu-filters" role="group" aria-label="Lọc món đặt trước">
                 <button class="chip active" type="button" data-menu-filter="all" aria-pressed="true">Tất cả</button>

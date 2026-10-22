@@ -17,7 +17,7 @@
         ><button class="chip" data-filter="Tráng miệng">Tráng miệng</button
         ><button class="chip" data-filter="Đồ uống">Đồ uống</button>
       </div>
-      <p class="helper">Nhấn vào món để chọn đặt đến lấy hoặc đặt trước khi dùng tại quán.</p>
+      <p class="menu-instruction">Nhấn vào món để chọn đặt đến lấy hoặc đặt trước khi dùng tại quán.</p>
       <div class="dish-grid" id="takeaway-menu" th:attr="data-signed-in=${currentUser != null}">
         <div
           th:each="dish : ${dishes}"

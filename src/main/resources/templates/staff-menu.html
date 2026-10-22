@@ -18,7 +18,7 @@
         <article><span>Chưa nhập tồn</span><strong th:text="${unknownStockCount}"></strong></article>
       </div>
       <p class="notice warning" th:if="${lowStockCount + emptyStockCount > 0}">Có món sắp hết hoặc hết món. Vui lòng kiểm tra cảnh báo trong danh sách và báo quản lý để bổ sung trước khi nhận thêm khách.</p>
-      <p class="helper">Tồn tính theo số phần món, do quản lý cập nhật thủ công; chưa tự trừ theo đơn. Nhân viên chỉ xem số tồn và cảnh báo. Món có tồn bằng 0 không nhận đặt mới. Cảnh báo khi tồn từ 1 đến ngưỡng đã đặt.</p>
+      <p class="helper">Tồn tính theo số phần món. Đơn đến lấy trả tiền mặt tự trừ tồn ngay khi khách xác nhận đặt món; đơn chuyển khoản trừ tồn khi thanh toán thành công. Thu tiền mặt khi giao món không trừ tồn lần nữa. Quản lý cần nhập tồn để hệ thống theo dõi và tự trừ; món chưa nhập tồn vẫn giữ trạng thái “Chưa nhập”. Nhân viên chỉ xem số tồn và cảnh báo. Món có tồn bằng 0 không nhận đặt mới. Cảnh báo khi tồn từ 1 đến ngưỡng đã đặt.</p>
       <section class="panel">
         <div class="table-scroll">
           <table class="data-table stock-table">

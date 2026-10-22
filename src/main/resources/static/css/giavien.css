@@ -1,4 +1,5 @@
 @charset "UTF-8";
+html { background: #203f2e; }
 :root {
   --paper: #f8f7f2;
   --ink: #263e32;
@@ -15,12 +16,24 @@
 }
 body {
   margin: 0;
-  background: var(--paper);
+  position: relative;
+  isolation: isolate;
+  background: transparent;
   color: var(--ink);
   font:
     15px/1.65 "Segoe UI",
     Arial,
     sans-serif;
+}
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(135deg, #153a27a8, #244c31bd),
+    url("/images/restaurant-background.png") center / cover no-repeat;
+  pointer-events: none;
 }
 a {
   color: inherit;
@@ -175,7 +188,8 @@ details summary > span:last-child {
   gap: 30px;
   align-items: center;
   border-bottom: 1px solid var(--line);
-  background: var(--paper);
+  background: #f8f7f2f2;
+  backdrop-filter: blur(8px);
 }
 .brand {
   display: flex;
@@ -331,6 +345,7 @@ details summary > span:last-child {
 }
 .hero-copy {
   padding: 77px 36px 57px max(32px, calc((100vw - 1200px) / 2 + 28px));
+  background: #f8f7f2eb;
 }
 .hero h1 {
   font-size: clamp(42px, 4.1vw, 63px);
@@ -370,18 +385,12 @@ details summary > span:last-child {
 .hero-visual {
   position: relative;
   overflow: hidden;
-  background: #e7e9dd;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-image:
-    radial-gradient(ellipse at 25% 10%, #f5f2df 0, transparent 65%),
-    repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 29px,
-      #32492905 30px
-    );
+  background:
+    linear-gradient(180deg, #153a2738, #173b2a91),
+    url("/images/restaurant-background.png") center / cover no-repeat;
   border-bottom-left-radius: 120px;
 }
 .visual-caption {
@@ -390,30 +399,8 @@ details summary > span:last-child {
   left: 40px;
   font-size: 9px;
   letter-spacing: 3px;
-  color: #7f896f;
-}
-.food-disc {
-  width: 84%;
-  transform: rotate(-18deg);
-  filter: drop-shadow(15px 22px 12px #28382029);
-}
-.food-disc img {
-  width: 100%;
-}
-.chopstick {
-  position: absolute;
-  width: 9px;
-  height: 325px;
-  background: linear-gradient(90deg, #816746, #c1a779, #786343);
-  border-radius: 7px;
-  transform: rotate(22deg);
-  right: 56px;
-  top: 134px;
-  box-shadow: 5px 9px 8px #1727131a;
-}
-.chopstick.two {
-  right: 37px;
-  transform: rotate(25deg);
+  color: #fff9e8;
+  text-shadow: 0 1px 5px #102d20;
 }
 .floating-note {
   position: absolute;
@@ -448,7 +435,61 @@ details summary > span:last-child {
   bottom: 26px;
   font-size: 9px;
   letter-spacing: 3px;
-  color: #7f896f;
+  color: #fff9e8;
+  text-shadow: 0 1px 5px #102d20;
+}
+.order-paths {
+  margin-block: 24px;
+  padding-block: 30px 34px;
+  border-radius: 16px;
+  background: #f8f7f2f2;
+  box-shadow: 0 16px 36px #102e2040;
+}
+.order-paths-heading { margin-bottom: 22px; }
+.order-paths-heading .eyebrow { margin-bottom: 8px; color: var(--green); }
+.order-paths-heading h2 { margin-bottom: 5px; font-size: clamp(27px, 3vw, 36px); }
+.order-paths-heading > p:last-child { margin: 0; font-size: 14px; }
+.order-paths-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.order-path-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: 250px;
+  padding: 28px;
+  border: 1px solid #ffffff55;
+  border-radius: 14px;
+  background-position: center;
+  background-size: cover;
+  box-shadow: 0 10px 26px #173b2a33;
+  color: #fff;
+  transition: transform .2s, box-shadow .2s;
+}
+.order-path-card.dine-in {
+  background-image: linear-gradient(110deg, #183b2ff2, #183b2fac), url("/images/restaurant-background.png");
+}
+.order-path-card.takeaway {
+  background-image: linear-gradient(110deg, #183b2ff2, #183b2f9e), url("/images/menu/bo-luc-lac.jpg");
+}
+.order-path-card:hover { transform: translateY(-4px); box-shadow: 0 16px 32px #173b2a55; }
+.order-path-card:focus-visible { outline-color: #f7e3a8; }
+.order-path-index { color: #e8dba9; font-size: 11px; font-weight: 800; letter-spacing: 1.5px; }
+.order-path-card strong { margin-top: 13px; color: #fff; font-size: clamp(25px, 2.8vw, 34px); line-height: 1.2; }
+.order-path-description { max-width: 38ch; margin-top: 10px; color: #edf3e9; font-size: 14px; line-height: 1.55; }
+.order-path-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 15px;
+  margin-top: auto;
+  padding: 9px 15px;
+  border-radius: 999px;
+  background: #f7e3a8;
+  color: #244331;
+  font-size: 13px;
+  font-weight: 800;
+}
+@media (max-width: 700px) {
+  .order-paths-grid { grid-template-columns: 1fr; }
+  .order-path-card { min-height: 230px; padding: 24px; }
 }
 .values-strip {
   max-width: 1200px;
@@ -457,6 +498,8 @@ details summary > span:last-child {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   border-bottom: 1px solid var(--line);
+  border-radius: 0 0 16px 16px;
+  background: #f8f7f2ef;
   gap: 25px;
 }
 .values-strip > div {
@@ -482,6 +525,7 @@ details summary > span:last-child {
   padding-top: 65px;
   padding-bottom: 65px;
 }
+main > .section.shell { margin-block: 24px; border-radius: 16px; background: #f8f7f2ed; }
 .section-heading {
   display: flex;
   justify-content: space-between;
@@ -631,6 +675,8 @@ details summary > span:last-child {
   gap: 22px;
   align-items: center;
   flex-wrap: wrap;
+  border-radius: 16px 16px 0 0;
+  background: #f8f7f2f2;
 }
 .footer-brand {
   font: 36px "Segoe UI", Arial, sans-serif;
@@ -656,6 +702,13 @@ details summary > span:last-child {
   padding-bottom: 80px;
   min-height: 70vh;
 }
+main.shell.page,
+main.shell.auth-layout {
+  margin-block: 24px;
+  border-radius: 16px;
+  background: #f8f7f2ef;
+  box-shadow: 0 18px 45px #102e2061;
+}
 .page-heading {
   margin-bottom: 36px;
 }
@@ -679,6 +732,16 @@ details summary > span:last-child {
   gap: 10px;
   flex-wrap: wrap;
   margin-bottom: 30px;
+}
+.menu-instruction {
+  margin: 0 0 24px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: var(--green);
+  color: var(--white);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
 }
 .chip {
   border: 1px solid var(--line);
@@ -704,7 +767,7 @@ details summary > span:last-child {
   font-size: 13px;
 }
 .helper {
-  font-size: 11px;
+  font-size: 15px;
   line-height: 1.7;
   margin-top: 13px;
   margin-bottom: 0;
@@ -728,6 +791,104 @@ details summary > span:last-child {
   grid-template-columns: minmax(0, 1fr) 325px;
   gap: 26px;
   align-items: start;
+}
+.order-path-card.booking-takeaway-card {
+  max-width: 760px;
+  min-height: 220px;
+  margin-bottom: 26px;
+  padding: 26px 30px;
+}
+.booking-promotion {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  min-height: 290px;
+  margin-bottom: 18px;
+  overflow: hidden;
+  border: 1px solid #52765b;
+  border-radius: 18px;
+  background: radial-gradient(circle at 14% 0, #527a57 0, transparent 42%), linear-gradient(135deg, #294b38, #1d392d);
+  box-shadow: 0 18px 38px #263e3229;
+  color: var(--white);
+}
+.promotion-content {
+  position: relative;
+  z-index: 1;
+  padding: 32px clamp(28px, 4vw, 56px);
+}
+.promotion-eyebrow {
+  margin-bottom: 10px;
+  color: #e9dcab;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+.booking-promotion h2 {
+  max-width: 580px;
+  margin: 0 0 12px;
+  color: var(--white);
+  font-size: clamp(26px, 3vw, 38px);
+  line-height: 1.2;
+  text-align: left;
+}
+.promotion-detail {
+  max-width: 570px;
+  margin-bottom: 20px;
+  color: #e8f0e4;
+  font-size: 16px;
+  line-height: 1.55;
+}
+.promotion-detail strong { color: #ffe6a9; font-weight: 800; }
+.promotion-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 18px;
+  border-radius: 999px;
+  background: #f7e3a8;
+  color: #244331;
+  font-size: 14px;
+  font-weight: 800;
+  transition: background .2s, transform .2s;
+}
+.promotion-action:hover { background: #fff0c5; transform: translateY(-2px); }
+.promotion-action:focus-visible { outline-color: #f7e3a8; }
+.promotion-visual { position: relative; min-height: 290px; }
+.promotion-visual::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #1d392d45, transparent 38%);
+  pointer-events: none;
+}
+.promotion-visual img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; object-position: center; }
+.promotion-sticker {
+  position: absolute;
+  right: 20px;
+  bottom: 18px;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  width: 110px;
+  height: 110px;
+  padding: 14px 8px;
+  border: 2px solid #fff3ce;
+  border-radius: 50%;
+  background: #f7e3a8;
+  box-shadow: 0 8px 24px #172b1f66;
+  color: #244331;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  line-height: 1.1;
+  transform: rotate(8deg);
+}
+.promotion-sticker strong { font-size: 32px; letter-spacing: -1px; }
+@media (max-width: 700px) {
+  .booking-promotion { grid-template-columns: 1fr; }
+  .promotion-content { padding: 28px 24px; }
+  .promotion-visual { min-height: 190px; max-height: 190px; }
+  .promotion-sticker { right: 18px; bottom: 14px; width: 94px; height: 94px; padding: 11px 7px; }
+  .promotion-sticker strong { font-size: 27px; }
 }
 .step-title {
   display: flex;
@@ -761,7 +922,7 @@ details summary > span:last-child {
 }
 .search-form {
   display: grid;
-  grid-template-columns: 1.3fr 1fr 1fr 1fr;
+  grid-template-columns: 1.3fr 1fr 1fr;
   gap: 12px;
 }
 .search-form .button {
@@ -1589,12 +1750,6 @@ details summary > span:last-child {
   .detail-layout {
     grid-template-columns: minmax(0, 1fr) 300px;
   }
-  .hero-visual .chopstick {
-    right: 36px;
-  }
-  .hero-visual .chopstick.two {
-    right: 17px;
-  }
 }
 @media (max-width: 800px) {
   .site-header {
@@ -1644,11 +1799,6 @@ details summary > span:last-child {
     font-size: 7px;
     top: 25px;
     left: 25px;
-  }
-  .chopstick {
-    height: 240px !important;
-    top: 140px !important;
-    width: 7px;
   }
   .floating-note {
     left: 12px;
@@ -1796,21 +1946,10 @@ details summary > span:last-child {
     border-radius: 0 0 0 65px;
     margin-left: 20px;
   }
-  .food-disc {
-    width: 290px;
-    max-width: 80%;
-  }
   .visual-caption {
     font-size: 7px;
     top: 22px;
     left: 20px;
-  }
-  .hero-visual .chopstick {
-    top: 45px !important;
-    right: 45px;
-  }
-  .hero-visual .chopstick.two {
-    right: 26px;
   }
   .floating-note {
     bottom: 20px;

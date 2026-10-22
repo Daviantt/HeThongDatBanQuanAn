@@ -9,6 +9,8 @@
     <meta name="_csrf_parameter" th:content="${_csrf.parameterName}" />
     <title th:text="${title} + ' · GiaViên'">GiaViên</title>
     <link rel="stylesheet" href="/css/giavien.css" />
+    <link th:if="${statisticsPage == true}" rel="stylesheet" href="/css/statistics.css" />
+    <link th:if="${isStaff}" rel="stylesheet" href="/css/table-board.css" />
     <script src="/js/giavien.js" defer></script>
   </head>
   <body>
@@ -21,7 +23,9 @@
         <a href="/menu">Thực đơn</a><a th:if="${!isStaff}" href="/book">Đặt bàn</a
         ><a th:if="${currentUser != null and !isStaff}" href="/bookings">Lịch hẹn của tôi</a
         ><a th:if="${isStaff}" href="/staff">Vận hành</a
-        ><a th:if="${isAdmin}" href="/admin">Quản lý</a>
+        ><a th:if="${isStaff}" href="/staff/tables">Bàn ăn</a
+        ><a th:if="${isAdmin}" href="/admin">Quản lý</a
+        ><a th:if="${isAdmin}" href="/admin/statistics">Thống kê</a>
       </nav>
       <div class="header-account">
         <a

@@ -239,14 +239,13 @@ public class PageController {
   public String reschedule(
       @PathVariable String id,
       @RequestParam LocalDateTime startAt,
-      @RequestParam LocalDateTime endAt,
       @RequestParam int guests,
       @RequestParam String tableIds,
       @RequestParam String response,
       Principal principal,
       RedirectAttributes flash) {
     List<Long> ids = service.resolveTableNumbers(tableIds);
-    service.reschedule(id, actor(principal), startAt, endAt, guests, ids, response);
+    service.reschedule(id, actor(principal), startAt, null, guests, ids, response);
     flash.addFlashAttribute("success", "Đã cập nhật bàn và lịch mới.");
     return "redirect:/bookings/" + id;
   }

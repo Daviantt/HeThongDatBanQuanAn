@@ -42,6 +42,8 @@ CREATE TABLE IF NOT EXISTS reservation (
 );
 CREATE INDEX IF NOT EXISTS reservation_schedule ON reservation(start_at, end_at, status);
 ALTER TABLE reservation ADD COLUMN IF NOT EXISTS released_at TIMESTAMP;
+-- end_at is retained only for historical data; new bookings finish when staff confirms.
+ALTER TABLE reservation ALTER COLUMN end_at DROP NOT NULL;
 ALTER TABLE reservation ADD COLUMN IF NOT EXISTS food_deposit BIGINT NOT NULL DEFAULT 0;
 ALTER TABLE reservation ADD COLUMN IF NOT EXISTS promotion_minimum_guests INT NOT NULL DEFAULT 0;
 ALTER TABLE reservation ADD COLUMN IF NOT EXISTS promotion_percent INT NOT NULL DEFAULT 0;
@@ -82,6 +84,7 @@ CREATE TABLE IF NOT EXISTS takeaway_order (
 ALTER TABLE takeaway_order ADD COLUMN IF NOT EXISTS paid_at TIMESTAMP;
 ALTER TABLE takeaway_order ADD COLUMN IF NOT EXISTS payment_reference VARCHAR(100);
 ALTER TABLE takeaway_order ADD COLUMN IF NOT EXISTS refund_reference VARCHAR(150);
+ALTER TABLE takeaway_order ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP;
 CREATE INDEX IF NOT EXISTS takeaway_order_expiry ON takeaway_order(status, pickup_at);
 CREATE INDEX IF NOT EXISTS takeaway_order_user ON takeaway_order(user_id, created_at);
 CREATE TABLE IF NOT EXISTS takeaway_order_line (

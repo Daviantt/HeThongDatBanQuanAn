@@ -26,14 +26,32 @@
         </div>
         <div class="hero-visual" aria-hidden="true">
           <span class="visual-caption">CHẬM MỘT CHÚT · NGON THÊM CHÚT</span>
-          <div class="food-disc"><img src="/images/dish.svg" alt="" /></div>
-          <div class="chopstick one"></div>
-          <div class="chopstick two"></div>
           <div class="floating-note">
             <span>Để GiaViên lo</span><strong>một bữa thật ngon.</strong
             ><span class="scribble">↶</span>
           </div>
           <span class="visual-bottom">MÓN VIỆT · VỊ NHÀ</span>
+        </div>
+      </section>
+      <section class="order-paths shell" th:if="${!isStaff}" aria-labelledby="order-paths-title">
+        <div class="order-paths-heading">
+          <p class="eyebrow">CHỌN CÁCH THƯỞNG THỨC</p>
+          <h2 id="order-paths-title">Hôm nay bạn muốn dùng bữa thế nào?</h2>
+          <p>Chọn cách phù hợp, GiaViên chuẩn bị phần còn lại.</p>
+        </div>
+        <div class="order-paths-grid">
+          <a class="order-path-card dine-in" href="/book">
+            <span class="order-path-index">01 · DÙNG TẠI QUÁN</span>
+            <strong>Đặt bàn trước</strong>
+            <span class="order-path-description">Chọn ngày, giờ, góc ngồi yêu thích và đặt món trước cho buổi hẹn.</span>
+            <span class="order-path-link">Chọn bàn ngay <span aria-hidden="true">↗</span></span>
+          </a>
+          <a class="order-path-card takeaway" href="/menu">
+            <span class="order-path-index">02 · MANG VỀ</span>
+            <strong>Đặt đến lấy</strong>
+            <span class="order-path-description">Chọn món trong thực đơn, thêm vào giỏ rồi đặt đến lấy tại quán.</span>
+            <span class="order-path-link">Xem món để đặt <span aria-hidden="true">↗</span></span>
+          </a>
         </div>
       </section>
       <section class="values-strip">
