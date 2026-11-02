@@ -48,13 +48,12 @@ public final class Models {
   }
 
   public enum TakeawayStatus {
-    AWAITING_PAYMENT("Chờ chuyển khoản"),
-    WAITING_PICKUP("Chờ khách đến lấy"),
-    PREPARING("Đang chuẩn bị"),
-    READY("Sẵn sàng giao món"),
+    WAITING_CONFIRMATION("Chờ xác nhận"),
+    PREPARING("Đã xác nhận và đang làm"),
+    READY("Chờ khách đến lấy"),
     EXPIRED("Hết hạn thanh toán"),
     REFUND_PENDING("Chờ hoàn tiền"),
-    COMPLETED("Đã giao món"),
+    COMPLETED("Hoàn thành"),
     CANCELLED("Đã hủy");
     public final String label;
 
@@ -78,6 +77,11 @@ public final class Models {
       String paymentReference,
       String refundReference,
       List<OrderLine> lines) {
+    public boolean awaitingPayment() {
+      return paymentMethod.equals("TRANSFER") && paidAt == null
+          && status == TakeawayStatus.WAITING_CONFIRMATION;
+    }
+
     public String code() {
       return "TL-" + id.substring(0, 8).toUpperCase();
     }

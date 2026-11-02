@@ -96,7 +96,7 @@ public class TakeawayService {
       throw new PriceChangedException(quote);
     String id = UUID.randomUUID().toString();
     repo.insertTakeaway(new TakeawayOrder(id, actor.id(), name, phone, input.pickupAt(), quote.total(), method,
-        method.equals("CASH") ? TakeawayStatus.WAITING_PICKUP : TakeawayStatus.AWAITING_PAYMENT,
+        TakeawayStatus.WAITING_CONFIRMATION,
         now, null, null, null, quote.lines()));
     if (method.equals("CASH")) deductStock(quote.lines());
     return id;
@@ -117,7 +117,7 @@ public class TakeawayService {
     lockOrder(id);
     TakeawayOrder order = accessible(id, actor);
     if (order.userId() != actor.id()) throw new AccessDeniedException("Chỉ chủ đơn được mở thanh toán.");
-    if (!order.paymentMethod().equals("TRANSFER") || order.status() != TakeawayStatus.AWAITING_PAYMENT
+    if (!order.awaitingPayment()
         || !bookings.now().isBefore(order.pickupAt()))
       throw new IllegalArgumentException("Đơn này không chờ thanh toán chuyển khoản.");
     var tokens = repo.jdbc().queryForList("SELECT token FROM takeaway_demo_payment WHERE order_id=?", String.class, id);
@@ -138,10 +138,10 @@ public class TakeawayService {
     PaymentSession session = session(token);
     expireUnpaid(session.orderId());
     TakeawayOrder order = repo.takeaway(session.orderId()).orElseThrow();
-    if (order.paidAt() != null && Set.of(TakeawayStatus.WAITING_PICKUP, TakeawayStatus.PREPARING,
+    if (order.paidAt() != null && Set.of(TakeawayStatus.WAITING_CONFIRMATION, TakeawayStatus.PREPARING,
         TakeawayStatus.READY, TakeawayStatus.COMPLETED).contains(order.status()))
       return new PaymentState(order.id(), order.code(), order.total(), "PAID", 0, "Đã mô phỏng chuyển khoản thành công. Trạng thái đơn: " + order.status().label + ".");
-    if (order.status() != TakeawayStatus.AWAITING_PAYMENT)
+    if (!order.awaitingPayment())
       return new PaymentState(order.id(), order.code(), order.total(), "CLOSED", 0, "Đơn không còn chờ thanh toán chuyển khoản.");
     long seconds = Math.max(0, (Duration.between(bookings.now(), session.createdAt().plusSeconds(60)).toMillis() + 999) / 1000);
     return new PaymentState(order.id(), order.code(), order.total(), seconds == 0 ? "READY" : "WAITING", seconds,
@@ -154,9 +154,9 @@ public class TakeawayService {
     if (state.status().equals("PAID")) return;
     if (!state.status().equals("READY")) throw new IllegalArgumentException(state.message());
     int changed = repo.jdbc().update(
-        "UPDATE takeaway_order SET status='WAITING_PICKUP',paid_at=?,payment_reference=? WHERE id=? AND status='AWAITING_PAYMENT' AND pickup_at>?",
+        "UPDATE takeaway_order SET paid_at=?,payment_reference=? WHERE id=? AND status='WAITING_CONFIRMATION' AND payment_method='TRANSFER' AND paid_at IS NULL AND pickup_at>?",
         bookings.now(), "DEMO-TL-" + token, state.orderId(), bookings.now());
-    if (changed == 0 && repo.takeaway(state.orderId()).orElseThrow().status() != TakeawayStatus.WAITING_PICKUP)
+    if (changed == 0)
       throw new IllegalArgumentException("Đơn không còn chờ thanh toán chuyển khoản.");
     if (changed == 1) deductStock(repo.takeawayLines(state.orderId()));
   }
@@ -176,11 +176,11 @@ public class TakeawayService {
 
   @Scheduled(fixedDelay = 30000, initialDelay = 30000)
   public void expireUnpaid() {
-    repo.jdbc().update("UPDATE takeaway_order SET status='EXPIRED' WHERE status='AWAITING_PAYMENT' AND pickup_at<=?", bookings.now());
+    repo.jdbc().update("UPDATE takeaway_order SET status='EXPIRED' WHERE status='WAITING_CONFIRMATION' AND payment_method='TRANSFER' AND paid_at IS NULL AND pickup_at<=?", bookings.now());
   }
 
   private void expireUnpaid(String id) {
-    repo.jdbc().update("UPDATE takeaway_order SET status='EXPIRED' WHERE id=? AND status='AWAITING_PAYMENT' AND pickup_at<=?", id, bookings.now());
+    repo.jdbc().update("UPDATE takeaway_order SET status='EXPIRED' WHERE id=? AND status='WAITING_CONFIRMATION' AND payment_method='TRANSFER' AND paid_at IS NULL AND pickup_at<=?", id, bookings.now());
   }
 
   private void lockOrder(String id) {
@@ -195,15 +195,16 @@ public class TakeawayService {
     TakeawayStatus next;
     switch (action) {
       case "prepare" -> {
-        BookingService.require(order.status() == TakeawayStatus.WAITING_PICKUP, "Đơn chưa sẵn sàng để chuẩn bị.");
+        BookingService.require(order.status() == TakeawayStatus.WAITING_CONFIRMATION, "Đơn phải đang chờ xác nhận.");
+        BookingService.require(!order.awaitingPayment(), "Đơn QR chưa thanh toán; chưa thể xác nhận và bắt đầu làm.");
         next = TakeawayStatus.PREPARING;
       }
       case "ready" -> {
-        BookingService.require(order.status() == TakeawayStatus.PREPARING, "Đơn phải đang được chuẩn bị.");
+        BookingService.require(order.status() == TakeawayStatus.PREPARING, "Đơn phải đã được xác nhận và đang làm.");
         next = TakeawayStatus.READY;
       }
       case "complete" -> {
-        BookingService.require(order.status() == TakeawayStatus.READY, "Món phải sẵn sàng trước khi giao.");
+        BookingService.require(order.status() == TakeawayStatus.READY, "Đơn phải đang chờ khách đến lấy trước khi hoàn thành.");
         if (order.paymentMethod().equals("CASH") && order.paidAt() == null) {
           repo.jdbc().update("UPDATE takeaway_order SET paid_at=?,payment_reference=? WHERE id=?",
               bookings.now(), "CASH-" + id, id);
@@ -212,7 +213,7 @@ public class TakeawayService {
         repo.jdbc().update("UPDATE takeaway_order SET completed_at=? WHERE id=?", bookings.now(), id);
       }
       case "cancel" -> {
-        BookingService.require(Set.of(TakeawayStatus.AWAITING_PAYMENT, TakeawayStatus.WAITING_PICKUP,
+        BookingService.require(Set.of(TakeawayStatus.WAITING_CONFIRMATION,
             TakeawayStatus.PREPARING, TakeawayStatus.READY).contains(order.status()), "Không thể hủy đơn ở trạng thái này.");
         next = order.paidAt() == null ? TakeawayStatus.CANCELLED : TakeawayStatus.REFUND_PENDING;
       }

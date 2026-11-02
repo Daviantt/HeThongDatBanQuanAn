@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS app_lock (id INT PRIMARY KEY);
-MERGE INTO app_lock KEY(id) VALUES (1);
+INSERT INTO app_lock(id) SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM app_lock WHERE id=1);
 CREATE TABLE IF NOT EXISTS restaurant_settings (
  id INT PRIMARY KEY, deposit_per_table BIGINT NOT NULL, hold_minutes INT NOT NULL,
  cleanup_minutes INT NOT NULL, open_hour INT NOT NULL, close_hour INT NOT NULL, grace_minutes INT NOT NULL
@@ -85,6 +85,10 @@ ALTER TABLE takeaway_order ADD COLUMN IF NOT EXISTS paid_at TIMESTAMP;
 ALTER TABLE takeaway_order ADD COLUMN IF NOT EXISTS payment_reference VARCHAR(100);
 ALTER TABLE takeaway_order ADD COLUMN IF NOT EXISTS refund_reference VARCHAR(150);
 ALTER TABLE takeaway_order ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP;
+-- Both legacy entry states mean the restaurant has not accepted the order yet.
+-- Payment is tracked independently by payment_method and paid_at.
+UPDATE takeaway_order SET status='WAITING_CONFIRMATION'
+ WHERE status IN ('WAITING_PICKUP', 'AWAITING_PAYMENT');
 CREATE INDEX IF NOT EXISTS takeaway_order_expiry ON takeaway_order(status, pickup_at);
 CREATE INDEX IF NOT EXISTS takeaway_order_user ON takeaway_order(user_id, created_at);
 CREATE TABLE IF NOT EXISTS takeaway_order_line (

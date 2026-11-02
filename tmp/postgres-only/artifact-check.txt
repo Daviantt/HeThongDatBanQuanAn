@@ -1,0 +1,3 @@
+No embedded database driver, migration class, or fallback profile in JAR.
+PostgreSQL driver: 
+BOOT-INF/lib/postgresql-42.7.10.jar

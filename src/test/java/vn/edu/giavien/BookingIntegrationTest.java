@@ -32,14 +32,13 @@ import vn.edu.giavien.service.TakeawayService;
 
 @SpringBootTest(
     properties = {
-      "spring.datasource.url=jdbc:h2:mem:giavien-test;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=10000",
       "app.demo=true",
       "app.vnpay.tmn-code=TESTCODE",
       "app.vnpay.hash-secret=test-secret"
     })
 @AutoConfigureMockMvc
 @Import(BookingIntegrationTest.TimeConfig.class)
-class BookingIntegrationTest {
+class BookingIntegrationTest extends DatabaseIntegrationTest {
   @Autowired BookingService service;
   @Autowired TakeawayService takeaway;
   @Autowired vn.edu.giavien.service.VnpayPaymentService payments;
@@ -181,7 +180,7 @@ class BookingIntegrationTest {
             takeawayInput(
                 "Khách trải nghiệm", "0901234567", baseline.plusMinutes(30), "CASH", Map.of(1L, 2)));
     TakeawayOrder order = repo.takeaway(id).orElseThrow();
-    assertThat(order.status()).isEqualTo(TakeawayStatus.WAITING_PICKUP);
+    assertThat(order.status()).isEqualTo(TakeawayStatus.WAITING_CONFIRMATION);
     assertThat(order.total())
         .isEqualTo(repo.dishes().stream().filter(d -> d.id() == 1L).findFirst().orElseThrow().price() * 2);
     assertThat(order.lines()).singleElement().satisfies(line -> assertThat(line.quantity()).isEqualTo(2));
@@ -198,7 +197,7 @@ class BookingIntegrationTest {
         .andExpect(model().attribute("takeawayOrders", repo.takeawayOrders(customer.id())))
         .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
     assertThat(page).contains("Đặt đến lấy", order.code(), "/takeaway/orders/" + id,
-        "3 × " + order.lines().getFirst().itemName(), "Chờ khách đến lấy", "Tiền mặt khi nhận món");
+        "3 × " + order.lines().getFirst().itemName(), "Chờ xác nhận", "Tiền mặt khi nhận món");
     assertThat(page).doesNotContain("Chiếc bàn đầu tiên đang đợi bạn.");
     assertThat(repo.bookings(customer.id())).isEmpty();
     mvc.perform(get("/takeaway/orders/" + id).with(user(customer.email()).roles("CUSTOMER")))
@@ -244,6 +243,9 @@ class BookingIntegrationTest {
   void staffCanPrepareDeliverAndCollectCashButCustomersCannot() throws Exception {
     String id = takeaway.create(customer, takeawayInput("Khách hàng", "0901234567", baseline.plusMinutes(30), "CASH", Map.of(1L, 1)));
     String path = "/staff/takeaway-orders/" + id + "/action";
+    assertThat(repo.takeaway(id).orElseThrow().status()).isEqualTo(TakeawayStatus.WAITING_CONFIRMATION);
+    mvc.perform(get("/takeaway/orders/" + id).with(user(staff.email()).roles("STAFF")))
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("Xác nhận đơn và bắt đầu làm")));
     mvc.perform(get("/staff").with(user(staff.email()).roles("STAFF")))
         .andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString("/takeaway/orders/" + id)));
     mvc.perform(post(path).with(user(customer.email()).roles("CUSTOMER")).with(csrf()).param("action", "prepare"))
@@ -252,20 +254,54 @@ class BookingIntegrationTest {
         .andExpect(status().isForbidden());
     assertThatThrownBy(() -> takeaway.staffAction(id, customer, "prepare", ""))
         .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
-    assertThatThrownBy(() -> takeaway.staffAction(id, staff, "complete", "")).hasMessageContaining("sẵn sàng");
+    assertThatThrownBy(() -> takeaway.staffAction(id, staff, "complete", "")).hasMessageContaining("chờ khách đến lấy");
+    assertThatThrownBy(() -> takeaway.staffAction(id, staff, "ready", "")).hasMessageContaining("đang làm");
+    var expectedStatuses = Map.of("prepare", TakeawayStatus.PREPARING,
+        "ready", TakeawayStatus.READY, "complete", TakeawayStatus.COMPLETED);
+    var expectedLabels = Map.of("prepare", "Đã xác nhận và đang làm",
+        "ready", "Chờ khách đến lấy", "complete", "Hoàn thành");
     for (String action : List.of("prepare", "ready", "complete")) {
       mvc.perform(post(path).with(user(staff.email()).roles("STAFF")).with(csrf()).param("action", action))
           .andExpect(redirectedUrl("/takeaway/orders/" + id));
       mvc.perform(get("/takeaway/orders/" + id).with(user(staff.email()).roles("STAFF")))
-          .andExpect(status().isOk());
+          .andExpect(status().isOk())
+          .andExpect(content().string(org.hamcrest.Matchers.containsString(expectedLabels.get(action))));
+      assertThat(repo.takeaway(id).orElseThrow().status()).isEqualTo(expectedStatuses.get(action));
     }
     var order = repo.takeaway(id).orElseThrow();
     assertThat(order.status()).isEqualTo(TakeawayStatus.COMPLETED);
     assertThat(order.paidAt()).isEqualTo(baseline);
     assertThat(order.paymentReference()).startsWith("CASH-");
-    assertThatThrownBy(() -> takeaway.staffAction(id, staff, "complete", "")).hasMessageContaining("sẵn sàng");
+    assertThatThrownBy(() -> takeaway.staffAction(id, staff, "complete", "")).hasMessageContaining("chờ khách đến lấy");
     assertThatThrownBy(() -> takeaway.staffAction(id, staff, "cancel", "")).hasMessageContaining("Không thể hủy");
     assertThat(repo.takeaway(id).orElseThrow().paidAt()).isEqualTo(order.paidAt());
+  }
+
+  @Test
+  void legacyTakeawayEntryStatesMigrateWithoutChangingPaymentOrProgress() throws Exception {
+    var ids = new LinkedHashMap<String, String>();
+    for (String state : List.of("WAITING_PICKUP", "AWAITING_PAYMENT", "WAITING_CONFIRMATION", "PREPARING", "READY", "COMPLETED")) {
+      String id = takeaway.create(customer, takeawayInput("Khách hàng", "0901234567", baseline.plusMinutes(30), "CASH", Map.of(1L, 1)));
+      ids.put(state, id);
+      repo.jdbc().update("UPDATE takeaway_order SET status=? WHERE id=?", state, id);
+    }
+    repo.jdbc().update("UPDATE takeaway_order SET payment_method='TRANSFER' WHERE id=?", ids.get("AWAITING_PAYMENT"));
+    repo.jdbc().update("UPDATE takeaway_order SET paid_at=?,payment_reference='OLD-PAID' WHERE id=?", baseline, ids.get("WAITING_PICKUP"));
+    for (int i = 0; i < 2; i++) {
+      try (var connection = repo.jdbc().getDataSource().getConnection()) {
+        org.springframework.jdbc.datasource.init.ScriptUtils.executeSqlScript(connection,
+            new org.springframework.core.io.ClassPathResource("schema.sql"));
+      }
+    }
+    for (var entry : ids.entrySet()) {
+      var order = repo.takeaway(entry.getValue()).orElseThrow();
+      String expected = Set.of("WAITING_PICKUP", "AWAITING_PAYMENT").contains(entry.getKey())
+          ? "WAITING_CONFIRMATION" : entry.getKey();
+      assertThat(order.status().name()).isEqualTo(expected);
+    }
+    assertThat(repo.takeaway(ids.get("WAITING_PICKUP")).orElseThrow().paidAt()).isEqualTo(baseline);
+    assertThat(repo.takeaway(ids.get("WAITING_PICKUP")).orElseThrow().paymentReference()).isEqualTo("OLD-PAID");
+    assertThat(repo.takeaway(ids.get("AWAITING_PAYMENT")).orElseThrow().awaitingPayment()).isTrue();
   }
 
   @Test

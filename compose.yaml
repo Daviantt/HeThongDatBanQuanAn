@@ -1,0 +1,21 @@
+name: giavien
+services:
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: giavien
+      POSTGRES_USER: giavien
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run ./database.ps1 -Init first}
+      TZ: Asia/Ho_Chi_Minh
+    ports:
+      - "127.0.0.1:15432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U giavien -d giavien"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+volumes:
+  postgres_data:

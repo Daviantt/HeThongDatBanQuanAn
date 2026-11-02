@@ -4,6 +4,7 @@
 *.log
 .env
 /config/payment.properties
+/config/database.properties
 .idea/
 .vscode/
 *.iml

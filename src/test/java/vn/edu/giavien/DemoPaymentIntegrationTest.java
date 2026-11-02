@@ -28,7 +28,6 @@ import vn.edu.giavien.service.*;
 
 @SpringBootTest(
     properties = {
-      "spring.datasource.url=jdbc:h2:mem:giavien-demo-test;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=10000",
       "app.demo=true",
       "app.payment.demo-enabled=true",
       "app.vnpay.tmn-code=",
@@ -37,7 +36,7 @@ import vn.edu.giavien.service.*;
     })
 @AutoConfigureMockMvc
 @Import(BookingIntegrationTest.TimeConfig.class)
-class DemoPaymentIntegrationTest {
+class DemoPaymentIntegrationTest extends DatabaseIntegrationTest {
   @Autowired BookingService bookings;
   @Autowired DemoPaymentService payments;
   @Autowired TakeawayService takeaway;
@@ -91,7 +90,7 @@ class DemoPaymentIntegrationTest {
     String page = mvc.perform(get("/bookings").with(user(customer.email()).roles("CUSTOMER")))
         .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
     assertThat(page).contains("/bookings/" + bookingId, "/takeaway/orders/" + id,
-        "Chờ chuyển khoản", "Tiếp tục thanh toán", "Chưa thanh toán");
+        "Chờ xác nhận", "Tiếp tục thanh toán", "Chưa thanh toán");
     mvc.perform(get("/takeaway/orders/" + id).with(user(customer.email()).roles("CUSTOMER")))
         .andExpect(status().isOk())
         .andExpect(content().string(org.hamcrest.Matchers.containsString("/takeaway/orders/" + id + "/demo-payment")));
@@ -105,7 +104,7 @@ class DemoPaymentIntegrationTest {
     String paidPage = mvc.perform(get("/bookings").with(user(customer.email()).roles("CUSTOMER")))
         .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
     assertThat(paidPage).contains("/bookings/" + bookingId, "/takeaway/orders/" + id,
-        "Chờ khách đến lấy", "Đã thanh toán demo").doesNotContain("Tiếp tục thanh toán");
+        "Chờ xác nhận", "Đã thanh toán demo").doesNotContain("Tiếp tục thanh toán");
     assertThat(repo.takeawayOrders(customer.id())).singleElement()
         .satisfies(order -> assertThat(order.paidAt()).isEqualTo(baseline.plusMinutes(1)));
   }
@@ -126,7 +125,7 @@ class DemoPaymentIntegrationTest {
     takeaway.confirmDemoPayment(token);
     takeaway.confirmDemoPayment(token);
     TakeawayOrder order = repo.takeaway(id).orElseThrow();
-    assertThat(order.status()).isEqualTo(TakeawayStatus.WAITING_PICKUP);
+    assertThat(order.status()).isEqualTo(TakeawayStatus.WAITING_CONFIRMATION);
     assertThat(order.paidAt()).isEqualTo(baseline.plusMinutes(1));
     assertThat(order.paymentReference()).isEqualTo("DEMO-TL-" + token);
     assertThat(stock(1)).isEqualTo(4);
@@ -150,7 +149,7 @@ class DemoPaymentIntegrationTest {
     assertThat(stock(1)).isZero();
     assertThat(stock(2)).isNull();
     var created = repo.takeaway(id).orElseThrow();
-    assertThat(created.status()).isEqualTo(TakeawayStatus.WAITING_PICKUP);
+    assertThat(created.status()).isEqualTo(TakeawayStatus.WAITING_CONFIRMATION);
     assertThat(created.paidAt()).isNull();
     assertThat(created.paymentReference()).isNull();
     assertThatThrownBy(() -> takeaway.quote(Map.of(1L, 1))).hasMessageContaining("tạm hết");
@@ -161,7 +160,7 @@ class DemoPaymentIntegrationTest {
     assertThat(stock(1)).isZero();
     assertThat(stock(2)).isNull();
     assertThat(repo.takeaway(id).orElseThrow().paidAt()).isEqualTo(baseline);
-    assertThatThrownBy(() -> takeaway.staffAction(id, staff, "complete", "")).hasMessageContaining("sẵn sàng");
+    assertThatThrownBy(() -> takeaway.staffAction(id, staff, "complete", "")).hasMessageContaining("chờ khách đến lấy");
     assertThat(stock(1)).isZero();
     assertThatThrownBy(() -> takeaway.quote(Map.of(1L, 1))).hasMessageContaining("tạm hết");
   }
@@ -178,7 +177,7 @@ class DemoPaymentIntegrationTest {
     assertThat(stock(1)).isEqualTo(5);
     assertThat(stock(2)).isEqualTo(1);
     var unpaid = repo.takeaway(id).orElseThrow();
-    assertThat(unpaid.status()).isEqualTo(TakeawayStatus.AWAITING_PAYMENT);
+    assertThat(unpaid.status()).isEqualTo(TakeawayStatus.WAITING_CONFIRMATION);
     assertThat(unpaid.paidAt()).isNull();
     assertThat(unpaid.paymentReference()).isNull();
     repo.jdbc().update("UPDATE menu_item SET stock_quantity=2 WHERE id=2");
@@ -285,6 +284,8 @@ class DemoPaymentIntegrationTest {
     var input = takeawayInput("Khách hàng", "0901234567", baseline.plusMinutes(30), "TRANSFER", Map.of(1L, 1));
     String paid = takeaway.create(customer, input);
     String unpaid = takeaway.create(customer, input);
+    String cash = takeaway.create(customer,
+        takeawayInput("Khách tiền mặt", "0901234567", baseline.plusMinutes(30), "CASH", Map.of(2L, 1)));
     String paidToken = takeaway.startDemoPayment(paid, customer);
     String unpaidToken = takeaway.startDemoPayment(unpaid, customer);
     clock.set(baseline.plusMinutes(30).minusSeconds(1));
@@ -298,7 +299,8 @@ class DemoPaymentIntegrationTest {
     takeaway.expireUnpaid();
     assertThat(repo.takeaway(unpaid).orElseThrow().status()).isEqualTo(TakeawayStatus.EXPIRED);
     assertThat(repo.takeaway(unpaid).orElseThrow().paidAt()).isNull();
-    assertThat(repo.takeaway(paid).orElseThrow().status()).isEqualTo(TakeawayStatus.WAITING_PICKUP);
+    assertThat(repo.takeaway(paid).orElseThrow().status()).isEqualTo(TakeawayStatus.WAITING_CONFIRMATION);
+    assertThat(repo.takeaway(cash).orElseThrow().status()).isEqualTo(TakeawayStatus.WAITING_CONFIRMATION);
     assertThat(takeaway.paymentStatus(paidToken).status()).isEqualTo("PAID");
     assertThat(stock(1)).isEqualTo(4);
     mvc.perform(get("/takeaway/orders/" + unpaid).with(user(customer.email()).roles("CUSTOMER")))
@@ -310,10 +312,19 @@ class DemoPaymentIntegrationTest {
   void unpaidTransferCannotBePreparedAndPaidCancellationRequiresRefundRecord() throws Exception {
     var staff = bookings.account("nhanvien@giavien.local");
     String id = takeaway.create(customer, takeawayInput("Khách hàng", "0901234567", baseline.plusMinutes(30), "TRANSFER", Map.of(1L, 1)));
-    assertThatThrownBy(() -> takeaway.staffAction(id, staff, "prepare", "")).hasMessageContaining("chưa sẵn sàng");
+    assertThat(repo.takeaway(id).orElseThrow().status()).isEqualTo(TakeawayStatus.WAITING_CONFIRMATION);
+    assertThat(repo.takeaway(id).orElseThrow().awaitingPayment()).isTrue();
+    String pendingHtml = mvc.perform(get("/takeaway/orders/" + id).with(user(staff.email()).roles("STAFF")))
+        .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+    assertThat(pendingHtml).contains("Chờ xác nhận").doesNotContain("value=\"prepare\"");
+    assertThatThrownBy(() -> takeaway.staffAction(id, staff, "prepare", "")).hasMessageContaining("chưa thanh toán");
     String token = takeaway.startDemoPayment(id, customer);
     clock.set(baseline.plusMinutes(1));
     takeaway.confirmDemoPayment(token);
+    assertThat(repo.takeaway(id).orElseThrow().status()).isEqualTo(TakeawayStatus.WAITING_CONFIRMATION);
+    assertThat(repo.takeaway(id).orElseThrow().awaitingPayment()).isFalse();
+    mvc.perform(get("/takeaway/orders/" + id).with(user(staff.email()).roles("STAFF")))
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("Xác nhận đơn và bắt đầu làm")));
     takeaway.staffAction(id, staff, "prepare", "");
     assertThat(takeaway.paymentStatus(token).status()).isEqualTo("PAID");
     takeaway.staffAction(id, staff, "cancel", "");

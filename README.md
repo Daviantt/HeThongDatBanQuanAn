@@ -7,12 +7,15 @@
 Mở PowerShell trong thư mục dự án:
 
 ```powershell
+.\database.ps1 -Start
 .\run.ps1
 ```
 
+Hệ thống chỉ sử dụng **PostgreSQL 18 trong Docker**, tại `127.0.0.1:15432`, tên database/user `giavien`. Bật Docker Desktop trước. Máy mới chạy `.\database.ps1 -Init` một lần để tạo mật khẩu riêng, sau đó `-Start`. Máy hiện tại đã có cấu hình và dữ liệu, chỉ cần `-Start` rồi chạy ứng dụng. [Hướng dẫn PostgreSQL, kiểm thử, sao lưu và xem bằng pgAdmin](docs/postgresql.md).
+
 Truy cập **http://localhost:8080**. Dừng bằng `Ctrl+C` tại terminal đang chạy.
 
-JDK 21 và Maven đã được chuẩn bị trong `.tools`, không thay Java mặc định của Windows. Nếu máy chặn chạy file `.ps1`, có thể mở dự án bằng IntelliJ IDEA, chọn JDK 21 và chạy `GiaVienApplication`.
+`run.ps1` ưu tiên JDK/Maven trong `.tools`, sau đó dùng `JAVA_HOME`, `MAVEN_HOME` hoặc công cụ trên PATH; khi chưa có Java, có thể nhận JDK do IntelliJ tải trong `~/.jdks`. Không thay Java mặc định của Windows. Nếu máy chặn chạy file `.ps1`, có thể mở dự án bằng IntelliJ IDEA, chọn JDK 21 trở lên và chạy `GiaVienApplication`.
 
 Trên máy Windows khác: chạy `./setup.ps1` một lần để tải JDK và Maven chính thức, có kiểm tra checksum, sau đó `./run.ps1`. Cần kết nối Internet cho lần tải dependency đầu tiên. Hoặc dùng JDK 21 và Maven cài sẵn: `mvn spring-boot:run`.
 
@@ -55,7 +58,7 @@ Khi khởi động lại với profile `demo`, hệ thống chuyển tài khoả
 - Trang vận hành có cột **Tổng tiền**: tiền món đặt trước sau khuyến mãi, hiển thị riêng tiền cọc (cọc là khoản trả trước, không cộng thêm vào giá món).
 - Quản lý cấu hình **khuyến mãi theo nhóm** trên `/admin`: bật/tắt, số khách tối thiểu và phần trăm giảm tiền món. Mặc định tắt; mỗi lượt đặt lưu chính sách tại lúc tạo. Cọc món tính bằng 20% tiền món sau giảm, cọc giữ bàn không đổi.
 - Thực đơn nhân viên chỉ cho xem số phần tồn, ngưỡng cảnh báo, món sắp hết/hết và món chưa nhập tồn. Chỉ quản lý được cập nhật số tồn, ngưỡng cảnh báo và tình trạng bán trong trang **Thực đơn**. Tồn cập nhật thủ công, hiện chưa tự trừ theo đơn. Tồn bằng 0 chặn nhận món mới.
-- Dữ liệu H2 mới lưu trong `data/giavien.mv.db`. Khi chạy bằng `GiaVienApplication`, `run.ps1` hoặc JAR, ứng dụng tự nhận lại `data/moc.mv.db` nếu đó là database cũ duy nhất, để giữ lịch đặt và tài khoản. Có thể chỉ định database bằng biến môi trường `DATABASE_URL`.
+- Dữ liệu lưu trong PostgreSQL, được giữ qua các lần tắt/mở container nhờ volume `giavien_postgres_data`. Ứng dụng và kiểm thử chỉ dùng PostgreSQL; các bản sao lưu database cũ được giữ để đối chiếu lịch sử. Có thể đổi kết nối PostgreSQL bằng `DATABASE_URL`, `DATABASE_USER`, `DATABASE_PASSWORD`.
 
 Tên hiển thị là **GiaViên**; package Java là `vn.edu.giavien`, file khởi động là `GiaVienApplication.java`, giao diện dùng `giavien.css` và `giavien.js`. `run.ps1` và `setup.ps1` giữ tên theo chức năng. Tài khoản demo dùng email GiaViên theo bảng hướng dẫn ở trên.
 
@@ -73,6 +76,12 @@ Tên hiển thị là **GiaViên**; package Java là `vn.edu.giavien`, file kh�
 | Chuẩn bị món                 | Chỉ sau khi nhân viên xác nhận khách đã nhận bàn                     |
 | Hoàn tiền                    | Nhân viên thực hiện bên ngoài, nhập mã giao dịch để ghi nhận kết quả |
 
+## Trạng thái đơn đặt đến lấy
+
+Luồng chính: **Chờ xác nhận → Đã xác nhận và đang làm → Chờ khách đến lấy → Hoàn thành**. Cả tiền mặt và QR bắt đầu ở Chờ xác nhận khi khách chốt đơn. Nhân viên được làm đơn tiền mặt trước khi thu tiền; đơn QR phải thanh toán trước khi xác nhận và làm. Thanh toán thành công không tự xác nhận đơn. Giữ các nhánh hủy, hết hạn thanh toán và chờ hoàn tiền.
+
+Khi khởi động, hệ thống tự chuyển mã cũ `WAITING_PICKUP` và `AWAITING_PAYMENT` sang `WAITING_CONFIRMATION`, giữ nguyên thanh toán và trạng thái các đơn đang làm/chờ lấy/hoàn thành.
+
 ## Giá trị mặc định cho bản demo
 
 Các giá trị sau là lựa chọn triển khai ban đầu, **không phải yêu cầu đã chốt với nhóm**:
@@ -88,9 +97,9 @@ Tiền cọc bàn được chốt khi tạo lượt đặt. Khi sửa món trư�
 
 Cọc món ăn lấy 20% tổng giá trị các món đặt trước, làm tròn lên đến 1 đồng sau khi cộng toàn bộ món. Ví dụ cọc bàn 100.000đ và món ăn 200.000đ thì tổng cọc là 140.000đ. Khoản cọc đã thanh toán được trừ vào hóa đơn; phần còn lại thanh toán tại quán.
 
-Dữ liệu tài khoản, bàn, món, lịch đặt và thanh toán được backend Java ghi vào database **H2 dạng file**, không dùng `localStorage` của trình duyệt. Phiên đăng nhập nằm trên server; trình duyệt giữ cookie nhận diện phiên. Xem cấu hình kết nối tại `src/main/resources/application.properties` và cấu trúc bảng tại `src/main/resources/schema.sql`.
+Dữ liệu tài khoản, bàn, món, lịch đặt và thanh toán được backend Java ghi vào **PostgreSQL**, không dùng `localStorage` của trình duyệt. Phiên đăng nhập nằm trên server; trình duyệt giữ cookie nhận diện phiên. Xem cấu hình kết nối tại `src/main/resources/application.properties` và cấu trúc bảng tại `src/main/resources/schema.sql`.
 
-Giỏ món mang về chỉ là trạng thái tạm thời trên trình duyệt để khách đi giữa thực đơn và trang thanh toán; đơn đã xác nhận cùng các dòng món vẫn luôn được ghi vào H2.
+Giỏ món mang về chỉ là trạng thái tạm thời trên trình duyệt để khách đi giữa thực đơn và trang thanh toán; đơn đã xác nhận cùng các dòng món vẫn luôn được ghi vào PostgreSQL.
 
 ## Giới hạn hiện tại
 
@@ -98,7 +107,7 @@ Giỏ món mang về chỉ là trạng thái tạm thời trên trình duyệt �
 - Sơ đồ có bố cục mẫu cố định; chưa có trình kéo thả thiết kế mặt bằng.
 - Tài khoản nhân viên có thể tạo mới; chưa có khóa tài khoản, quên mật khẩu hoặc xác minh email.
 - Tiền món tại quán và việc đối trừ tiền cọc do nhân viên thực hiện; chưa có module hóa đơn/POS.
-- H2 phù hợp chạy đồ án một tiến trình, không dùng cho triển khai nhiều máy chủ. Chuyển MySQL/PostgreSQL cần migration SQL tương ứng.
+- Cần PostgreSQL đang hoạt động để chạy ứng dụng và kiểm thử tích hợp; trên máy này dùng Docker Desktop.
 - Ảnh của 12 món mẫu được tạo bằng AI cho đồ án; cần thay ảnh món thực tế trước khi dùng kinh doanh. Món mới tạo từ trang quản lý dùng hình chung đến khi được bổ sung ảnh riêng. [Ảnh và prompt đã dùng](docs/menu-images.md).
 
 ## Thanh toán QR demo
@@ -121,7 +130,7 @@ Profile `demo` tạo tài khoản mẫu và bật QR mô phỏng khi chưa có c
 
 ## Kiến trúc để học và viết báo cáo
 
-[Bộ sơ đồ use case theo mã nguồn hiện tại](docs/use-case/README.md) gồm 9 trang tổng quan/chi tiết, ảnh PNG, SVG, nguồn PlantUML và bảng đối chiếu từng chức năng với code. [Xem PDF](output/pdf/giavien-use-case.pdf).
+[Bộ sơ đồ use case](docs/use-case/README.md) gồm một sơ đồ tổng quan và 18 sơ đồ chức năng theo bố cục mục 3.2, không có bảng đặc tả; kèm PNG, SVG và nguồn PlantUML. [Xem PDF báo cáo](output/pdf/giavien-use-case-section-3.2.pdf). Bản hợp nhất một trang được giữ làm phụ lục. Theo phạm vi đã chọn, phần thanh toán chỉ trình bày QR demo và tiền mặt cho đơn mang về; tác nhân QR là Người thanh toán. Tích hợp VNPAY trong ứng dụng được giữ nguyên.
 
 ```text
 src/main/java/vn/edu/giavien/
@@ -139,7 +148,7 @@ src/test/                      Kiểm thử nghiệp vụ, phân quyền và ren
 docs/                          Đặc tả và sơ đồ để phát triển báo cáo
 ```
 
-Stack: Java 21, Spring Boot 4.0.5, Spring MVC, Thymeleaf, Spring Security, Spring JDBC, H2, JUnit 5. Dự án có chủ đích dùng SQL rõ ràng để dễ hiểu quan hệ giữa đối tượng và bảng; chưa dùng ORM/JPA.
+Stack: Java 21+, Spring Boot 4.0.5, Spring MVC, Thymeleaf, Spring Security, Spring JDBC, PostgreSQL 18, JUnit 5. Dự án có chủ đích dùng SQL rõ ràng để dễ hiểu quan hệ giữa đối tượng và bảng; chưa dùng ORM/JPA.
 
 ## Kiểm thử và đóng gói
 
@@ -149,12 +158,13 @@ Cách dùng và giải thích bổ sung khuyến mãi, phân quyền nhân viên
 
 ```powershell
 .\run.ps1 -Test
+.\test-postgres.ps1
 .\run.ps1 -Package
 ```
 
 JAR sau đóng gói: `target/giavien-restaurant-0.1.0.jar`. Chạy bằng `java -jar ...` với **JDK 21**, không dùng Java 8 mặc định trên máy.
 
-Test dùng database trong bộ nhớ riêng, không xóa dữ liệu demo. Bao gồm biên 3 giờ/2 giờ, giao dịch đồng thời, ghép bàn, thời gian dọn bàn, cọc lưu theo lượt đặt, dữ liệu món, callback trễ/lặp/sai tiền, đăng nhập, CSRF, phân quyền và template.
+`run.ps1 -Test`, `test-postgres.ps1` và bước kiểm thử của `run.ps1 -Package` đều dùng PostgreSQL thật, tạo database kiểm thử riêng rồi xóa đúng database đó khi hoàn tất. Mỗi context có schema riêng. Bộ kiểm thử từ chối URL trỏ vào database `giavien` hoặc thiếu cấu hình kiểm thử. Bao gồm biên 3 giờ/2 giờ, giao dịch đồng thời, ghép bàn, thời gian dọn bàn, cọc lưu theo lượt đặt, dữ liệu món, callback trễ/lặp/sai tiền, đăng nhập, CSRF, phân quyền và template. Cần bật Docker Desktop và chạy `.\database.ps1 -Start` trước.
 
 Kiểm thử JavaScript cho chuyển tầng, QR demo và kết quả VNPAY (cần Node.js):
 

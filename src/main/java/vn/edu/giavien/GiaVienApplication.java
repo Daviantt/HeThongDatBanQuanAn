@@ -11,15 +11,9 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 public class GiaVienApplication {
   public static void main(String[] args) {
-    var application = new SpringApplication(GiaVienApplication.class);
-    // Existing installations keep their database; fresh installations use the new brand.
-    String database =
-        java.nio.file.Files.exists(java.nio.file.Path.of("data/moc.mv.db"))
-                && !java.nio.file.Files.exists(java.nio.file.Path.of("data/giavien.mv.db"))
-            ? "moc"
-            : "giavien";
-    application.setDefaultProperties(java.util.Map.of("app.database-name", database));
-    application.run(args);
+    // pgJDBC sends the JVM zone at connection time; use the canonical IANA name.
+    java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("Asia/Ho_Chi_Minh"));
+    SpringApplication.run(GiaVienApplication.class, args);
   }
 
   @Bean

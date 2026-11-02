@@ -21,12 +21,11 @@ import vn.edu.giavien.service.StatisticsService.Grouping;
 import vn.edu.giavien.service.TakeawayService;
 
 @SpringBootTest(properties = {
-    "spring.datasource.url=jdbc:h2:mem:statistics-test;DB_CLOSE_DELAY=-1",
     "app.demo=true"
 })
 @AutoConfigureMockMvc
 @Transactional
-class StatisticsIntegrationTest {
+class StatisticsIntegrationTest extends DatabaseIntegrationTest {
   @Autowired RestaurantRepository repo;
   @Autowired StatisticsService statistics;
   @Autowired BookingService bookings;
@@ -70,7 +69,7 @@ class StatisticsIntegrationTest {
     takeaway(START.minusDays(1).atTime(23, 59, 59), "COMPLETED", 9);
     for (String status : List.of("PENDING", "CONFIRMED", "SEATED", "CANCELLED", "EXPIRED", "NO_SHOW"))
       booking(START.atTime(12, 0), status, 500000, 20, 0);
-    for (String status : List.of("AWAITING_PAYMENT", "WAITING_PICKUP", "PREPARING", "READY",
+    for (String status : List.of("WAITING_CONFIRMATION", "PREPARING", "READY",
         "REFUND_PENDING", "CANCELLED", "EXPIRED"))
       takeaway(START.atTime(12, 0), status, 20);
     repo.jdbc().update("UPDATE menu_item SET price=999999,available=FALSE WHERE id=1");
@@ -195,7 +194,7 @@ class StatisticsIntegrationTest {
     takeaway.staffAction(ready, repo.account("nhanvien@giavien.local").orElseThrow(), "complete", "");
     var completed = repo.jdbc().queryForObject("SELECT completed_at FROM takeaway_order WHERE id=?",
         LocalDateTime.class, ready);
-    // H2 TIMESTAMP rounds nanoseconds to microseconds.
+    // PostgreSQL TIMESTAMP stores microsecond precision.
     assertThat(completed).isBetween(before.minusNanos(1000), bookings.now().plusNanos(1000));
     assertThat(repo.takeaway(ready).orElseThrow().paidAt()).isNotNull();
     assertThat(statistics.report(completed.toLocalDate(), completed.toLocalDate(), Grouping.DAY).takeaway())
