@@ -2,11 +2,35 @@ package vn.edu.giavien;
 
 import java.sql.*;
 import java.util.UUID;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+import org.springframework.beans.factory.annotation.Autowired;
+import vn.edu.giavien.data.RestaurantRepository;
+import vn.edu.giavien.service.BookingService;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 /** Integration tests only connect to the disposable PostgreSQL database created by the test script. */
 abstract class DatabaseIntegrationTest {
+  @Autowired RestaurantRepository quoteRepo;
+
+  // Snapshot the quote before submitting, just as the customer page does.
+  BookingService.BookingInput reviewedInput(LocalDateTime start, LocalDateTime end, int guests,
+      List<Long> tables, Map<Long, Integer> items, String notes) {
+    return reviewedInput(start, end, guests, tables, items, notes, 0);
+  }
+
+  BookingService.BookingInput reviewedInput(LocalDateTime start, LocalDateTime end, int guests,
+      List<Long> tables, Map<Long, Integer> items, String notes, Integer percent) {
+    Map<Long, Long> prices = new HashMap<>();
+    if (items != null) quoteRepo.dishes().stream()
+        .filter(d -> items.getOrDefault(d.id(), 0) > 0).forEach(d -> prices.put(d.id(), d.price()));
+    return new BookingService.BookingInput(start, end, guests, tables, items, notes, percent,
+        prices, tables == null ? null : tables.size() * quoteRepo.settings().depositPerTable());
+  }
+
   @DynamicPropertySource
   static void database(DynamicPropertyRegistry registry) throws SQLException {
     String isolated = isolatedPostgresUrl();

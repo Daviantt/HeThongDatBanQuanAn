@@ -34,7 +34,7 @@ public class TableBoardService {
       var related = all.stream().filter(b -> b.tableIds().contains(table.id())).toList();
       var current = related.stream().filter(b -> b.status() != BookingStatus.COMPLETED)
           .filter(b -> b.startAt().toLocalDate().equals(date)
-              || b.status() == BookingStatus.SEATED).toList();
+              || (date.equals(now.toLocalDate()) && b.status() == BookingStatus.SEATED)).toList();
       var upcoming = related.stream().filter(b -> b.status() != BookingStatus.COMPLETED)
           .filter(b -> b.status() != BookingStatus.SEATED && b.startAt().toLocalDate().isAfter(date)).toList();
       LocalDateTime cleaningUntil = related.stream()

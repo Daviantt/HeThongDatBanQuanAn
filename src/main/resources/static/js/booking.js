@@ -11,6 +11,7 @@
     floor: 1,
     availability: null,
     menuFilter: "all",
+    priceChanged: false,
   };
   const normalizeText = (text) => text.toLocaleLowerCase("vi").normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
@@ -318,9 +319,12 @@
     error("booking-error", "");
     $("create-booking").textContent = "Đang giữ bàn…";
     const items = {};
+    const expectedUnitPrices = {};
     document.querySelectorAll(".dish-quantity").forEach((input) => {
-      if (Number(input.value) > 0)
+      if (Number(input.value) > 0) {
         items[input.dataset.dishId] = Number(input.value);
+        expectedUnitPrices[input.dataset.dishId] = Number(input.dataset.price);
+      }
     });
     const headers = {
       "Content-Type": "application/json",
@@ -338,6 +342,8 @@
           items,
           notes: $("booking-notes").value,
           expectedDiscountPercent: discountPercent(),
+          expectedUnitPrices,
+          expectedTableDeposit: state.selected.deposit,
         }),
       });
       if (response.status === 403)
@@ -345,6 +351,38 @@
           "Phiên làm việc đã hết hạn. Vui lòng tải lại trang và đăng nhập.",
         );
       const data = await response.json();
+      if (response.status === 409 && data.quote) {
+        const quote = data.quote;
+        quote.lines.forEach((line) => {
+          const input = [...document.querySelectorAll(".dish-quantity")]
+            .find((item) => Number(item.dataset.dishId) === line.menuItemId);
+          if (input) {
+            input.dataset.price = String(line.unitPrice);
+            input.dataset.dishName = line.itemName;
+            const card = input.closest(".preorder-item");
+            card.querySelector(".preorder-price").textContent = money(line.unitPrice);
+            card.querySelector("h3").textContent = line.itemName;
+          }
+        });
+        const perTable = quote.tableDeposit / state.selected.tableIds.length;
+        state.availability?.options.forEach((option) => {
+          option.deposit = perTable * option.tableIds.length;
+        });
+        state.selected.deposit = quote.tableDeposit;
+        const promotion = $("booking-promotion");
+        Object.assign(promotion.dataset, {
+          enabled: String(quote.promotion.enabled),
+          minimumGuests: String(quote.promotion.minimumGuests),
+          percent: String(quote.promotion.discountPercent),
+        });
+        promotion.hidden = !quote.promotion.enabled;
+        promotion.querySelector("[data-promotion-minimum]").textContent = quote.promotion.minimumGuests;
+        promotion.querySelectorAll("[data-promotion-percent]").forEach((label) => {
+          label.textContent = quote.promotion.discountPercent + "%";
+        });
+        $("accept-policy").checked = false;
+        state.priceChanged = true;
+      }
       if (!response.ok)
         throw new Error(
           data.error || "Chưa tạo được lượt đặt. Vui lòng thử lại.",
@@ -357,7 +395,7 @@
           "Không kết nối được máy chủ. Hãy kiểm tra Lịch hẹn của tôi trước khi thử lại.",
       );
       state.submitting = false;
-      $("create-booking").textContent = "Giữ bàn & đặt cọc →";
+      $("create-booking").textContent = state.priceChanged ? "Xác nhận giá mới & giữ bàn →" : "Giữ bàn & đặt cọc →";
       updateSummary();
     }
   });

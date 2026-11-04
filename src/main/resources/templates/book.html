@@ -15,12 +15,12 @@
         <div class="promotion-content">
           <p class="promotion-eyebrow">ƯU ĐÃI ĐANG ÁP DỤNG</p>
           <h2>Đi cùng nhau, thưởng thức nhiều hơn.</h2>
-          <p class="promotion-detail">Nhóm từ <strong th:text="${promotion.minimumGuests}">4</strong> khách được giảm <strong th:text="|${promotion.discountPercent}%|">10%</strong> tiền món đặt trước.</p>
+          <p class="promotion-detail">Nhóm từ <strong data-promotion-minimum th:text="${promotion.minimumGuests}">4</strong> khách được giảm <strong data-promotion-percent th:text="|${promotion.discountPercent}%|">10%</strong> tiền món đặt trước.</p>
           <a class="promotion-action" href="#availability-form">Chọn bàn để nhận ưu đãi <span aria-hidden="true">↗</span></a>
         </div>
         <div class="promotion-visual" aria-hidden="true">
           <img src="/images/menu/bo-luc-lac.jpg" alt="" width="800" height="600" loading="lazy" />
-          <div class="promotion-sticker"><span>GIẢM</span><strong th:text="|${promotion.discountPercent}%|">10%</strong><span>TIỀN MÓN</span></div>
+          <div class="promotion-sticker"><span>GIẢM</span><strong data-promotion-percent th:text="|${promotion.discountPercent}%|">10%</strong><span>TIỀN MÓN</span></div>
         </div>
       </section>
       <a class="order-path-card takeaway booking-takeaway-card" href="/menu">
@@ -36,7 +36,7 @@
               <span>01</span>
               <div>
                 <h2>Mình hẹn nhau khi nào?</h2>
-                <p>Chọn ngày, giờ đến và số người tham dự.</p>
+                <p>Chọn ngày, giờ đến và số người tham dự. Vui lòng đặt trước ít nhất 5 phút.</p>
               </div>
             </div>
             <form id="availability-form" class="search-form">

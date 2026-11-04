@@ -66,6 +66,12 @@ public class BookingApi {
     }
   }
 
+  @ExceptionHandler(BookingService.PriceChangedException.class)
+  @ResponseStatus(HttpStatus.CONFLICT)
+  public Map<String, Object> priceChanged(BookingService.PriceChangedException error) {
+    return Map.of("error", error.getMessage(), "quote", error.quote());
+  }
+
   @ExceptionHandler(IllegalArgumentException.class)
   @ResponseStatus(HttpStatus.BAD_REQUEST)
   public Map<String, String> badRequest(IllegalArgumentException error) {

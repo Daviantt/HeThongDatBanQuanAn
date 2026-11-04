@@ -99,7 +99,7 @@ class DemoAccountIntegrationTest extends DatabaseIntegrationTest {
     String bookingId =
         bookings.create(
             legacyCustomer,
-            new BookingService.BookingInput(
+            reviewedInput(
                 start, start.plusHours(2), 2, List.of(1L), Map.of(), ""));
     repo.insertAccount(
         "regular@example.com",

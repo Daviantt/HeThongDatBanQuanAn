@@ -87,9 +87,10 @@ Khi khởi động, hệ thống tự chuyển mã cũ `WAITING_PICKUP` và `AWA
 Các giá trị sau là lựa chọn triển khai ban đầu, **không phải yêu cầu đã chốt với nhóm**:
 
 - Cọc **100.000đ/bàn**; giữ chờ cọc **15 phút**; dọn bàn **15 phút**; chờ khách muộn **15 phút**. Quản lý sửa được trên `/admin`.
-- Quán mở 10:00–22:00; nhận giờ đến từ 10:00 đến trước 22:00, đặt trước tối đa 60 ngày. Không đặt thời lượng dùng bàn tối thiểu hoặc giờ kết thúc dự kiến.
+- Quán mở 10:00–22:00; nhận giờ đến từ 10:00 đến trước 22:00, đặt trước ít nhất 5 phút và tối đa 60 ngày. Không đặt thời lượng dùng bàn tối thiểu hoặc giờ kết thúc dự kiến.
 - Nhận khách từ 15 phút trước giờ hẹn, chỉ khi bàn không xung đột lượt khác.
 - Mỗi bàn chỉ nhận một lượt chưa giải quyết cho cùng ngày đặt. Nhân viên hoàn tất phục vụ và hết thời gian dọn bàn thì có thể nhận lượt tiếp; khách đang ngồi không bị tự kết thúc, kể cả qua ngày mới.
+- Bàn đang phục vụ hôm nay vẫn nhận lịch ngày tương lai; nhận khách thực tế luôn chặn nếu bàn còn người ngồi hoặc đang dọn.
 - Múi giờ nghiệp vụ: `Asia/Ho_Chi_Minh` (UTC+7).
 - Tổ hợp mặc định gồm 2–3 bàn liên tiếp theo hàng ngang hoặc dọc trên cùng tầng, không băng qua vườn hay khoảng thông tầng. B08 và B09 không ghép qua lối đi; bàn OLD-B09 ở lối vào đã ngừng phục vụ.
 
@@ -113,6 +114,8 @@ Giỏ món mang về chỉ là trạng thái tạm thời trên trình duyệt �
 ## Thanh toán QR demo
 
 Chạy `./run.ps1`, đặt bàn rồi chọn **Thanh toán bằng QR demo**. Quét bằng camera điện thoại để mở trang mô phỏng, hoặc thao tác trực tiếp trên máy tính. Sau **60 giây kể từ khi mở phiên**, nút **Mô phỏng thanh toán thành công** được bật. Phải tự bấm nút; chờ hoặc quét mã không tự xác nhận cọc. Tải lại trang không làm đếm lại từ đầu.
+
+Đặt bàn trước ít nhất 5 phút. Chỉ mở QR đặt bàn mới khi thời gian giữ bàn còn hơn 60 giây; phiên đã mở vẫn dùng lại được đến trước hạn giữ bàn. Hết hạn thì không thể xác nhận thanh toán.
 
 Sau xác nhận, lượt đặt chuyển thành **Đã xác nhận / Đã nhận cọc**, được lưu với nhà cung cấp `DEMO` và hiện thông báo không thu tiền thật. Trang đang mở trên thiết bị khác tự cập nhật. Bàn đã hủy/hết hạn không thể được xác nhận lại.
 

@@ -19,7 +19,8 @@ public final class Models {
       String category,
       long price,
       boolean available,
-      String illustration) {}
+      String illustration,
+      boolean saleEnabled) {}
 
   public record StockItem(Dish dish, Integer quantity, int threshold) {
     public boolean low() { return quantity != null && quantity > 0 && quantity <= threshold; }

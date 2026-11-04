@@ -74,11 +74,29 @@ public class BookingService {
       List<Long> tableIds,
       Map<Long, Integer> items,
       String notes,
-      Integer expectedDiscountPercent) {
+      Integer expectedDiscountPercent,
+      Map<Long, Long> expectedUnitPrices,
+      Long expectedTableDeposit) {
+    public BookingInput(LocalDateTime startAt, LocalDateTime endAt, int guests,
+        List<Long> tableIds, Map<Long, Integer> items, String notes, Integer expectedDiscountPercent) {
+      this(startAt, endAt, guests, tableIds, items, notes, expectedDiscountPercent, null, null);
+    }
     public BookingInput(LocalDateTime startAt, LocalDateTime endAt, int guests,
         List<Long> tableIds, Map<Long, Integer> items, String notes) {
       this(startAt, endAt, guests, tableIds, items, notes, 0);
     }
+  }
+
+  public record BookingQuote(List<OrderLine> lines, GroupPromotion promotion, int discountPercent,
+      long tableDeposit, long foodTotal, long discount, long foodDeposit, long deposit) {}
+
+  public static class PriceChangedException extends IllegalArgumentException {
+    private final BookingQuote quote;
+    public PriceChangedException(BookingQuote quote) {
+      super("Giá món, tiền cọc hoặc khuyến mãi đã thay đổi. Vui lòng xem báo giá mới và xác nhận lại.");
+      this.quote = quote;
+    }
+    public BookingQuote quote() { return quote; }
   }
 
   public record TableOption(List<Long> tableIds, String label, int capacity, long deposit) {}
@@ -94,6 +112,7 @@ public class BookingService {
     require(start != null, "Vui lòng chọn giờ đến.");
     require(guests >= 1 && guests <= 12, "Mỗi lượt đặt dành cho 1–12 khách.");
     require(start.isAfter(now()), "Giờ đến phải nằm trong tương lai.");
+    require(!start.isBefore(now().plusMinutes(5)), "Vui lòng đặt trước giờ đến ít nhất 5 phút.");
     require(
         !start.toLocalDate().isAfter(now().toLocalDate().plusDays(60)),
         "Bạn có thể đặt trước tối đa 60 ngày.");
@@ -220,12 +239,20 @@ public class BookingService {
     List<OrderLine> lines = makeLines(input.items(), List.of());
     GroupPromotion promotion = repo.promotion();
     int percent = promotion.percentFor(input.guests());
-    require(Objects.equals(input.expectedDiscountPercent() == null ? 0 : input.expectedDiscountPercent(), percent),
-        "Khuyến mãi vừa thay đổi. Vui lòng tải lại trang để kiểm tra tổng tiền trước khi đặt.");
     long foodTotal = lines.stream().mapToLong(OrderLine::subtotal).sum();
-    long foodDeposit = BookingPolicy.foodDeposit(foodTotal - BookingPolicy.discount(foodTotal, percent));
-    String id = UUID.randomUUID().toString();
+    long discount = BookingPolicy.discount(foodTotal, percent);
+    long foodDeposit = BookingPolicy.foodDeposit(foodTotal - discount);
     Settings settings = repo.settings();
+    long tableDeposit = ids.size() * settings.depositPerTable();
+    Map<Long, Long> prices = new HashMap<>();
+    lines.forEach(line -> prices.put(line.menuItemId(), line.unitPrice()));
+    if (!Objects.equals(input.expectedUnitPrices(), prices)
+        || !Objects.equals(input.expectedTableDeposit(), tableDeposit)
+        || !Objects.equals(input.expectedDiscountPercent(), percent)) {
+      throw new PriceChangedException(new BookingQuote(List.copyOf(lines), promotion, percent,
+          tableDeposit, foodTotal, discount, foodDeposit, tableDeposit + foodDeposit));
+    }
+    String id = UUID.randomUUID().toString();
     LocalDateTime holdUntil = now().plusMinutes(settings.holdMinutes());
     if (holdUntil.isAfter(input.startAt())) holdUntil = input.startAt();
     repo.insertBooking(
@@ -235,7 +262,7 @@ public class BookingService {
         null,
         input.guests(),
         notes,
-        ids.size() * settings.depositPerTable() + foodDeposit,
+        tableDeposit + foodDeposit,
         foodDeposit,
         now(),
         holdUntil,
