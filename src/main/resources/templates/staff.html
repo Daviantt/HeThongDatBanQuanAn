@@ -95,7 +95,7 @@
       <nav th:replace="~{fragments :: pagination(${bookingPage}, @{/staff(page=${bookingPage.number - 1},takeawayPage=${ordersPage.number},search=${search})}, @{/staff(page=${bookingPage.number + 1},takeawayPage=${ordersPage.number},search=${search})})}"></nav>
       <section id="takeaway-orders" class="panel history-section">
         <h2>Đơn mang về <span class="badge" th:text="${ordersPage.total}"></span></h2>
-        <p class="helper">Đơn chuyển khoản chỉ được chuẩn bị sau khi thanh toán. Chọn đơn để chuẩn bị, giao món hoặc hủy.</p>
+        <p class="helper">Chờ xác nhận → Đã xác nhận và đang làm → Chờ khách đến lấy → Hoàn thành. Đơn QR phải thanh toán trước khi nhân viên xác nhận; đơn tiền mặt thanh toán khi lấy món.</p>
         <div class="table-scroll">
           <table class="data-table">
             <thead><tr><th>Đơn / Giờ lấy</th><th>Người nhận</th><th>Món</th><th>Trạng thái</th><th>Thanh toán</th><th></th></tr></thead>

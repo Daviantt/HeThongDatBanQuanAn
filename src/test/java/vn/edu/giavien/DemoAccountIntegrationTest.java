@@ -25,14 +25,13 @@ import vn.edu.giavien.service.BookingService;
 
 @SpringBootTest(
     properties = {
-      "spring.datasource.url=jdbc:h2:mem:giavien-demo-accounts-test;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=10000",
       "app.demo=true",
       "app.vnpay.tmn-code=",
       "app.vnpay.hash-secret="
     })
 @AutoConfigureMockMvc
 @Transactional
-class DemoAccountIntegrationTest {
+class DemoAccountIntegrationTest extends DatabaseIntegrationTest {
   private static final String PASSWORD = "GiaVienDemo123!";
   private static final String LEGACY_PASSWORD = "MocDemo123!";
   private static final String MIGRATION = "giavien-demo-accounts-v1";

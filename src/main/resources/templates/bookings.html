@@ -72,7 +72,7 @@
             </ul>
             <div class="row">
               <span th:text="${order.refundReference != null ? 'Đã hoàn tiền demo' : (order.paymentMethod == 'CASH' ? (order.paidAt != null ? 'Đã thu tiền mặt' : 'Tiền mặt khi nhận món') : (order.paidAt != null ? 'Đã thanh toán demo' : 'Chưa thanh toán'))}"></span>
-              <span class="text-link" th:text="${order.status.name() == 'AWAITING_PAYMENT' and demoPaymentEnabled ? 'Tiếp tục thanh toán ↗' : 'Xem chi tiết ↗'}"></span>
+              <span class="text-link" th:text="${order.awaitingPayment() and demoPaymentEnabled ? 'Tiếp tục thanh toán ↗' : 'Xem chi tiết ↗'}"></span>
             </div>
             <div class="card-payment">
               <span>Tổng tiền</span><strong th:text="${@fmt.money(order.total)}"></strong>

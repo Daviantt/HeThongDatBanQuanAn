@@ -305,7 +305,7 @@ public class RestaurantRepository {
     List<Object> args = new ArrayList<>();
     if (userId != null) { where += " AND b.user_id=?"; args.add(userId); }
     if (search != null && !search.isBlank()) {
-      where += " AND (LOCATE(?,LOWER('GV-' || SUBSTRING(b.id,1,8)))>0 OR LOCATE(?,LOWER(u.full_name))>0 OR LOCATE(?,u.phone)>0)";
+      where += " AND (POSITION(? IN LOWER('GV-' || SUBSTRING(b.id,1,8)))>0 OR POSITION(? IN LOWER(u.full_name))>0 OR POSITION(? IN u.phone)>0)";
       String term = search.strip().toLowerCase(Locale.ROOT);
       args.addAll(List.of(term, term, term));
     }

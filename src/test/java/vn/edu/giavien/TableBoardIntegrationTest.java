@@ -21,13 +21,12 @@ import vn.edu.giavien.service.BookingService;
 import vn.edu.giavien.service.TableBoardService;
 
 @SpringBootTest(properties = {
-    "spring.datasource.url=jdbc:h2:mem:table-board-test;DB_CLOSE_DELAY=-1",
     "app.demo=true"
 })
 @AutoConfigureMockMvc
 @Import(BookingIntegrationTest.TimeConfig.class)
 @Transactional
-class TableBoardIntegrationTest {
+class TableBoardIntegrationTest extends DatabaseIntegrationTest {
   @Autowired RestaurantRepository repo;
   @Autowired BookingService service;
   @Autowired TableBoardService board;
