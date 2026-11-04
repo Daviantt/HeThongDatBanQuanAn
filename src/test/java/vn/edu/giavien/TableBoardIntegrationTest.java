@@ -43,7 +43,7 @@ class TableBoardIntegrationTest extends DatabaseIntegrationTest {
   }
 
   String create(LocalDateTime start, List<Long> tables) {
-    return service.create(customer, new BookingService.BookingInput(
+    return service.create(customer, reviewedInput(
         start, null, tables.size() == 1 ? 2 : 8, tables, Map.of(1L, 2), ""));
   }
 
@@ -68,8 +68,10 @@ class TableBoardIntegrationTest extends DatabaseIntegrationTest {
         .with(user(customer.email()).roles("CUSTOMER"))).andExpect(status().isOk());
     mvc.perform(post("/api/bookings").with(user(customer.email()).roles("CUSTOMER")).with(csrf())
         .contentType("application/json").content("""
-            {"startAt":"2026-09-21T12:00","guests":8,"tableIds":[1,4],"items":{"1":2},"notes":""}
-            """)).andExpect(status().isCreated());
+            {"startAt":"2026-09-21T12:00","guests":8,"tableIds":[1,4],"items":{"1":2},"notes":"",
+             "expectedDiscountPercent":0,"expectedUnitPrices":{"1":%d},"expectedTableDeposit":%d}
+            """.formatted(repo.dishes().getFirst().price(), 2 * repo.settings().depositPerTable())))
+        .andExpect(status().isCreated());
     var booking = repo.bookings(customer.id()).getFirst();
     assertThat(booking.endAt()).isNull();
     assertThat(fragment()).contains(booking.code(), customer.fullName(), "Giữ bàn · Chờ cọc");
@@ -107,7 +109,7 @@ class TableBoardIntegrationTest extends DatabaseIntegrationTest {
     assertThatThrownBy(() -> service.staffAction(id, staff, "complete", "")).hasMessageContaining("nhận bàn");
     clock.set(baseline.plusHours(6).plusMinutes(15));
     assertThat(card(1).state()).isEqualTo("FREE");
-    assertThat(create(clock.instant().atZone(clock.getZone()).toLocalDateTime().plusMinutes(1), List.of(1L))).isNotBlank();
+    assertThat(create(clock.instant().atZone(clock.getZone()).toLocalDateTime().plusMinutes(5), List.of(1L))).isNotBlank();
   }
 
   @Test
@@ -157,6 +159,35 @@ class TableBoardIntegrationTest extends DatabaseIntegrationTest {
         .with(user(customer.email()).roles("CUSTOMER")).with(csrf())
         .param("action", "complete").param("date", "2026-09-21"))
         .andExpect(status().isForbidden());
+  }
+
+  @Test
+  void seatedPartyOnlyBlocksTodayAndCheckinStillWaitsAcrossMidnight() {
+    String seated = create(baseline.plusHours(1), List.of(1L));
+    pay(seated);
+    clock.set(baseline.plusHours(1));
+    service.staffAction(seated, staff, "checkin", "");
+    assertThat(service.availability(baseline.plusHours(8), null, 2).unavailable()).contains(1L);
+    for (int days : List.of(1, 30)) {
+      LocalDateTime future = baseline.plusDays(days).plusHours(1);
+      assertThat(service.availability(future, null, 2).unavailable()).doesNotContain(1L);
+      var futureCard = board.board(future.toLocalDate()).tables().stream().filter(t -> t.table().id() == 1).findFirst().orElseThrow();
+      assertThat(futureCard.state()).isEqualTo("FREE");
+      assertThat(futureCard.bookings()).isEmpty();
+    }
+    String tomorrow = create(baseline.plusDays(1).plusHours(1), List.of(1L));
+    pay(tomorrow);
+    assertThatThrownBy(() -> create(baseline.plusDays(1).plusHours(8), List.of(1L))).hasMessageContaining("Bàn vừa");
+    clock.set(baseline.plusDays(1).withHour(0));
+    assertThat(card(1).state()).isEqualTo("SEATED");
+    assertThat(service.availability(baseline.plusDays(1).plusHours(2), null, 2).unavailable()).contains(1L);
+    clock.set(baseline.plusDays(1).plusHours(1));
+    assertThatThrownBy(() -> service.staffAction(tomorrow, staff, "checkin", "")).hasMessageContaining("đang phục vụ");
+    service.staffAction(seated, staff, "complete", "");
+    assertThatThrownBy(() -> service.staffAction(tomorrow, staff, "checkin", "")).hasMessageContaining("đang dọn");
+    clock.set(baseline.plusDays(1).plusHours(1).plusMinutes(15));
+    service.staffAction(tomorrow, staff, "checkin", "");
+    assertThat(card(1).state()).isEqualTo("SEATED");
   }
 
   @Test

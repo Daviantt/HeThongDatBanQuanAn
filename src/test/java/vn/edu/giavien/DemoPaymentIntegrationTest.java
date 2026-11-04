@@ -74,7 +74,7 @@ class DemoPaymentIntegrationTest extends DatabaseIntegrationTest {
     bookingId =
         bookings.create(
             customer,
-            new BookingService.BookingInput(
+            reviewedInput(
                 baseline.plusDays(1).withHour(18),
                 baseline.plusDays(1).withHour(20),
                 2,
@@ -547,6 +547,33 @@ class DemoPaymentIntegrationTest extends DatabaseIntegrationTest {
         .isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
   }
 
+  @org.junit.jupiter.params.ParameterizedTest
+  @org.junit.jupiter.params.provider.ValueSource(ints = {59, 60, 61})
+  void newQrNeedsMoreThanSixtySecondsButAnExistingQrCanBeResumed(int remaining) {
+    LocalDateTime expiry = repo.booking(bookingId).orElseThrow().holdUntil();
+    clock.set(expiry.minusSeconds(remaining));
+    if (remaining <= 60) {
+      assertThatThrownBy(() -> payments.start(bookingId, customer)).hasMessageContaining("60 giây");
+      assertThat(repo.jdbc().queryForObject("SELECT COUNT(*) FROM demo_payment WHERE reservation_id=?", Integer.class, bookingId)).isZero();
+    } else {
+      String token = payments.start(bookingId, customer);
+      clock.set(expiry.minusSeconds(1));
+      assertThat(payments.start(bookingId, customer)).isEqualTo(token);
+      assertThat(payments.status(token).status()).isEqualTo("READY");
+      payments.confirm(token);
+      assertThat(repo.booking(bookingId).orElseThrow().paymentStatus()).isEqualTo(PaymentStatus.PAID);
+    }
+  }
+
+  @Test
+  void anExistingQrStillCannotPayAtTheHoldDeadline() {
+    String token = payments.start(bookingId, customer);
+    clock.set(repo.booking(bookingId).orElseThrow().holdUntil());
+    assertThat(payments.status(token).status()).isEqualTo("CLOSED");
+    assertThatThrownBy(() -> payments.confirm(token)).hasMessageContaining("hết hạn");
+    assertThat(repo.booking(bookingId).orElseThrow().paymentStatus()).isEqualTo(PaymentStatus.UNPAID);
+  }
+
   @Test
   void canceledAndExpiredHoldsCannotBeConfirmed() {
     String token = payments.start(bookingId, customer);
@@ -559,7 +586,7 @@ class DemoPaymentIntegrationTest extends DatabaseIntegrationTest {
     String other =
         bookings.create(
             customer,
-            new BookingService.BookingInput(
+            reviewedInput(
                 baseline.plusDays(1).withHour(18),
                 baseline.plusDays(1).withHour(20),
                 2,

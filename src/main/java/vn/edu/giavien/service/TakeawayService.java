@@ -71,6 +71,10 @@ public class TakeawayService {
     String name = text(input.customerName(), 2, 100, "Tên người nhận");
     String phone = text(input.phone(), 8, 20, "Số điện thoại");
     if (!phone.matches("[0-9+ .()-]+")) throw new IllegalArgumentException("Số điện thoại không hợp lệ.");
+    phone = phone.replaceAll("[ .()-]", "");
+    if (phone.startsWith("+84")) phone = "0" + phone.substring(3);
+    if (!phone.matches("0[1-9][0-9]{8}"))
+      throw new IllegalArgumentException("Số điện thoại Việt Nam cần có 10 chữ số bắt đầu bằng 0 hoặc dạng +84 tương ứng.");
     if (input.pickupAt() == null || input.pickupAt().getSecond() != 0 || input.pickupAt().getNano() != 0)
       throw new IllegalArgumentException("Vui lòng chọn giờ lấy chính xác đến phút.");
     LocalDateTime now = bookings.now();

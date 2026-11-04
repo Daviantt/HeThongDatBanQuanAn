@@ -2,11 +2,17 @@
 
 ## Khách đặt bàn
 
-Khách chọn ngày, giờ đến, số khách và bàn; không nhập giờ kết thúc. Giờ đến phải nằm trong tương lai, trong 60 ngày và trong giờ nhận khách của quán.
+Khách chọn ngày, giờ đến, số khách và bàn; không nhập giờ kết thúc. Giờ đến phải cách thời điểm đặt ít nhất 5 phút, trong 60 ngày và trong giờ nhận khách của quán.
 
 Mỗi bàn chỉ nhận một lượt chưa được giải quyết trong cùng ngày đặt. Không tự ước lượng thời lượng ăn để bán lại bàn trong ngày. Sau khi nhân viên kết thúc lượt trước, có thể nhận lượt mới với giờ đến từ thời điểm dọn xong trở đi. Giữ bàn chờ cọc vẫn có thời hạn như trước; quá hạn thì bàn được trả lại.
 
 Lượt đặt của những ngày khác được giữ riêng theo ngày. Nếu khách thực tế đang ngồi, bàn vẫn bận cho đến khi nhân viên hoàn tất, kể cả qua ngày mới. Nhân viên phải xử lý lượt trước và dọn xong trước khi nhận lượt kế tiếp. Hệ thống không tự kết thúc phục vụ vào giờ đóng cửa hoặc giờ kết thúc dự kiến cũ.
+
+Bàn đang phục vụ hôm nay không tự khóa lịch ngày mai hoặc các ngày xa hơn. Khi chọn ngày tương lai, bảng bàn chỉ phản ánh lượt đặt thuộc ngày đó. Khi xem hôm nay, lượt phục vụ từ hôm trước chưa kết thúc vẫn hiện đang phục vụ. Nhận khách thực tế luôn kiểm tra bàn đang phục vụ/dọn, dù đã có lịch đặt hợp lệ từ trước.
+
+Nếu giá món, cọc bàn hoặc mức khuyến mãi khách đã xem thay đổi trước khi chốt, máy chủ trả báo giá mới và chưa giữ bàn. Giao diện giữ lựa chọn, cập nhật giá/tạm tính, bỏ dấu xác nhận chính sách và yêu cầu khách xác nhận lại; không tự gửi lại đơn với số tiền mới.
+
+QR demo mới chỉ được mở khi còn hơn 60 giây trước hạn giữ bàn. Phiên đã mở được dùng lại mà không đếm lại từ đầu, nhưng không thanh toán được tại hoặc sau hạn giữ bàn.
 
 ## Thao tác của nhân viên
 

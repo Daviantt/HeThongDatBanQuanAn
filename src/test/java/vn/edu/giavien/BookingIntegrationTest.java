@@ -14,6 +14,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -49,6 +51,7 @@ class BookingIntegrationTest extends DatabaseIntegrationTest {
   @Autowired PlatformTransactionManager transactions;
   @Autowired vn.edu.giavien.config.SeedData seed;
   Account customer, staff, admin;
+  Map<Long, Long> initialPrices;
   final LocalDateTime baseline = LocalDateTime.of(2026, 9, 21, 10, 0);
 
   static class MutableClock extends Clock {
@@ -120,10 +123,17 @@ class BookingIntegrationTest extends DatabaseIntegrationTest {
     customer = service.account("khach@giavien.local");
     staff = service.account("nhanvien@giavien.local");
     admin = service.account("quanly@giavien.local");
+    initialPrices = new HashMap<>();
+    repo.dishes().forEach(dish -> initialPrices.put(dish.id(), dish.price()));
+  }
+
+  @AfterEach
+  void restoreMenuPrices() {
+    initialPrices.forEach((id, price) -> repo.jdbc().update("UPDATE menu_item SET price=? WHERE id=?", price, id));
   }
 
   BookingService.BookingInput input(LocalDateTime start, int guests, List<Long> tables) {
-    return new BookingService.BookingInput(
+    return reviewedInput(
         start, start.plusHours(2), guests, tables, Map.of(1L, 2), "Không cay");
   }
 
@@ -421,9 +431,9 @@ class BookingIntegrationTest extends DatabaseIntegrationTest {
   void promotionIsOffByDefaultAndSnapshotsEligibleFoodDiscountWithoutAddingDepositToTotal() throws Exception {
     assertThat(repo.promotion().enabled()).isFalse();
     service.updatePromotion(admin, true, 4, 10);
-    String smaller = service.create(customer, new BookingService.BookingInput(baseline.plusDays(1).withHour(18),
+    String smaller = service.create(customer, reviewedInput(baseline.plusDays(1).withHour(18),
         baseline.plusDays(1).withHour(20), 3, List.of(1L), Map.of(1L, 2), "", 0));
-    String id = service.create(customer, new BookingService.BookingInput(baseline.plusDays(2).withHour(18),
+    String id = service.create(customer, reviewedInput(baseline.plusDays(2).withHour(18),
         baseline.plusDays(2).withHour(20), 4, List.of(1L), Map.of(1L, 2), "", 10));
     var booking = repo.booking(id).orElseThrow();
     assertThat(repo.booking(smaller).orElseThrow().discount()).isZero();
@@ -448,7 +458,8 @@ class BookingIntegrationTest extends DatabaseIntegrationTest {
   void changedPromotionRequiresRefreshingAndOnlyAdminCanConfigureIt() throws Exception {
     service.updatePromotion(admin, true, 4, 10);
     assertThatThrownBy(() -> service.create(customer, input(baseline.plusDays(1).withHour(18), 4, List.of(1L))))
-        .hasMessageContaining("Khuyến mãi vừa thay đổi");
+        .isInstanceOfSatisfying(BookingService.PriceChangedException.class,
+            error -> assertThat(error.quote().discountPercent()).isEqualTo(10));
     assertThat(repo.bookings(customer.id())).isEmpty();
     assertThatThrownBy(() -> service.updatePromotion(staff, true, 4, 10))
         .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
@@ -792,7 +803,7 @@ class BookingIntegrationTest extends DatabaseIntegrationTest {
             () ->
                 service.create(
                     customer,
-                    new BookingService.BookingInput(
+                    reviewedInput(
                         baseline.plusHours(4),
                         baseline.plusHours(5),
                         2,
@@ -989,7 +1000,7 @@ class BookingIntegrationTest extends DatabaseIntegrationTest {
     String id =
         service.create(
             customer,
-            new BookingService.BookingInput(
+            reviewedInput(
                 baseline.plusDays(1).withHour(18),
                 baseline.plusDays(1).withHour(20),
                 2,
@@ -1040,7 +1051,7 @@ class BookingIntegrationTest extends DatabaseIntegrationTest {
             status -> {
               repo.jdbc().update("UPDATE menu_item SET price=10001 WHERE id=1");
               repo.jdbc().update("UPDATE menu_item SET price=10002 WHERE id=2");
-              String id = service.create(customer, new BookingService.BookingInput(
+              String id = service.create(customer, reviewedInput(
                   baseline.plusHours(4), baseline.plusHours(6), 2, List.of(1L),
                   Map.of(1L, 1, 2L, 1), ""));
               Booking booking = repo.booking(id).orElseThrow();
@@ -1059,7 +1070,7 @@ class BookingIntegrationTest extends DatabaseIntegrationTest {
 
   @Test
   void noPreorderedFoodRequiresOnlyTableDepositAndVnpayAmountsCannotChangeAfterCheckout() throws Exception {
-    String id = service.create(customer, new BookingService.BookingInput(
+    String id = service.create(customer, reviewedInput(
         baseline.plusHours(4), baseline.plusHours(6), 2, List.of(1L), Map.of(), ""));
     assertThat(repo.booking(id).orElseThrow().deposit()).isEqualTo(100000);
     assertThat(repo.booking(id).orElseThrow().foodDeposit()).isZero();
@@ -1288,6 +1299,159 @@ class BookingIntegrationTest extends DatabaseIntegrationTest {
         .hasMessageContaining("chưa sẵn sàng");
     assertThat(payments.attempts(id)).isEmpty();
     assertThat(repo.booking(id).orElseThrow().paymentStatus()).isEqualTo(PaymentStatus.UNPAID);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"dish", "deposit", "promotion"})
+  void staleBookingQuoteDoesNotHoldTablesAndRequiresExplicitResubmission(String change) {
+    var reviewed = input(baseline.plusDays(1).withHour(18), 2, List.of(1L));
+    switch (change) {
+      case "dish" -> repo.jdbc().update("UPDATE menu_item SET price=price+10000 WHERE id=1");
+      case "deposit" -> service.updateSettings(admin, 200000, 15, 15, 15);
+      case "promotion" -> service.updatePromotion(admin, true, 2, 10);
+    }
+    assertThatThrownBy(() -> service.create(customer, reviewed))
+        .isInstanceOfSatisfying(BookingService.PriceChangedException.class, error -> {
+          assertThat(error.quote().deposit()).isEqualTo(error.quote().tableDeposit() + error.quote().foodDeposit());
+          assertThat(error.quote().lines()).hasSize(1);
+        });
+    assertThat(repo.bookings(customer.id())).isEmpty();
+    var fresh = reviewedInput(reviewed.startAt(), null, 2, List.of(1L), Map.of(1L, 2), "Không cay",
+        repo.promotion().percentFor(2));
+    String id = service.create(customer, fresh);
+    var saved = repo.booking(id).orElseThrow();
+    repo.jdbc().update("UPDATE menu_item SET price=price+9999 WHERE id=1");
+    service.updateSettings(admin, 300000, 15, 15, 15);
+    assertThat(repo.booking(id).orElseThrow()).isEqualTo(saved);
+  }
+
+  @Test
+  void missingQuoteReturnsConflictWithNewQuoteAndNoReservation() throws Exception {
+    mvc.perform(post("/api/bookings").with(user(customer.email()).roles("CUSTOMER")).with(csrf())
+        .contentType("application/json").content("""
+          {"startAt":"2026-09-22T18:00","guests":2,"tableIds":[1],"items":{"1":1},"notes":""}
+          """))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.quote.tableDeposit").value(100000))
+        .andExpect(jsonPath("$.quote.lines[0].menuItemId").value(1));
+    assertThat(repo.bookings(customer.id())).isEmpty();
+  }
+
+  @Test
+  void concurrentRequestsWithStalePricesCannotCreateBookings() throws Exception {
+    var reviewed = input(baseline.plusDays(1), 2, List.of(1L));
+    repo.jdbc().update("UPDATE menu_item SET price=price+10000 WHERE id=1");
+    try (var pool = Executors.newFixedThreadPool(2)) {
+      var start = new CountDownLatch(1);
+      Callable<Boolean> submit = () -> {
+        start.await();
+        try { service.create(customer, reviewed); return false; }
+        catch (BookingService.PriceChangedException expected) { return true; }
+      };
+      var a = pool.submit(submit);
+      var b = pool.submit(submit);
+      start.countDown();
+      assertThat(a.get(10, TimeUnit.SECONDS)).isTrue();
+      assertThat(b.get(10, TimeUnit.SECONDS)).isTrue();
+    }
+    assertThat(repo.bookings(customer.id())).isEmpty();
+  }
+
+  @Test
+  void restockingOrEditingSoldOutDishPreservesItsSaleConfiguration() throws Exception {
+    repo.jdbc().update("UPDATE menu_item SET stock_quantity=0,available=TRUE WHERE id=1");
+    var dish = repo.dishes().getFirst();
+    assertThat(dish.available()).isFalse();
+    assertThat(dish.saleEnabled()).isTrue();
+    String html = mvc.perform(get("/menu").with(user(admin.email()).roles("ADMIN")))
+        .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+    int checkbox = html.indexOf("name=\"available\"");
+    assertThat(html.substring(checkbox, html.indexOf('>', checkbox))).contains("checked");
+    String adminHtml = mvc.perform(get("/admin").with(user(admin.email()).roles("ADMIN")))
+        .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+    int adminCheckbox = adminHtml.indexOf("name=\"available\"");
+    assertThat(adminHtml.substring(adminCheckbox, adminHtml.indexOf('>', adminCheckbox))).contains("checked");
+    service.saveDish(admin, dish.id(), dish.name(), dish.description(), dish.category(), dish.price() + 1000, dish.saleEnabled());
+    assertThat(repo.dishes().getFirst().saleEnabled()).isTrue();
+    assertThatThrownBy(() -> takeaway.quote(Map.of(1L, 1))).hasMessageContaining("tạm hết");
+    mvc.perform(post("/admin/menu/1/stock").with(user(admin.email()).roles("ADMIN")).with(csrf())
+        .param("quantity", "10").param("threshold", "2").param("available", "true"))
+        .andExpect(status().is3xxRedirection());
+    assertThat(repo.dishes().getFirst().available()).isTrue();
+    service.updateStock(admin, 1, 10, 2, false);
+    assertThat(repo.dishes().getFirst().available()).isFalse();
+    assertThat(repo.dishes().getFirst().saleEnabled()).isFalse();
+    repo.jdbc().update("UPDATE menu_item SET stock_quantity=NULL,available=TRUE WHERE id=1");
+    assertThat(repo.dishes().getFirst().available()).isTrue();
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {3, 72, 73, 100, 150})
+  void fullRefundReferenceIsSavedWithoutOverflowingAudit(int length) {
+    String id = create(baseline.plusDays(1));
+    String attempt = UUID.randomUUID().toString().replace("-", "");
+    repo.jdbc().update("INSERT INTO payment_attempt(id,reservation_id,amount,created_at,status) VALUES(?,?,?,?,?)",
+        attempt, id, 100000, baseline, "EXTRA_REFUND_PENDING");
+    String reference = "R".repeat(length);
+    payments.recordExtraRefund(id, attempt, staff, reference);
+    assertThat(payments.attempts(id)).singleElement().satisfies(saved -> {
+      assertThat(saved.status()).isEqualTo("REFUNDED");
+      assertThat(saved.refundReference()).isEqualTo(reference);
+    });
+    assertThat(repo.jdbc().queryForObject("SELECT MAX(length(action)) FROM audit_event WHERE reservation_id=?",
+        Integer.class, id)).isLessThanOrEqualTo(100);
+    int count = repo.jdbc().queryForObject("SELECT COUNT(*) FROM audit_event WHERE reservation_id=?", Integer.class, id);
+    assertThatThrownBy(() -> payments.recordExtraRefund(id, attempt, staff, reference))
+        .hasMessageContaining("không cần hoàn");
+    assertThat(repo.jdbc().queryForObject("SELECT COUNT(*) FROM audit_event WHERE reservation_id=?", Integer.class, id))
+        .isEqualTo(count);
+  }
+
+  @Test
+  void refundRejectsInvalidReferenceWrongOwnerRoleOrStateWithoutChangingPayment() {
+    String id = create(baseline.plusDays(1));
+    String other = create(baseline.plusDays(2));
+    String attempt = UUID.randomUUID().toString().replace("-", "");
+    repo.jdbc().update("INSERT INTO payment_attempt(id,reservation_id,amount,created_at,status) VALUES(?,?,?,?,?)",
+        attempt, id, 100000, baseline, "EXTRA_REFUND_PENDING");
+    for (String reference : List.of("RR", "R".repeat(151)))
+      assertThatThrownBy(() -> payments.recordExtraRefund(id, attempt, staff, reference)).hasMessageContaining("150");
+    assertThatThrownBy(() -> payments.recordExtraRefund(other, attempt, staff, "BANK-123")).hasMessageContaining("không cần hoàn");
+    assertThatThrownBy(() -> payments.recordExtraRefund(id, attempt, customer, "BANK-123")).hasMessageContaining("nhân viên");
+    assertThat(payments.attempts(id).getFirst().status()).isEqualTo("EXTRA_REFUND_PENDING");
+    assertThat(payments.attempts(id).getFirst().refundReference()).isNull();
+    repo.jdbc().update("UPDATE payment_attempt SET status='PENDING' WHERE id=?", attempt);
+    assertThatThrownBy(() -> payments.recordExtraRefund(id, attempt, staff, "BANK-123")).hasMessageContaining("không cần hoàn");
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"--------", "        ", "123456789", "09012345678", "+840901234567", "090abc4567", "0000000000"})
+  void invalidTakeawayPhoneCannotCreateOrderOrDeductStock(String phone) throws Exception {
+    repo.jdbc().update("UPDATE menu_item SET stock_quantity=5 WHERE id=1");
+    long price = repo.dishes().getFirst().price();
+    mvc.perform(post("/api/takeaway-orders").with(user(customer.email()).roles("CUSTOMER")).with(csrf())
+        .contentType("application/json").content("""
+          {"customerName":"Khách hàng","phone":"%s","pickupAt":"2026-09-21T11:00",
+           "paymentMethod":"CASH","items":{"1":1},"expectedUnitPrices":{"1":%d}}
+          """.formatted(phone, price))).andExpect(status().isBadRequest());
+    assertThat(repo.takeawayOrders(customer.id())).isEmpty();
+    assertThat(repo.stockItems().getFirst().quantity()).isEqualTo(5);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"0901234567", "+84901234567", "+84 901 234 567", "(090) 123-4567"})
+  void validTakeawayPhoneIsNormalizedOnNewOrdersOnly(String phone) {
+    String original = customer.phone();
+    String id = takeaway.create(customer, takeawayInput("Khách hàng", phone, baseline.plusHours(1), "CASH", Map.of(1L, 1)));
+    assertThat(repo.takeaway(id).orElseThrow().customerPhone()).isEqualTo("0901234567");
+    assertThat(service.account(customer.email()).phone()).isEqualTo(original);
+  }
+
+  @Test
+  void bookingsRequireAtLeastFiveMinutesBeforeArrival() {
+    assertThatThrownBy(() -> create(baseline.plusMinutes(4))).hasMessageContaining("5 phút");
+    assertThat(create(baseline.plusMinutes(5))).isNotBlank();
+    assertThat(service.availability(baseline.plusMinutes(6), null, 2).options()).isNotEmpty();
   }
 
   private String signature(Map<String, String> params) throws Exception {

@@ -106,7 +106,8 @@ public class RestaurantRepository {
                 r.getString("category"),
                 r.getLong("price"),
                 r.getBoolean("available") && (stock == null || stock > 0),
-                r.getString("illustration"));
+                r.getString("illustration"),
+                r.getBoolean("available"));
   }
 
   public List<StockItem> stockItems() {
@@ -263,12 +264,15 @@ public class RestaurantRepository {
 
   public Set<Long> busyTableIds(LocalDateTime start, LocalDateTime end, LocalDateTime now, int cleanup, String exclude) {
     String sql = "SELECT DISTINCT rt.table_id FROM reservation b JOIN reservation_table rt ON rt.reservation_id=b.id"
-        + " WHERE (b.status='SEATED'"
+        + " WHERE ((b.status='SEATED' AND (b.start_at>=? AND b.start_at<? OR ?=?))"
         + " OR ((b.status='CONFIRMED' OR (b.status='PENDING' AND b.hold_until>?)) AND b.start_at>=? AND b.start_at<?)"
         + " OR (b.status='COMPLETED' AND b.released_at>?))";
     // No estimated duration: one unresolved reservation per table per service date.
-    // A seated party continues occupying its tables across midnight until staff finishes it.
-    List<Object> args = new ArrayList<>(List.of(now, start.toLocalDate().atStartOfDay(),
+    // Actual occupancy blocks today's availability, including parties seated before midnight.
+    // Future dates use only their own reservations. occupiedTableIds still protects check-in.
+    List<Object> args = new ArrayList<>(List.of(start.toLocalDate().atStartOfDay(),
+        start.toLocalDate().plusDays(1).atStartOfDay(), start.toLocalDate(), now.toLocalDate(),
+        now, start.toLocalDate().atStartOfDay(),
         start.toLocalDate().plusDays(1).atStartOfDay(), start.minusMinutes(cleanup)));
     if (exclude != null) { sql += " AND b.id<>?"; args.add(exclude); }
     return new HashSet<>(jdbc.queryForList(sql, Long.class, args.toArray()));

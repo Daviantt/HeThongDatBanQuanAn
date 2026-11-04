@@ -65,6 +65,8 @@ public class DemoPaymentService {
             .queryForList(
                 "SELECT token FROM demo_payment WHERE reservation_id=?", String.class, bookingId);
     if (!existing.isEmpty()) return existing.getFirst();
+    BookingService.require(booking.holdUntil().isAfter(bookings.now().plusSeconds(60)),
+        "Không còn đủ thời gian chờ 60 giây để mở QR demo mới. Vui lòng đặt lại với giờ đến muộn hơn.");
     String token = UUID.randomUUID().toString().replace("-", "");
     repo.jdbc()
         .update(

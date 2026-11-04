@@ -32,7 +32,7 @@
                 <form th:action="@{/admin/menu/{id}/stock(id=${stock.dish.id})}" method="post" class="stock-form">
                   <label>Số phần tồn<input name="quantity" type="number" min="0" max="100000" step="1" th:value="${stock.quantity}" placeholder="Nhập sau kiểm kê" required/></label>
                   <label>Ngưỡng cảnh báo<input name="threshold" type="number" min="0" max="10000" step="1" th:value="${stock.threshold}" required/></label>
-                  <label class="checkbox-label"><input name="available" type="checkbox" value="true" th:checked="${stock.dish.available}"/>Cho phép bán khi còn tồn</label>
+                  <label class="checkbox-label"><input name="available" type="checkbox" value="true" th:checked="${stock.dish.saleEnabled}"/>Cho phép bán khi còn tồn</label>
                   <button class="button small" type="submit">Lưu</button>
                 </form>
               </td>

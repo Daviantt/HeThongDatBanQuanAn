@@ -254,6 +254,8 @@ public class VnpayPaymentService {
             "UPDATE payment_attempt SET status='REFUNDED',refund_reference=? WHERE id=?",
             checked,
             attemptId);
-    repo.audit(bookingId, actor.email(), "Đã hoàn khoản cọc thu thêm: " + checked, bookings.now());
+    // The complete reference is stored in payment_attempt.refund_reference.
+    // Keep audit.action within its existing 100-character column.
+    repo.audit(bookingId, actor.email(), "Đã hoàn khoản cọc thu thêm; GD " + attemptId, bookings.now());
   }
 }

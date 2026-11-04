@@ -154,3 +154,62 @@ test('food deposit is twenty percent of the combined total rounded up to a whole
     assert.equal($('summary-deposit').textContent.replace(/[^0-9]/g,''),'104001');
   } finally {window.close();}
 });
+
+test('changed booking quote updates prices and promotion but waits for customer confirmation', async () => {
+  const { window, doc, $ } = setup();
+  const originalFetch = window.fetch;
+  const requests = [];
+  window.fetch = async (url, request) => {
+    if (url !== '/api/bookings') return originalFetch(url, request);
+    requests.push(JSON.parse(request.body));
+    if (requests.length > 1) return { ok: false, status: 400, json: async () => ({ error: 'Dừng sau kiểm tra payload' }) };
+    return { ok: false, status: 409, json: async () => ({
+      error: 'Giá món, tiền cọc hoặc khuyến mãi đã thay đổi. Vui lòng xem báo giá mới và xác nhận lại.',
+      quote: {
+        lines: [{ menuItemId: 1, itemName: 'Bò giá mới', unitPrice: 200000, quantity: 1 }],
+        promotion: { enabled: true, minimumGuests: 2, discountPercent: 10 },
+        discountPercent: 10, tableDeposit: 200000, foodTotal: 200000,
+        discount: 20000, foodDeposit: 36000, deposit: 236000,
+      },
+    }) };
+  };
+  try {
+    Object.assign($('booking-promotion').dataset, { enabled: 'false', minimumGuests: '4', percent: '10' });
+    $('guests').innerHTML = '<option value="2">2</option>';
+    $('visit-date').value = '2026-10-01';
+    const search = new window.Event('submit', { cancelable: true });
+    Object.defineProperty(search, 'submitter', { value: doc.querySelector('#availability-form button') });
+    $('availability-form').dispatchEvent(search);
+    await settle();
+    doc.querySelector('.table-seat').click();
+    const input = doc.querySelector('.dish-quantity');
+    input.value = '1'; input.dispatchEvent(new window.Event('input'));
+    $('booking-notes').value = 'Không cay';
+    $('accept-policy').checked = true;
+    $('accept-policy').dispatchEvent(new window.Event('change'));
+    $('create-booking').click();
+    await settle();
+    assert.equal(requests.length, 1, 'no automatic second submission');
+    assert.deepEqual(requests[0].expectedUnitPrices, { '1': 189000 });
+    assert.equal(requests[0].expectedTableDeposit, 100000);
+    assert.equal(input.value, '1');
+    assert.equal($('booking-notes').value, 'Không cay');
+    assert.equal($('selected-label').textContent, 'B01');
+    assert.equal($('summary-deposit').textContent, '236.000 ₫');
+    assert.equal(doc.querySelector('.preorder-price').textContent, '200.000 ₫');
+    assert.equal($('booking-promotion').hidden, false);
+    assert.equal($('accept-policy').checked, false);
+    assert.equal($('create-booking').disabled, true);
+    assert.match($('create-booking').textContent, /Xác nhận giá mới/);
+    assert.match($('booking-error').textContent, /xác nhận lại/);
+    $('accept-policy').checked = true;
+    $('accept-policy').dispatchEvent(new window.Event('change'));
+    $('create-booking').click();
+    await settle();
+    assert.equal(requests.length, 2);
+    assert.deepEqual(requests[1].expectedUnitPrices, { '1': 200000 });
+    assert.equal(requests[1].expectedTableDeposit, 200000);
+    assert.equal(requests[1].expectedDiscountPercent, 10);
+    assert.equal(requests[1].notes, 'Không cay');
+  } finally { window.close(); }
+});
