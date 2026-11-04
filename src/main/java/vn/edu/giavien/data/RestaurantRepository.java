@@ -178,7 +178,7 @@ public class RestaurantRepository {
   public void insertTakeaway(TakeawayOrder order) {
     jdbc.update("INSERT INTO takeaway_order(id,user_id,customer_name,customer_phone,pickup_at,total,payment_method,status,created_at,paid_at,payment_reference) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
         order.id(), order.userId(), order.customerName(), order.customerPhone(), order.pickupAt(), order.total(), order.paymentMethod(), order.status().name(), order.createdAt(), order.paidAt(), order.paymentReference());
-    order.lines().forEach(line -> jdbc.update("INSERT INTO takeaway_order_line VALUES(?,?,?,?,?)", order.id(), line.menuItemId(), line.itemName(), line.unitPrice(), line.quantity()));
+    order.lines().forEach(line -> jdbc.update("INSERT INTO takeaway_order_line(order_id,menu_item_id,item_name,unit_price,quantity) VALUES(?,?,?,?,?)", order.id(), line.menuItemId(), line.itemName(), line.unitPrice(), line.quantity()));
   }
 
   public List<Long> tableIds(String id) {

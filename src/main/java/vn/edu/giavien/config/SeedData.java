@@ -10,6 +10,7 @@ import vn.edu.giavien.data.RestaurantRepository;
 import vn.edu.giavien.domain.FloorPlan;
 
 @Component
+@org.springframework.core.annotation.Order(0)
 public class SeedData implements CommandLineRunner {
   private final RestaurantRepository repo;
   private final PasswordEncoder passwords;

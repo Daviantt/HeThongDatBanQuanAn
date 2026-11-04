@@ -1,0 +1,8 @@
+{
+  "name": "giavien-ui-tests",
+  "private": true,
+  "version": "0.1.0",
+  "engines": { "node": "24.14.0" },
+  "scripts": { "test": "node --test src/test/js/*.test.cjs" },
+  "devDependencies": { "jsdom": "29.1.1" }
+}

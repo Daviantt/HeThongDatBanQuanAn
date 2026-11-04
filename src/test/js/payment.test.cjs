@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { JSDOM } = require('../../../.tools/ui-test/node_modules/jsdom');
+const { JSDOM } = require('jsdom');
 const script = fs.readFileSync(path.resolve(__dirname, '../../main/resources/static/js/payment.js'), 'utf8');
 
 function page(fetch) {

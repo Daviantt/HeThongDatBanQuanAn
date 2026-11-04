@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { JSDOM } = require('../../../.tools/ui-test/node_modules/jsdom');
+const { JSDOM } = require('jsdom');
 const script = fs.readFileSync(path.resolve(__dirname, '../../main/resources/static/js/demo-payment.js'), 'utf8');
 function page(fetch) {
   const dom = new JSDOM('<section id="demo-checkout" data-state="WAITING" data-status-url="/payment/demo/token/status"><div id="demo-qr"></div><p id="demo-message"></p><form id="demo-confirm"><button id="demo-pay-button" disabled></button></form></section>', {runScripts:'outside-only'});

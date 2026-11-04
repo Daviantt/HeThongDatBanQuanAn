@@ -11,7 +11,7 @@ Mở PowerShell trong thư mục dự án:
 .\run.ps1
 ```
 
-Hệ thống chỉ sử dụng **PostgreSQL 18 trong Docker**, tại `127.0.0.1:15432`, tên database/user `giavien`. Bật Docker Desktop trước. Máy mới chạy `.\database.ps1 -Init` một lần để tạo mật khẩu riêng, sau đó `-Start`. Máy hiện tại đã có cấu hình và dữ liệu, chỉ cần `-Start` rồi chạy ứng dụng. [Hướng dẫn PostgreSQL, kiểm thử, sao lưu và xem bằng pgAdmin](docs/postgresql.md).
+Hệ thống chỉ sử dụng **PostgreSQL 18 trong Docker**, tại `127.0.0.1:15432`, tên database/user `giavien`. Bật Docker Desktop trước. Máy mới chạy `.\database.ps1 -Init` một lần để tạo mật khẩu riêng, sau đó `-Start`. Máy đã có cấu hình chỉ cần `-Start` rồi chạy ứng dụng. Cấu hình và dữ liệu trên máy người khác không được tải về cùng Git. [Hướng dẫn Docker cho người mới](docs/docker-bat-dau.md) · [Hướng dẫn PostgreSQL, kiểm thử, sao lưu và xem bằng pgAdmin](docs/postgresql.md).
 
 Truy cập **http://localhost:8080**. Dừng bằng `Ctrl+C` tại terminal đang chạy.
 
@@ -57,7 +57,7 @@ Khi khởi động lại với profile `demo`, hệ thống chuyển tài khoả
 - Tài khoản nhân viên/quản lý chỉ dùng thực đơn vận hành, xử lý đơn và quản lý quán; không có đặt bàn/lịch hẹn cá nhân. Sau đăng nhập chuyển tới `/staff`.
 - Trang vận hành có cột **Tổng tiền**: tiền món đặt trước sau khuyến mãi, hiển thị riêng tiền cọc (cọc là khoản trả trước, không cộng thêm vào giá món).
 - Quản lý cấu hình **khuyến mãi theo nhóm** trên `/admin`: bật/tắt, số khách tối thiểu và phần trăm giảm tiền món. Mặc định tắt; mỗi lượt đặt lưu chính sách tại lúc tạo. Cọc món tính bằng 20% tiền món sau giảm, cọc giữ bàn không đổi.
-- Thực đơn nhân viên chỉ cho xem số phần tồn, ngưỡng cảnh báo, món sắp hết/hết và món chưa nhập tồn. Chỉ quản lý được cập nhật số tồn, ngưỡng cảnh báo và tình trạng bán trong trang **Thực đơn**. Tồn cập nhật thủ công, hiện chưa tự trừ theo đơn. Tồn bằng 0 chặn nhận món mới.
+- Thực đơn nhân viên chỉ cho xem số phần tồn, ngưỡng cảnh báo, món sắp hết/hết và món chưa nhập tồn. Chỉ quản lý được cập nhật số tồn, ngưỡng cảnh báo và tình trạng bán trong trang **Thực đơn**. Đơn mang về trừ tồn khi tạo đơn CASH hoặc xác nhận thanh toán TRANSFER; hủy trước khi bắt đầu làm hoàn đúng phần đã trừ, một lần. Đơn đã làm và đơn cũ chưa có dấu vết khấu trừ không tự hoàn tồn. Tồn bằng 0 chặn nhận món mới. [Quy tắc hoàn tồn](docs/van-hanh-va-ci.md).
 - Dữ liệu lưu trong PostgreSQL, được giữ qua các lần tắt/mở container nhờ volume `giavien_postgres_data`. Ứng dụng và kiểm thử chỉ dùng PostgreSQL; các bản sao lưu database cũ được giữ để đối chiếu lịch sử. Có thể đổi kết nối PostgreSQL bằng `DATABASE_URL`, `DATABASE_USER`, `DATABASE_PASSWORD`.
 
 Tên hiển thị là **GiaViên**; package Java là `vn.edu.giavien`, file khởi động là `GiaVienApplication.java`, giao diện dùng `giavien.css` và `giavien.js`. `run.ps1` và `setup.ps1` giữ tên theo chức năng. Tài khoản demo dùng email GiaViên theo bảng hướng dẫn ở trên.
@@ -172,8 +172,10 @@ JAR sau đóng gói: `target/giavien-restaurant-0.1.0.jar`. Chạy bằng `java 
 Kiểm thử JavaScript cho chuyển tầng, QR demo và kết quả VNPAY (cần Node.js):
 
 ```powershell
-npm.cmd install --prefix .tools/ui-test --no-audit --no-fund jsdom@29.1.1
-node --test src/test/js/*.test.cjs
+npm.cmd ci --ignore-scripts --no-audit --no-fund
+npm.cmd test
 ```
+
+Node được cố định tại `24.14.0` trong `.nvmrc`; dependency JS được khóa bằng `package-lock.json`. Workflow GitHub Actions chạy Java/PostgreSQL, JavaScript và smoke test JAR qua hai lần khởi động. H2 chỉ dùng ở test scope làm nguồn fixture legacy, không là database chạy ứng dụng. Xem [CI, khởi tạo quản trị viên ngoài demo và hoàn tồn](docs/van-hanh-va-ci.md).
 
 Demo gợi ý: đăng nhập khách → ngày mai, 18:00–20:00, 9 người → B01+B02+B03 → chọn món → cọc 300.000đ → thanh toán demo → gửi yêu cầu đổi giờ → đăng nhập nhân viên xử lý → khách hủy → nhân viên ghi nhận hoàn cọc.

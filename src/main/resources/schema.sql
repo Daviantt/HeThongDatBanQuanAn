@@ -1,5 +1,7 @@
+-- Serialize startup DDL for instances sharing a schema. ScriptUtils uses one connection.
+SELECT pg_advisory_lock(hashtextextended(current_database() || ':' || current_schema(), 0));
 CREATE TABLE IF NOT EXISTS app_lock (id INT PRIMARY KEY);
-INSERT INTO app_lock(id) SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM app_lock WHERE id=1);
+INSERT INTO app_lock(id) VALUES (1) ON CONFLICT (id) DO NOTHING;
 CREATE TABLE IF NOT EXISTS restaurant_settings (
  id INT PRIMARY KEY, deposit_per_table BIGINT NOT NULL, hold_minutes INT NOT NULL,
  cleanup_minutes INT NOT NULL, open_hour INT NOT NULL, close_hour INT NOT NULL, grace_minutes INT NOT NULL
@@ -100,3 +102,7 @@ CREATE TABLE IF NOT EXISTS takeaway_demo_payment (
  token VARCHAR(32) PRIMARY KEY, order_id VARCHAR(36) NOT NULL UNIQUE REFERENCES takeaway_order(id),
  created_at TIMESTAMP NOT NULL
 );
+-- Existing orders have no proven deduction: never infer stock from historical status.
+ALTER TABLE takeaway_order_line ADD COLUMN IF NOT EXISTS stock_deducted INT NOT NULL DEFAULT 0 CHECK (stock_deducted >= 0 AND stock_deducted <= quantity);
+ALTER TABLE takeaway_order_line ADD COLUMN IF NOT EXISTS stock_returned BOOLEAN NOT NULL DEFAULT FALSE;
+SELECT pg_advisory_unlock(hashtextextended(current_database() || ':' || current_schema(), 0));

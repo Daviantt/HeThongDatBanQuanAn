@@ -6,6 +6,8 @@
   <name>GiaVien Restaurant</name><description>He thong dat ban va dat mon truoc</description>
   <properties><java.version>21</java.version></properties>
   <dependencies>
+    <!-- Legacy source fixture only; application and integration-test targets use PostgreSQL. -->
+    <dependency><groupId>com.h2database</groupId><artifactId>h2</artifactId><scope>test</scope></dependency>
     <dependency><groupId>com.google.zxing</groupId><artifactId>core</artifactId><version>3.5.3</version></dependency>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-webmvc</artifactId></dependency>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-thymeleaf</artifactId></dependency>

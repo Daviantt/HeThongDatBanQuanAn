@@ -30,6 +30,7 @@
         <p th:if="${order.awaitingPayment() and !demoPaymentEnabled}" class="notice warning">Chuyển khoản demo hiện không khả dụng. Vui lòng liên hệ quán để hủy đơn và đặt lại bằng tiền mặt.</p>
         <div th:if="${isStaff}" class="takeaway-actions">
           <h2>Xử lý đơn</h2>
+          <p class="helper">Hủy trước khi bắt đầu làm sẽ hoàn phần tồn đã ghi nhận trừ. Đơn đã bắt đầu làm không tự hoàn tồn; hoàn tiền được ghi nhận riêng.</p>
           <form th:if="${order.status.name() == 'WAITING_CONFIRMATION' and !order.awaitingPayment()}" th:action="@{/staff/takeaway-orders/{id}/action(id=${order.id})}" method="post">
             <input type="hidden" name="action" value="prepare"/><button class="button" type="submit">Xác nhận đơn và bắt đầu làm</button>
           </form>

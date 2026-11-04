@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { JSDOM } = require('../../../.tools/ui-test/node_modules/jsdom');
+const { JSDOM } = require('jsdom');
 const root = path.resolve(__dirname, '../../..');
 const settle = () => new Promise(resolve => setImmediate(resolve));
 function setup() {

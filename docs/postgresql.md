@@ -1,6 +1,6 @@
 # PostgreSQL cho hệ thống GiaViên
 
-Ứng dụng và toàn bộ kiểm thử tích hợp chỉ sử dụng PostgreSQL. Dependency, profile dự phòng, mã đọc/chuyển database cũ và kiểm thử migration đã được gỡ. Các bản sao lưu cũ được giữ nguyên để đối chiếu lịch sử; dự án không đọc các file này khi chạy.
+Ứng dụng và đích của toàn bộ kiểm thử tích hợp sử dụng PostgreSQL. Không có profile dự phòng hoặc công cụ chuyển database cũ trong ứng dụng. H2 chỉ là dependency test để tạo fixture legacy cho kiểm tra import/identity; không đóng gói vào JAR. Các bản sao lưu cũ được giữ nguyên để đối chiếu lịch sử; dự án không đọc các file này khi chạy. Xem [CI, quản trị viên ngoài demo và hoàn tồn](van-hanh-va-ci.md).
 
 ## Kết nối trên máy này
 

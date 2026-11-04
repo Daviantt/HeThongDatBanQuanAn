@@ -57,7 +57,7 @@ class StatisticsIntegrationTest extends DatabaseIntegrationTest {
           payment_method,status,created_at,completed_at)
         VALUES(?,?,'Khách thử','0901234567',?,?,'CASH',?,?,?)
         """, id, user, completed.minusDays(1), quantity * 1000L, status, completed.minusDays(2), completed);
-    repo.jdbc().update("INSERT INTO takeaway_order_line VALUES(?,1,'Tên món tại lúc đặt',1000,?)", id, quantity);
+    repo.jdbc().update("INSERT INTO takeaway_order_line(order_id,menu_item_id,item_name,unit_price,quantity) VALUES(?,1,'Tên món tại lúc đặt',1000,?)", id, quantity);
     return id;
   }
 

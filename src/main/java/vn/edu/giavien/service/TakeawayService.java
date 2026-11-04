@@ -102,7 +102,7 @@ public class TakeawayService {
     repo.insertTakeaway(new TakeawayOrder(id, actor.id(), name, phone, input.pickupAt(), quote.total(), method,
         TakeawayStatus.WAITING_CONFIRMATION,
         now, null, null, null, quote.lines()));
-    if (method.equals("CASH")) deductStock(quote.lines());
+    if (method.equals("CASH")) deductStock(id, quote.lines());
     return id;
   }
 
@@ -162,19 +162,39 @@ public class TakeawayService {
         bookings.now(), "DEMO-TL-" + token, state.orderId(), bookings.now());
     if (changed == 0)
       throw new IllegalArgumentException("Đơn không còn chờ thanh toán chuyển khoản.");
-    if (changed == 1) deductStock(repo.takeawayLines(state.orderId()));
+    if (changed == 1) deductStock(state.orderId(), repo.takeawayLines(state.orderId()));
   }
 
-  private void deductStock(List<OrderLine> lines) {
+  private void deductStock(String orderId, List<OrderLine> lines) {
     // Lock dishes in a consistent order across orders. A shortage rolls back both
     // order creation/payment and every stock change in the surrounding transaction.
     for (OrderLine line : lines.stream().sorted(Comparator.comparingLong(OrderLine::menuItemId)).toList()) {
-      int changed = repo.jdbc().update(
+      var remaining = repo.jdbc().query(
           "UPDATE menu_item SET stock_quantity=stock_quantity-? WHERE id=?"
-              + " AND (stock_quantity IS NULL OR stock_quantity>=?)",
+              + " AND (stock_quantity IS NULL OR stock_quantity>=?) RETURNING stock_quantity",
+          (row, index) -> row.getObject("stock_quantity", Integer.class),
           line.quantity(), line.menuItemId(), line.quantity());
-      BookingService.require(changed == 1,
+      BookingService.require(remaining.size() == 1,
           "Món " + line.itemName() + " không đủ số phần tồn để xác nhận đơn. Vui lòng liên hệ nhà hàng.");
+      if (remaining.getFirst() != null) {
+        repo.jdbc().update("UPDATE takeaway_order_line SET stock_deducted=? WHERE order_id=? AND menu_item_id=?",
+            line.quantity(), orderId, line.menuItemId());
+      }
+    }
+  }
+
+  private void returnStock(String orderId) {
+    // Caller holds the order lock. Use the same dish lock order as payment/creation.
+    var deductions = repo.jdbc().query(
+        "SELECT menu_item_id,stock_deducted FROM takeaway_order_line"
+            + " WHERE order_id=? AND stock_deducted>0 AND stock_returned=FALSE ORDER BY menu_item_id",
+        (row, index) -> new long[] {row.getLong("menu_item_id"), row.getInt("stock_deducted")}, orderId);
+    for (var deduction : deductions) {
+      // NULL stays NULL if stock management was disabled since purchase.
+      repo.jdbc().update("UPDATE menu_item SET stock_quantity=stock_quantity+? WHERE id=?",
+          deduction[1], deduction[0]);
+      repo.jdbc().update("UPDATE takeaway_order_line SET stock_returned=TRUE WHERE order_id=? AND menu_item_id=?",
+          orderId, deduction[0]);
     }
   }
 
@@ -219,6 +239,7 @@ public class TakeawayService {
       case "cancel" -> {
         BookingService.require(Set.of(TakeawayStatus.WAITING_CONFIRMATION,
             TakeawayStatus.PREPARING, TakeawayStatus.READY).contains(order.status()), "Không thể hủy đơn ở trạng thái này.");
+        if (order.status() == TakeawayStatus.WAITING_CONFIRMATION) returnStock(id);
         next = order.paidAt() == null ? TakeawayStatus.CANCELLED : TakeawayStatus.REFUND_PENDING;
       }
       case "refund" -> {

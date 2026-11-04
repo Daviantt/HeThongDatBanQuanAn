@@ -4,7 +4,7 @@ GiaViên có hai tầng: B01–B09 ở tầng 1 quanh vườn, B11–B20 ở t�
 
 Tổng cọc = số bàn × cọc mỗi bàn + 20% giá trị món đặt trước. Phần cọc món tính trên tổng giá trị các món rồi làm tròn lên đến 1 đồng. `reservation.deposit` lưu tổng cọc, `food_deposit` lưu phần tiền món trả trước; phần cọc bàn là hiệu của hai số này. Mặc định `food_deposit=0` bảo toàn số tiền của lượt đặt cũ. Sửa món chưa thanh toán cập nhật tổng cọc và thu hồi QR cũ khi số tiền đổi; chặn thay đổi số tiền sau khi mở giao dịch VNPAY. Sửa món sau thanh toán giữ nguyên khoản đã trả để đối trừ hóa đơn tại quán. Chính sách hoàn cọc 3 tiếng áp dụng cho toàn bộ tổng cọc.
 
-Backend dùng Spring JDBC để lưu dữ liệu nghiệp vụ vào H2 dạng file. Trình duyệt không lưu nghiệp vụ trong `localStorage`; cookie phiên đăng nhập tham chiếu tới phiên trên server. URL QR dùng địa chỉ LAN cho điện thoại; các liên kết thao tác trên máy tính giữ cùng host để không chuyển sang phiên đăng nhập khác.
+Backend dùng Spring JDBC để lưu dữ liệu nghiệp vụ vào PostgreSQL 18 chạy trong Docker; dữ liệu được giữ trong volume `giavien_postgres_data`. Ứng dụng Java chạy trực tiếp trên máy và kết nối database qua `127.0.0.1:15432`. Xem [hướng dẫn Docker](docker-bat-dau.md) và [cấu hình PostgreSQL](postgresql.md). Trình duyệt không lưu nghiệp vụ trong `localStorage`; cookie phiên đăng nhập tham chiếu tới phiên trên server. URL QR dùng địa chỉ LAN cho điện thoại; các liên kết thao tác trên máy tính giữ cùng host để không chuyển sang phiên đăng nhập khác.
 
 ## Tác nhân và use case
 
